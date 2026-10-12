@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { transactions, categories } from '../../db/mockData'
+import { categories } from '../../db/mockData'
+import { useTransactions } from '../../context/useTransactions'
 import { getQuincenaRange, parseDate } from '../../lib/dates'
 import { formatMoney, sum } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
@@ -15,6 +16,7 @@ export default function HomeScreen() {
   const locale = lang === 'es' ? 'es-CR' : 'en-US'
 
   const { start, end } = getQuincenaRange()
+  const { transactions } = useTransactions()
   const current = transactions.filter((tx) => {
     const date = parseDate(tx.date)
     return date >= start && date <= end

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { transactions } from '../../db/mockData'
+import { useTransactions } from '../../context/useTransactions'
 import { getSpendingBars } from '../../lib/stats'
 import { formatMoney } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
@@ -11,6 +11,7 @@ export default function StatisticsScreen() {
   const locale = lang === 'es' ? 'es-CR' : 'en-US'
   const [period, setPeriod] = useState('week')
   const [currency, setCurrency] = useState('CRC')
+  const { transactions } = useTransactions()
 
   const bars = getSpendingBars(transactions, currency, period, new Date(), locale)
   const recent = transactions
