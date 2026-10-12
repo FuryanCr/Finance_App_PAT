@@ -520,6 +520,12 @@ main {
   margin-top: 12px;
 }
 
+/* Sugerencias de nota: pegadas al campo y con aire antes de la fecha */
+.suggestions {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
 .amount-label {
   margin-top: 16px;
 }

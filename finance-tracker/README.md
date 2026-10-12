@@ -7,8 +7,8 @@ A personal finance tracker built with React. Quincena helps you follow your inco
 
 - Income, expenses and remaining balance for the current pay period
 - "Safe to spend per day": what is left this pay period, minus recurring bills that are still due, divided by the days remaining
-- Add expenses and income with a numeric keypad, in colones or dollars
-- Edit or delete any transaction by tapping it
+- Add expenses and income with a numeric keypad, in colones or dollars, with note suggestions from past entries
+- Edit or delete any transaction by tapping it, or repeat it as a new entry with today's date
 - Custom expense categories: name your own and reuse them
 - Spending statistics by time period and currency, plus a comparison of past quincenas
 - Monthly history: balance, income and spent per currency, with transactions grouped by day, plus search and filters by text, type and category
@@ -191,3 +191,4 @@ Newest first.
 - One tab at a time, persistent storage request, backup reminder and a loading message
 - Tests for migrations and the storage layer
 - Dashboard: the day count stays current overnight, a currency with only pending bills is shown, and later-dated expenses are flagged
+- Note suggestions and "Repeat today"

@@ -10,6 +10,7 @@ import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { currencies } from '../../lib/money'
 import { readPref, writePref } from '../../lib/prefs'
+import { suggestNotes } from '../../lib/suggest'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
@@ -30,6 +31,14 @@ function lastCategoryId(categories) {
   return categories.some((c) => c.id === saved) ? saved : categories[0].id
 }
 
+// An entry to repeat, passed in the route state; anything malformed is ignored
+function validRepeat(value) {
+  if (!value || typeof value !== 'object') return null
+  if (value.type !== 'income' && value.type !== 'expense') return null
+  if (!currencies.some((c) => c.code === value.currency)) return null
+  return value
+}
+
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
   const { t } = useSettings()
@@ -48,22 +57,31 @@ export default function AddExpenseScreen() {
 
   const editing = id ? transactions.find((tx) => tx.id === Number(id)) : null
   const backTo = location.state?.from ?? '/history'
+  // only when adding: the entry being repeated, which beats prefs and ?type=
+  const repeat = editing || id ? null : validRepeat(location.state?.repeat)
+  const source = editing ?? repeat
 
   const [type, setType] = useState(
-    editing?.type ?? (params.get('type') === 'income' ? 'income' : 'expense'),
+    source?.type ?? (params.get('type') === 'income' ? 'income' : 'expense'),
   )
   const [currency, setCurrency] = useState(() =>
-    editing ? editing.currency : lastCurrency(),
+    source ? source.currency : lastCurrency(),
   )
-  const [amountText, setAmountText] = useState(
-    editing ? String(editing.amount) : '',
+  const [amountText, setAmountText] = useState(() =>
+    source && Number.isFinite(source.amount) ? String(source.amount) : '',
   )
   // categoryId is null while a custom category is being typed
-  const [categoryId, setCategoryId] = useState(() =>
-    editing ? (editing.categoryId ?? categories[0].id) : lastCategoryId(categories),
-  )
+  const [categoryId, setCategoryId] = useState(() => {
+    if (editing) return editing.categoryId ?? categories[0].id
+    if (repeat && categories.some((c) => c.id === repeat.categoryId)) {
+      return repeat.categoryId
+    }
+    return lastCategoryId(categories)
+  })
   const [customName, setCustomName] = useState('')
-  const [note, setNote] = useState(editing?.note ?? '')
+  const [note, setNote] = useState(
+    typeof source?.note === 'string' ? source.note : '',
+  )
   const [date, setDate] = useState(editing?.date ?? todayString)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
@@ -71,6 +89,7 @@ export default function AddExpenseScreen() {
   // the id in the address does not exist, or was just deleted: go back
   if (id && !editing) return <Navigate to={backTo} replace />
 
+  const suggestions = suggestNotes(transactions, note, type)
   const amount = parseFloat(amountText) || 0
   const { symbol } = currencies.find((c) => c.code === currency)
   const isCustom = type === 'expense' && categoryId === null
@@ -124,6 +143,18 @@ export default function AddExpenseScreen() {
       console.error(error)
       setSaving(false)
       setSaveError(true)
+    }
+  }
+
+  const handleRepeat = () => {
+    if (saving) return
+    navigate('/add', { state: { repeat: editing } })
+  }
+
+  const applySuggestion = (suggestion) => {
+    setNote(suggestion.note)
+    if (type === 'expense' && categories.some((c) => c.id === suggestion.categoryId)) {
+      setCategoryId(suggestion.categoryId)
     }
   }
 
@@ -216,6 +247,20 @@ export default function AddExpenseScreen() {
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
+        {suggestions.length > 0 && (
+          <div className="pill-group wrap suggestions">
+            {suggestions.map((s) => (
+              <button
+                key={s.note}
+                type="button"
+                className="pill"
+                onClick={() => applySuggestion(s)}
+              >
+                {s.note}
+              </button>
+            ))}
+          </div>
+        )}
         <label className="field">
           <span className="label">{t('date')}</span>
           <input
@@ -240,6 +285,17 @@ export default function AddExpenseScreen() {
       >
         {t('save')}
       </button>
+
+      {editing && (
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={saving}
+          onClick={handleRepeat}
+        >
+          {t('repeatToday')}
+        </button>
+      )}
 
       {editing && (
         <button type="button" className="btn danger" onClick={handleDelete}>
