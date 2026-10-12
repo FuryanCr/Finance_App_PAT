@@ -521,7 +521,7 @@ main {
 }
 
 /* Sugerencias de nota: pegadas al campo y con aire antes de la fecha */
-.suggestions {
+.pill-group.suggestions {
   margin-top: 0;
   margin-bottom: 14px;
 }

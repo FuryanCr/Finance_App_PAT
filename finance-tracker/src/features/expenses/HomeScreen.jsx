@@ -179,7 +179,7 @@ export default function HomeScreen() {
         )
       })}
 
-      {current.length === 0 && (
+      {shown.length === 0 && (
         <section className="card">
           <p className="sub empty">
             {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
@@ -238,7 +238,7 @@ export default function HomeScreen() {
         </section>
       )}
 
-      {transactions.length > 0 && isBackupDue(readPref('lastBackup')) && (
+      {transactions.length > 0 && isBackupDue(readPref('lastBackup'), today) && (
         <section className="card">
           <p className="sub">{t('backupReminder')}</p>
           <div className="actions">

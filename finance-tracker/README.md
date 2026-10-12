@@ -122,9 +122,11 @@ src/
   db/migrations.js    Schema migrations
   db/mockData.js      Built-in categories and optional sample transactions
   db/storage.js       Reads and writes data (SQLite)
+  db/tabLock.js       Allows only one open tab at a time
+  db/testDb.js        In-memory SQLite used by the tests
   features/expenses/  Expense screens (home, add and edit, statistics, history)
   features/settings/  Settings, category, budget and recurring screens
-  lib/                Date, money, category, CSV, statistics and translation helpers
+  lib/                Date, money, category, CSV, backup, search, suggestion, statistics and translation helpers
   App.jsx             Routes and page layout
   Header.jsx          App title
   index.css           All styles
