@@ -15,7 +15,7 @@ export default function App() {
       <TransactionsProvider>
         <BrowserRouter>
           <SettingsBar />
-          <Header lang="en" onToggleLang={() => {}} dark={false} onToggleDark={() => {}} />
+          <Header />
           <BottomNav />
           <main>
             <Routes>

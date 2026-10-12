@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { categories } from '../../db/mockData'
+import { categoryLabel } from '../../lib/categories'
+import { currencies } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import Keypad from '../../components/Keypad'
@@ -14,19 +15,23 @@ function todayString() {
 
 export default function AddExpenseScreen() {
   const { t } = useSettings()
-  const { addTransaction } = useTransactions()
+  const { addTransaction, categories, addCategory } = useTransactions()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
 
   const type = params.get('type') === 'income' ? 'income' : 'expense'
   const [currency, setCurrency] = useState('CRC')
   const [amountText, setAmountText] = useState('')
+  // categoryId is null while a custom category is being typed
   const [categoryId, setCategoryId] = useState(categories[0].id)
+  const [customName, setCustomName] = useState('')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(todayString)
 
   const amount = parseFloat(amountText) || 0
-  const symbol = currency === 'USD' ? '$' : '₡'
+  const isCustom = type === 'expense' && categoryId === null
+  const canSave = amount > 0 && (!isCustom || customName.trim() !== '')
+  const { symbol } = currencies.find((c) => c.code === currency)
 
   const handleKey = (key) => {
     setAmountText((text) => {
@@ -43,16 +48,19 @@ export default function AddExpenseScreen() {
   }
 
   const handleSave = () => {
-    if (amount <= 0) return
+    if (!canSave) return
     const category = categories.find((c) => c.id === categoryId)
-    const defaultNote =
-      type === 'expense' ? t(`category.${category.key}`) : t('typeIncome')
+    const categoryName = isCustom
+      ? customName.trim()
+      : categoryLabel(category, t)
+    const defaultNote = type === 'expense' ? categoryName : t('typeIncome')
+    const savedCategoryId = isCustom ? addCategory(categoryName) : categoryId
 
     addTransaction({
       amount,
       currency,
       type,
-      categoryId: type === 'expense' ? categoryId : null,
+      categoryId: type === 'expense' ? savedCategoryId : null,
       note: note.trim() || defaultNote,
       date,
     })
@@ -80,7 +88,7 @@ export default function AddExpenseScreen() {
 
       <section className="card">
         <div className="pill-group">
-          {['CRC', 'USD'].map((code) => (
+          {currencies.map(({ code }) => (
             <button
               key={code}
               type="button"
@@ -110,10 +118,28 @@ export default function AddExpenseScreen() {
                 className={categoryId === c.id ? 'pill active' : 'pill'}
                 onClick={() => setCategoryId(c.id)}
               >
-                {t(`category.${c.key}`)}
+                {categoryLabel(c, t)}
               </button>
             ))}
+            <button
+              type="button"
+              className={isCustom ? 'pill active' : 'pill'}
+              onClick={() => setCategoryId(null)}
+            >
+              + {t('customCategory')}
+            </button>
           </div>
+          {isCustom && (
+            <label className="field">
+              <span className="label">{t('categoryName')}</span>
+              <input
+                type="text"
+                value={customName}
+                maxLength={24}
+                onChange={(e) => setCustomName(e.target.value)}
+              />
+            </label>
+          )}
         </section>
       )}
 
@@ -140,7 +166,7 @@ export default function AddExpenseScreen() {
       <button
         type="button"
         className="btn"
-        disabled={amount <= 0}
+        disabled={!canSave}
         onClick={handleSave}
       >
         {t('save')}

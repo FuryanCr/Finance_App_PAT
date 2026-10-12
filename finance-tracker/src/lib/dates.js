@@ -14,6 +14,10 @@ export function getQuincenaRange(date = new Date()) {
   }
 }
 
+export function isSameMonth(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+}
+
 // Parses 'YYYY-MM-DD' as a local date (avoids timezone shifts)
 export function parseDate(value) {
   return new Date(`${value}T00:00:00`)

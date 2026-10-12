@@ -1,5 +1,5 @@
 import { sum } from './money'
-import { parseDate } from './dates'
+import { isSameMonth, parseDate } from './dates'
 
 export function getSpendingBars(
   transactions,
@@ -37,13 +37,7 @@ export function getSpendingBars(
       const m = new Date(today.getFullYear(), today.getMonth() - i, 1)
       const total = sum(
         expenses
-          .filter((t) => {
-            const d = parseDate(t.date)
-            return (
-              d.getFullYear() === m.getFullYear() &&
-              d.getMonth() === m.getMonth()
-            )
-          })
+          .filter((t) => isSameMonth(parseDate(t.date), m))
           .map((t) => t.amount),
       )
       bars.push({

@@ -21,9 +21,12 @@ export default function SettingsProvider({ children }) {
   }, [theme])
 
   const t = (key) => translations[lang][key] ?? key
+  const locale = lang === 'es' ? 'es-CR' : 'en-US'
 
   return (
-    <SettingsContext.Provider value={{ lang, setLang, theme, setTheme, t }}>
+    <SettingsContext.Provider
+      value={{ lang, setLang, locale, theme, setTheme, t }}
+    >
       {children}
     </SettingsContext.Provider>
   )

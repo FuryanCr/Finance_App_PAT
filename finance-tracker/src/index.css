@@ -1,18 +1,28 @@
+/* ==========================================================================
+   Estilos de toda la app. Este es el único archivo CSS que se carga
+   (se importa en main.jsx).
+   ========================================================================== */
+
+/* Variables de color: tema oscuro (por defecto).
+   Todos los colores de la app salen de aquí; para cambiar la paleta
+   solo hay que tocar estas variables. */
 :root {
-  color-scheme: dark;
-  --bg: #0e130f;
-  --surface: #151c16;
-  --surface-2: #1c251d;
-  --hero-from: #1b2c20;
-  --text: #e8efe9;
-  --muted: #9aab9d;
-  --border: #26332a;
-  --accent: #22c55e;
-  --accent-bright: #4ade80;
-  --accent-dim: rgba(74, 222, 128, 0.28);
-  --on-accent: #052e16;
+  color-scheme: dark; /* controles nativos (scroll, calendario) en oscuro */
+  --bg: #0e130f; /* fondo de la página */
+  --surface: #151c16; /* fondo de las tarjetas */
+  --surface-2: #1c251d; /* fondo de pills, teclas e inputs */
+  --hero-from: #1b2c20; /* inicio del degradado de la tarjeta principal */
+  --text: #e8efe9; /* texto principal */
+  --muted: #9aab9d; /* texto secundario */
+  --border: #26332a; /* bordes y líneas divisorias */
+  --accent: #22c55e; /* verde principal: botones y barras */
+  --accent-bright: #4ade80; /* verde claro: ingresos y elementos activos */
+  --accent-dim: rgba(74, 222, 128, 0.28); /* verde transparente */
+  --on-accent: #052e16; /* texto encima del verde */
 }
 
+/* Tema claro: mismas variables con otros valores.
+   SettingsProvider pone data-theme="light" en <html> al cambiar de tema. */
 :root[data-theme='light'] {
   color-scheme: light;
   --bg: #f2f6f2;
@@ -28,6 +38,9 @@
   --on-accent: #ffffff;
 }
 
+/* Base */
+
+/* El padding y el borde cuentan dentro del ancho del elemento */
 * {
   box-sizing: border-box;
 }
@@ -37,28 +50,32 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  /* Todos los números con el mismo ancho, para que los montos se alineen */
   font-variant-numeric: tabular-nums;
 }
 
+/* Sin márgenes por defecto: el espacio lo da cada contenedor con gap */
 h1, h2, h3, h4, p {
   margin: 0;
 }
 
+/* Contorno visible al navegar con el teclado */
 :focus-visible {
   outline: 2px solid var(--accent-bright);
   outline-offset: 2px;
 }
 
+/* Contenedor de cada pantalla: columna centrada con ancho de teléfono */
 main {
   max-width: 480px;
   margin: 0 auto;
   padding: 8px 20px 40px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 16px; /* espacio entre las secciones de la pantalla */
 }
 
-/* Header controls */
+/* Controles superiores: botón de idioma y de tema */
 .settings-bar {
   display: flex;
   justify-content: flex-end;
@@ -70,12 +87,13 @@ main {
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 999px; /* 999px = bordes totalmente redondos */
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
 }
 
+/* Botón redondo con el ícono de sol/luna centrado */
 .settings-bar .theme-toggle {
   display: grid;
   width: 36px;
@@ -89,7 +107,7 @@ main {
   height: 18px;
 }
 
-/* Title */
+/* Título de la app */
 .header {
   padding: 12px 16px;
   text-align: center;
@@ -99,25 +117,28 @@ main {
   margin: 0;
   font-family: 'Poppins', system-ui, sans-serif;
   font-weight: 600;
+  /* El tamaño crece con el ancho de la pantalla, entre 1.3rem y 2.1rem */
   font-size: clamp(1.3rem, 6vw, 2.1rem);
   letter-spacing: 0.06em;
   color: var(--text);
 }
 
+/* Segunda parte del título, en verde */
 .title-accent {
   color: var(--accent);
 }
 
+/* Navegación entre pantallas: se queda pegada arriba al hacer scroll */
 .top-nav {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 10; /* por encima del contenido que pasa por debajo */
   display: flex;
   gap: 8px;
   max-width: 480px;
   margin: 0 auto;
   padding: 16px 20px 8px;
-  overflow-x: auto;
+  overflow-x: auto; /* scroll horizontal si los enlaces no caben */
   background: var(--bg);
 }
 
@@ -133,6 +154,7 @@ main {
   white-space: nowrap;
 }
 
+/* Pantalla actual (React Router agrega la clase "active") */
 .top-nav a.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -140,12 +162,15 @@ main {
   font-weight: 600;
 }
 
-/* Text styles */
+/* Estilos de texto */
+
+/* Título de cada pantalla */
 .screen-title {
   font-size: 20px;
   font-weight: 500;
 }
 
+/* Etiqueta pequeña en mayúsculas, encima de un dato */
 .label {
   font-size: 12px;
   color: var(--muted);
@@ -153,6 +178,7 @@ main {
   letter-spacing: 0.05em;
 }
 
+/* Monto grande de la tarjeta principal del inicio */
 .balance {
   font-size: 40px;
   font-weight: 700;
@@ -160,12 +186,13 @@ main {
   margin: 6px 0 14px;
 }
 
+/* Texto secundario pequeño */
 .sub {
   font-size: 13px;
   color: var(--muted);
 }
 
-/* Cards: depth comes from surface color, not shadows */
+/* Tarjetas: la profundidad viene del color de fondo, no de sombras */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -173,26 +200,31 @@ main {
   padding: 20px;
 }
 
+/* Tarjeta destacada con degradado verde */
 .card.hero {
   background: linear-gradient(160deg, var(--hero-from) 0%, var(--surface) 70%);
   border-color: var(--accent-dim);
 }
 
-/* Progress and stats */
+/* Barra de progreso y estadísticas */
+
+/* Fondo de la barra de "% del ingreso gastado" */
 .progress {
   height: 8px;
   border-radius: 999px;
   background: var(--surface-2);
-  overflow: hidden;
+  overflow: hidden; /* recorta el relleno a los bordes redondos */
   margin-bottom: 8px;
 }
 
+/* Relleno de la barra; el ancho (%) se pone desde React */
 .progress-fill {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--accent), var(--accent-bright));
 }
 
+/* Dos columnas iguales: ingresos y gastado */
 .stats-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -210,12 +242,15 @@ main {
   color: var(--accent-bright);
 }
 
-/* Buttons */
+/* Botones */
+
+/* Fila de botones que se reparten el ancho */
 .btn-row {
   display: flex;
   gap: 12px;
 }
 
+/* Botón principal (verde) */
 .btn {
   flex: 1;
   text-align: center;
@@ -226,16 +261,18 @@ main {
   color: var(--on-accent);
   font-size: 15px;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: none; /* también se usa en enlaces <Link> */
   cursor: pointer;
 }
 
+/* Botón secundario (gris) */
 .btn.secondary {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
 }
 
+/* Pills: opciones para elegir una (período, moneda, categoría) */
 .pill-group {
   display: flex;
   gap: 8px;
@@ -251,6 +288,7 @@ main {
   cursor: pointer;
 }
 
+/* Opción seleccionada */
 .pill.active {
   background: var(--accent-bright);
   border-color: var(--accent-bright);
@@ -258,7 +296,9 @@ main {
   font-weight: 600;
 }
 
-/* Lists */
+/* Listas */
+
+/* Lista sin viñetas, con espacio entre elementos */
 .list {
   list-style: none;
   margin: 12px 0 0;
@@ -268,12 +308,14 @@ main {
   gap: 14px;
 }
 
+/* Línea de separación encima de un bloque */
 .divider {
   border-top: 1px solid var(--border);
   padding-top: 16px;
   margin-top: 18px;
 }
 
+/* Fila: texto a la izquierda y monto a la derecha */
 .row {
   display: flex;
   justify-content: space-between;
@@ -285,6 +327,7 @@ main {
   font-size: 15px;
 }
 
+/* Segunda línea de la fila: categoría y fecha */
 .row-meta {
   font-size: 12px;
   color: var(--muted);
@@ -301,6 +344,7 @@ main {
   color: var(--accent-bright);
 }
 
+/* Barra delgada bajo cada categoría: su parte del gasto total */
 .mini-bar {
   height: 4px;
   border-radius: 999px;
@@ -309,13 +353,16 @@ main {
   overflow: hidden;
 }
 
+/* Relleno; el ancho (%) se pone desde React */
 .mini-bar > div {
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
 }
 
-/* Bar chart */
+/* Gráfico de barras (Estadísticas) */
+
+/* Las columnas se alinean abajo para que las barras crezcan hacia arriba */
 .bar-chart {
   display: flex;
   align-items: flex-end;
@@ -324,6 +371,7 @@ main {
   margin-top: 16px;
 }
 
+/* Una columna por día, mes o año: barra arriba y etiqueta abajo */
 .bar-col {
   flex: 1;
   height: 100%;
@@ -333,6 +381,7 @@ main {
   gap: 8px;
 }
 
+/* Espacio disponible para la barra */
 .bar-track {
   flex: 1;
   width: 100%;
@@ -340,13 +389,15 @@ main {
   align-items: flex-end;
 }
 
+/* La barra; la altura (%) se pone desde React */
 .bar-fill {
   width: 100%;
-  min-height: 4px;
+  min-height: 4px; /* se ve una línea aunque el total sea 0 */
   border-radius: 8px;
   background: var(--accent-dim);
 }
 
+/* La barra más alta se resalta */
 .bar-fill.max {
   background: var(--accent-bright);
 }
@@ -356,7 +407,9 @@ main {
   color: var(--muted);
 }
 
-/* Add screen */
+/* Pantalla de agregar */
+
+/* Pills que pasan a otra línea si no caben (categorías) */
 .pill-group.wrap {
   flex-wrap: wrap;
   margin-top: 12px;
@@ -366,6 +419,7 @@ main {
   margin-top: 16px;
 }
 
+/* Monto que se va escribiendo con el teclado */
 .amount-display {
   font-size: 44px;
   font-weight: 700;
@@ -373,6 +427,7 @@ main {
   margin: 4px 0 16px;
 }
 
+/* Teclado numérico: cuadrícula de 3 columnas */
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -389,10 +444,12 @@ main {
   cursor: pointer;
 }
 
+/* Tecla mientras se presiona */
 .key:active {
   background: var(--accent-dim);
 }
 
+/* Campo de formulario: etiqueta arriba, input abajo */
 .field {
   display: flex;
   flex-direction: column;
@@ -404,17 +461,76 @@ main {
   margin-bottom: 0;
 }
 
+/* Campo que va justo después de un grupo de pills (categoría personalizada) */
+.pill-group + .field {
+  margin-top: 14px;
+}
+
 .field input {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 14px;
-  font-size: 16px;
+  font-size: 16px; /* con menos de 16px el teléfono hace zoom al escribir */
   font-family: inherit;
 }
 
+/* Botón desactivado (por ejemplo, Guardar sin monto) */
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Pantalla de historial */
+
+/* Selector de mes: flecha, nombre del mes, flecha */
+.month-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.month-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* El mes viene en minúscula en español ("octubre de 2026") */
+.month-name::first-letter {
+  text-transform: uppercase;
+}
+
+/* Flechas para cambiar de mes */
+.month-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Flecha "siguiente" cuando ya se está en el mes actual */
+.month-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Balance del mes en la tarjeta de resumen */
+.month-balance {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+
+/* Mensaje cuando el mes no tiene transacciones */
+.empty {
+  text-align: center;
+  padding: 12px 0;
 }

@@ -1,22 +1,16 @@
 import { Link } from 'react-router-dom'
-import { categories } from '../../db/mockData'
+import { categoryLabel } from '../../lib/categories'
 import { useTransactions } from '../../context/useTransactions'
 import { getQuincenaRange, parseDate } from '../../lib/dates'
-import { formatMoney, sum } from '../../lib/money'
+import { currencies, formatMoney, getTotals, sum } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import TransactionItem from '../../components/TransactionItem'
 
-const currencies = [
-  { code: 'CRC', labelKey: 'colones' },
-  { code: 'USD', labelKey: 'dollars' },
-]
-
 export default function HomeScreen() {
-  const { lang, t } = useSettings()
-  const locale = lang === 'es' ? 'es-CR' : 'en-US'
+  const { locale, t } = useSettings()
 
   const { start, end } = getQuincenaRange()
-  const { transactions } = useTransactions()
+  const { transactions, categories } = useTransactions()
   const current = transactions.filter((tx) => {
     const date = parseDate(tx.date)
     return date >= start && date <= end
@@ -38,14 +32,12 @@ export default function HomeScreen() {
       </div>
 
       {currencies.map(({ code, labelKey }, index) => {
-        const list = current.filter((tx) => tx.currency === code)
-        if (list.length === 0) return null
+        const { count, income, spent, net } = getTotals(current, code)
+        if (count === 0) return null
 
-        const income = sum(
-          list.filter((tx) => tx.type === 'income').map((tx) => tx.amount),
+        const expenses = current.filter(
+          (tx) => tx.currency === code && tx.type === 'expense',
         )
-        const expenses = list.filter((tx) => tx.type === 'expense')
-        const spent = sum(expenses.map((tx) => tx.amount))
         const pct =
           income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
 
@@ -54,9 +46,7 @@ export default function HomeScreen() {
             <p className="label">
               {t('leftThisQuincena')} · {t(labelKey)}
             </p>
-            <p className="balance">
-              {formatMoney(sum([income, -spent]), code)}
-            </p>
+            <p className="balance">{formatMoney(net, code)}</p>
 
             <div className="progress" aria-hidden="true">
               <div className="progress-fill" style={{ width: `${pct}%` }} />
@@ -87,9 +77,7 @@ export default function HomeScreen() {
                 return (
                   <li key={c.id}>
                     <div className="row">
-                      <span className="row-name">
-                        {t(`category.${c.key}`)}
-                      </span>
+                      <span className="row-name">{categoryLabel(c, t)}</span>
                       <span className="row-amount">
                         {formatMoney(total, code)}
                       </span>

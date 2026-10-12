@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
 import { getSpendingBars } from '../../lib/stats'
-import { formatMoney } from '../../lib/money'
+import { currencies, formatMoney } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import BarChart from '../../components/BarChart'
 import TransactionItem from '../../components/TransactionItem'
 
 export default function StatisticsScreen() {
-  const { lang, t } = useSettings()
-  const locale = lang === 'es' ? 'es-CR' : 'en-US'
+  const { locale, t } = useSettings()
   const [period, setPeriod] = useState('week')
   const [currency, setCurrency] = useState('CRC')
   const { transactions } = useTransactions()
@@ -36,7 +35,7 @@ export default function StatisticsScreen() {
       </div>
 
       <div className="pill-group">
-        {['CRC', 'USD'].map((code) => (
+        {currencies.map(({ code }) => (
           <button
             key={code}
             className={currency === code ? 'pill active' : 'pill'}
