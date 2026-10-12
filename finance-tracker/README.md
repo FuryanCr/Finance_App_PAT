@@ -110,6 +110,8 @@ Screens never touch storage directly: they read and write through `TransactionsP
 
 In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. A backup is a JSON file with your custom categories, transactions, budgets and recurring items; restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
 
+The app can only be open in one tab at a time: a second tab is blocked, because each tab saves the whole database and would overwrite the other. It also asks the browser to keep the data (persistent storage), which the browser may or may not grant. Home shows a reminder when the last backup is more than 14 days old.
+
 ## Project structure
 
 ```text
@@ -133,6 +135,8 @@ src/
 - **`npm install` fails or shows engine warnings:** update Node.js to 22.12.0 or newer.
 - **Port 5173 is already in use:** Vite will pick the next free port and print it in the terminal.
 - **Blank page or stale content:** stop the server (`Ctrl + C`), run `npm run dev` again and refresh the browser.
+- **"Quincena is already open in another tab":** close the other tab and press Try again.
+- **Stuck on "Opening your data…":** the database only starts when the tab is visible; bring the tab to the front.
 
 ## Roadmap
 
@@ -183,3 +187,4 @@ Newest first.
 - Add screen remembers the last currency and category; pending bills counted in safe-to-spend; uncategorized spending shown
 - Backup file and restore in Settings
 - Visual polish: larger touch targets, readable disabled buttons and placeholders, consistent type sizes; highlighted balance card fixed for dollar-only periods
+- One tab at a time, persistent storage request, backup reminder and a loading message

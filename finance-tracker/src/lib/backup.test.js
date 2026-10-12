@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBackup, parseBackup } from './backup'
+import { buildBackup, isBackupDue, parseBackup } from './backup'
 
 const builtIn = [
   { id: 1, key: 'food', color: 'orange' },
@@ -211,5 +211,33 @@ describe('parseBackup', () => {
     expect(result.transactions).toEqual([validTx])
     expect(result.budgets).toEqual([validBudget])
     expect(result.recurring).toEqual([validRecurring])
+  })
+})
+
+describe('isBackupDue', () => {
+  const today = new Date(2026, 9, 28)
+
+  it('is due when there is no valid date', () => {
+    expect(isBackupDue(null, today)).toBe(true)
+    expect(isBackupDue('', today)).toBe(true)
+    expect(isBackupDue('garbage', today)).toBe(true)
+  })
+
+  it('is not due for a backup made today', () => {
+    expect(isBackupDue('2026-10-28', today)).toBe(false)
+  })
+
+  it('is not due at exactly 14 days, due at 15', () => {
+    expect(isBackupDue('2026-10-14', today)).toBe(false)
+    expect(isBackupDue('2026-10-13', today)).toBe(true)
+  })
+
+  it('is not due for a date in the future', () => {
+    expect(isBackupDue('2026-11-15', today)).toBe(false)
+  })
+
+  it('accepts a custom number of days', () => {
+    expect(isBackupDue('2026-10-21', today, 7)).toBe(false)
+    expect(isBackupDue('2026-10-20', today, 7)).toBe(true)
   })
 })

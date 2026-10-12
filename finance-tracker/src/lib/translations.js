@@ -21,6 +21,12 @@ export const translations = {
     emptyQuincena: 'Todavía no hay nada registrado en esta quincena.',
     dbError: 'No se pudieron abrir tus datos.',
     retry: 'Reintentar',
+    loading: 'Abriendo tus datos…',
+    otherTab:
+      'Quincena ya está abierta en otra pestaña. Ciérrala y vuelve a intentarlo: usar dos a la vez podría borrar datos.',
+    backupReminder:
+      'Hace más de dos semanas que no descargas una copia de seguridad. Tus datos solo viven en este navegador.',
+    goToBackup: 'Ir a la copia de seguridad',
     saveError: 'No se pudo guardar. Inténtalo de nuevo.',
     budgets: 'Presupuestos',
     budgetHint:
@@ -150,6 +156,12 @@ export const translations = {
     emptyQuincena: 'Nothing recorded this quincena yet.',
     dbError: 'Your data could not be opened.',
     retry: 'Try again',
+    loading: 'Opening your data…',
+    otherTab:
+      'Quincena is already open in another tab. Close it and try again: using two at once could erase data.',
+    backupReminder:
+      'You have not downloaded a backup in over two weeks. Your data only lives in this browser.',
+    goToBackup: 'Go to backup',
     saveError: 'Could not save. Please try again.',
     budgets: 'Budgets',
     budgetHint:

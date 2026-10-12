@@ -1,5 +1,5 @@
 import { categoryColors } from './categories'
-import { isValidDate } from './dates'
+import { daysBetween, isValidDate, parseDate } from './dates'
 import { currencies } from './money'
 import { schedules } from './recurring'
 
@@ -159,4 +159,11 @@ export function parseBackup(text, builtInCategories) {
   } catch {
     return null
   }
+}
+
+// True when there is no valid backup date, or the last backup is older
+// than `days` days
+export function isBackupDue(lastBackup, today = new Date(), days = 14) {
+  if (typeof lastBackup !== 'string' || !isValidDate(lastBackup)) return true
+  return daysBetween(parseDate(lastBackup), today) > days
 }

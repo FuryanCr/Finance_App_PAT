@@ -111,6 +111,8 @@ async function openConnection() {
   await db.open()
   await db.execute('PRAGMA foreign_keys = ON', false)
   await runMigrations(db)
+  // ask the browser not to evict the data; the answer does not matter here
+  if (isWeb()) navigator.storage?.persist?.()?.catch(() => {})
   return db
 }
 

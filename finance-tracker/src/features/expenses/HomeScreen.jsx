@@ -14,6 +14,8 @@ import {
   safePerDay,
   sum,
 } from '../../lib/money'
+import { isBackupDue } from '../../lib/backup'
+import { readPref } from '../../lib/prefs'
 import { isDue, pendingTotal } from '../../lib/recurring'
 import { getCategoryTotals } from '../../lib/stats'
 import { useSettings } from '../../context/useSettings'
@@ -210,6 +212,17 @@ export default function HomeScreen() {
               <TransactionItem key={tx.id} tx={tx} />
             ))}
           </ul>
+        </section>
+      )}
+
+      {transactions.length > 0 && isBackupDue(readPref('lastBackup')) && (
+        <section className="card">
+          <p className="sub">{t('backupReminder')}</p>
+          <div className="actions">
+            <Link className="btn secondary" to="/settings">
+              {t('goToBackup')}
+            </Link>
+          </div>
         </section>
       )}
     </>

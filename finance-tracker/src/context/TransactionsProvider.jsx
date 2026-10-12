@@ -22,6 +22,7 @@ import {
   updateRecurring as replaceRecurring,
   updateTransaction as replaceTransaction,
 } from '../db/storage'
+import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
 import { useSettings } from './useSettings'
@@ -33,13 +34,23 @@ export default function TransactionsProvider({ children }) {
   const [recurring, setRecurring] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [blocked, setBlocked] = useState(false)
   const { t } = useSettings()
 
   useEffect(() => {
     let ignore = false
-    loadAll()
+    acquireTabLock()
+      .then((hasLock) => {
+        if (!hasLock) {
+          if (ignore) return null
+          setBlocked(true)
+          setLoading(false)
+          return null
+        }
+        return loadAll()
+      })
       .then((data) => {
-        if (ignore) return
+        if (ignore || !data) return
         setTransactions(data.transactions)
         setCategories(data.categories)
         setBudgets(data.budgets)
@@ -194,7 +205,30 @@ export default function TransactionsProvider({ children }) {
   }
 
   // screens never see a half-loaded state
-  if (loading) return null
+  if (loading) {
+    return (
+      <main>
+        <p className="sub empty">{t('loading')}</p>
+      </main>
+    )
+  }
+
+  if (blocked) {
+    return (
+      <main>
+        <section className="card empty-state">
+          <p className="sub">{t('otherTab')}</p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => window.location.reload()}
+          >
+            {t('retry')}
+          </button>
+        </section>
+      </main>
+    )
+  }
 
   if (error) {
     return (
