@@ -356,7 +356,7 @@ main {
   flex: 1;
   text-align: center;
   padding: 14px 16px;
-  border: 0;
+  border: 1px solid transparent; /* misma altura que los botones con borde */
   border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
@@ -424,6 +424,11 @@ main {
   gap: 12px;
 }
 
+/* El texto de la izquierda es el que cede espacio y pasa a otra línea */
+.row > :first-child {
+  min-width: 0;
+}
+
 .row-name {
   font-size: 16px;
 }
@@ -435,10 +440,13 @@ main {
   margin-top: 2px;
 }
 
+/* El monto nunca se parte en dos líneas (el signo se quedaba solo) */
 .row-amount {
   font-size: 16px;
   font-weight: 600;
   text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Barra delgada bajo cada categoría: su parte del gasto total */
@@ -760,6 +768,11 @@ main > .field {
 /* Panel de edición debajo de la fila de la categoría */
 .editor {
   margin-top: 14px;
+}
+
+/* Dos grupos de pills seguidos en el editor (tipo y moneda) no se pegan */
+.editor > .pill-group + .pill-group {
+  margin-top: 8px;
 }
 
 /* Presupuestos */
