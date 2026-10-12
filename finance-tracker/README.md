@@ -6,14 +6,14 @@ A personal finance tracker built with React. Quincena helps you follow your inco
 ## Features
 
 - Income, expenses and remaining balance for the current pay period
-- "Safe to spend per day": what is left this pay period divided by the days remaining
+- "Safe to spend per day": what is left this pay period, minus recurring bills that are still due, divided by the days remaining
 - Add expenses and income with a numeric keypad, in colones or dollars
 - Edit or delete any transaction by tapping it
 - Custom expense categories: name your own and reuse them
 - Spending statistics by time period and currency, plus a comparison of past quincenas
 - Monthly history: balance, income and spent per currency, with transactions grouped by day, plus search and filters by text, type and category
 - CSV export of the month shown in History
-- Settings screen: language, theme, export everything as CSV, load sample data and clear all data
+- Settings screen: language, theme, export everything as CSV, download and restore a backup file, load sample data and clear all data
 - Manage custom categories: rename, recolor, or delete and move their transactions
 - Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
 - Recurring transactions: rent, salary or subscriptions show up as due each pay period, and you confirm or skip them
@@ -108,7 +108,7 @@ Data lives in a SQLite database named `quincena`, with a `categories` table, a `
 
 Screens never touch storage directly: they read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL for reading and writing. On the first launch after upgrading, data saved by the older `localStorage` version is imported once, and the old copy is left untouched.
 
-In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. Cloud backups come later.
+In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. A backup is a JSON file with your custom categories, transactions, budgets and recurring items; restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
 
 ## Project structure
 
@@ -151,6 +151,7 @@ src/
 - [x] Settings screen
 - [x] SQLite storage
 - [ ] Android app with Capacitor
+- [x] Backup file and restore
 - [ ] Cloud backups
 
 ## Progress log
@@ -179,3 +180,5 @@ Newest first.
 - Code review fixes: per-day rounding, date validation, write queue, shared helpers, self-hosted font
 - Automated tests for the money, date, statistics, category and CSV helpers
 - Past quincenas on Statistics; search and filters in History
+- Add screen remembers the last currency and category; pending bills counted in safe-to-spend; uncategorized spending shown
+- Backup file and restore in Settings

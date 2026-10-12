@@ -1,4 +1,5 @@
 import { getTotals, sum } from './money'
+import { uncategorized } from './categories'
 import { getQuincenaRange, isSameMonth, parseDate } from './dates'
 
 // First day covered by the chart of each period
@@ -12,9 +13,10 @@ export function getPeriodStart(period, today = new Date()) {
   return new Date(today.getFullYear() - 2, 0, 1)
 }
 
-// Total spent per category, leaving out categories with nothing spent
+// Total spent per category, leaving out categories with nothing spent.
+// Expenses whose category is missing go in a last "Uncategorized" item.
 export function getCategoryTotals(expenses, categories) {
-  return categories
+  const totals = categories
     .map((category) => ({
       category,
       total: sum(
@@ -24,6 +26,14 @@ export function getCategoryTotals(expenses, categories) {
       ),
     }))
     .filter((item) => item.total > 0)
+
+  const total = sum(
+    expenses
+      .filter((t) => !categories.some((c) => c.id === t.categoryId))
+      .map((t) => t.amount),
+  )
+  if (total > 0) totals.push({ category: uncategorized, total })
+  return totals
 }
 
 export function getSpendingBars(

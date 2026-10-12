@@ -12,8 +12,9 @@ import {
   formatMoney,
   getTotals,
   safePerDay,
+  sum,
 } from '../../lib/money'
-import { isDue } from '../../lib/recurring'
+import { isDue, pendingTotal } from '../../lib/recurring'
 import { getCategoryTotals } from '../../lib/stats'
 import { useSettings } from '../../context/useSettings'
 import CategoryBars from '../../components/CategoryBars'
@@ -79,6 +80,9 @@ export default function HomeScreen() {
         )
         const pct =
           income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
+        // due bills are not transactions yet, but the money is spoken for
+        const pending = pendingTotal(recurring, code)
+        const available = sum([net, -pending])
 
         return (
           <section className={index === 0 ? 'card hero' : 'card'} key={code}>
@@ -109,15 +113,27 @@ export default function HomeScreen() {
             {income > 0 && (
               <div className="safe-day">
                 <p className="label">{t('safePerDay')}</p>
-                {net > 0 ? (
+                {available > 0 ? (
                   <>
                     <p className="stat">
-                      {formatMoney(safePerDay(net, daysLeft, code), code)}
+                      {formatMoney(safePerDay(available, daysLeft, code), code)}
                     </p>
                     <p className="sub">
                       {daysLeft === 1
                         ? t('lastDay')
                         : `${daysLeft} ${t('daysLeft')}`}
+                    </p>
+                    {pending > 0 && (
+                      <p className="sub">
+                        {t('afterPending')} {formatMoney(pending, code)}
+                      </p>
+                    )}
+                  </>
+                ) : net > 0 ? (
+                  <>
+                    <p className="stat over">{t('pendingExceeds')}</p>
+                    <p className="sub">
+                      {t('afterPending')} {formatMoney(pending, code)}
                     </p>
                   </>
                 ) : (

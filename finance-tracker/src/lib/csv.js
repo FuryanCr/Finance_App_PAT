@@ -31,8 +31,9 @@ export function transactionRows(transactions, categories, t) {
   return [['date', 'type', 'amount', 'currency', 'category', 'note'], ...rows]
 }
 
-export function downloadCsv(filename, rows) {
-  const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' })
+// Saves text as a file through a temporary link
+export function downloadFile(filename, text, type) {
+  const blob = new Blob([text], { type })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -42,4 +43,8 @@ export function downloadCsv(filename, rows) {
   link.remove()
   // some browsers cancel the download if the URL is revoked right away
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function downloadCsv(filename, rows) {
+  downloadFile(filename, toCsv(rows), 'text/csv;charset=utf-8')
 }

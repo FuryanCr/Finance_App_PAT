@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { uncategorized } from './categories'
 import {
   getCategoryTotals,
   getPeriodStart,
@@ -85,7 +86,7 @@ describe('getCategoryTotals', () => {
     expect(result[0].category.id).toBe(2)
   })
 
-  it('ignores expenses whose category does not exist', () => {
+  it('reports expenses whose category does not exist in a last item', () => {
     const expenses = [
       { categoryId: 99, amount: 500 },
       { categoryId: null, amount: 40 },
@@ -93,7 +94,23 @@ describe('getCategoryTotals', () => {
     ]
     expect(getCategoryTotals(expenses, categories)).toEqual([
       { category: categories[0], total: 10 },
+      { category: uncategorized, total: 540 },
     ])
+  })
+
+  it('adds nothing when every expense has a known category', () => {
+    const result = getCategoryTotals([{ categoryId: 2, amount: 5 }], categories)
+    expect(result.map((item) => item.category.id)).toEqual([2])
+  })
+
+  it('puts a null category id in the uncategorized item', () => {
+    const result = getCategoryTotals([{ categoryId: null, amount: 7 }], categories)
+    expect(result).toEqual([{ category: uncategorized, total: 7 }])
+  })
+
+  it('puts an unknown category id in the uncategorized item', () => {
+    const result = getCategoryTotals([{ categoryId: 42, amount: 9 }], categories)
+    expect(result).toEqual([{ category: uncategorized, total: 9 }])
   })
 
   it('returns an empty list when there are no expenses', () => {

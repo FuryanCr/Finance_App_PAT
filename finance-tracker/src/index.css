@@ -771,3 +771,16 @@ main {
   align-items: center;
   gap: 10px;
 }
+
+/* Copia de seguridad */
+
+/* Fecha de la última copia, debajo de los botones de datos */
+.backup-note {
+  margin-top: 12px;
+}
+
+/* Botón deshabilitado hecho con <label> (no admite :disabled) */
+.btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

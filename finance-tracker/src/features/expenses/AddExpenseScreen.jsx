@@ -9,6 +9,7 @@ import {
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { currencies } from '../../lib/money'
+import { readPref, writePref } from '../../lib/prefs'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
@@ -16,6 +17,18 @@ import Keypad from '../../components/Keypad'
 
 // A warning shows when the date is more than this many days ahead
 const FUTURE_DAYS_LIMIT = 3
+
+// The currency of the last transaction added, if it is still a known one
+function lastCurrency() {
+  const saved = readPref('lastCurrency')
+  return currencies.some((c) => c.code === saved) ? saved : 'CRC'
+}
+
+// The category of the last expense added, if it still exists
+function lastCategoryId(categories) {
+  const saved = Number(readPref('lastCategoryId'))
+  return categories.some((c) => c.id === saved) ? saved : categories[0].id
+}
 
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
@@ -39,13 +52,15 @@ export default function AddExpenseScreen() {
   const [type, setType] = useState(
     editing?.type ?? (params.get('type') === 'income' ? 'income' : 'expense'),
   )
-  const [currency, setCurrency] = useState(editing?.currency ?? 'CRC')
+  const [currency, setCurrency] = useState(
+    editing?.currency ?? lastCurrency(),
+  )
   const [amountText, setAmountText] = useState(
     editing ? String(editing.amount) : '',
   )
   // categoryId is null while a custom category is being typed
   const [categoryId, setCategoryId] = useState(
-    editing?.categoryId ?? categories[0].id,
+    editing?.categoryId ?? lastCategoryId(categories),
   )
   const [customName, setCustomName] = useState('')
   const [note, setNote] = useState(editing?.note ?? '')
@@ -101,6 +116,8 @@ export default function AddExpenseScreen() {
         navigate(backTo)
       } else {
         await addTransaction(tx)
+        writePref('lastCurrency', currency)
+        if (type === 'expense') writePref('lastCategoryId', savedCategoryId)
         navigate('/')
       }
     } catch (error) {

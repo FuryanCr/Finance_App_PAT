@@ -226,23 +226,75 @@ function importLegacyDataOnce(db) {
 }
 // --- End of legacy import --------------------------------------------------
 
+async function readAll(db) {
+  const categories = await db.query('SELECT * FROM categories ORDER BY id')
+  const transactions = await db.query('SELECT * FROM transactions ORDER BY id')
+  const budgets = await db.query(
+    'SELECT * FROM budgets ORDER BY category_id, currency',
+  )
+  const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
+  return {
+    transactions: transactions.values.map(toTransaction),
+    categories: categories.values.map(toCategory),
+    budgets: budgets.values.map(toBudget),
+    recurring: recurring.values.map(toRecurring),
+  }
+}
+
 export function loadAll() {
   return enqueue(async () => {
     const db = await getDb()
     await importLegacyDataOnce(db)
+    return readAll(db)
+  })
+}
 
-    const categories = await db.query('SELECT * FROM categories ORDER BY id')
-    const transactions = await db.query('SELECT * FROM transactions ORDER BY id')
-    const budgets = await db.query(
-      'SELECT * FROM budgets ORDER BY category_id, currency',
-    )
-    const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
-    return {
-      transactions: transactions.values.map(toTransaction),
-      categories: categories.values.map(toCategory),
-      budgets: budgets.values.map(toBudget),
-      recurring: recurring.values.map(toRecurring),
-    }
+// Replaces everything with the cleaned data of a backup, in one transaction
+export function restoreAll(data) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await inTransaction(db, async () => {
+      await db.run('DELETE FROM budgets', [], false)
+      await db.run('DELETE FROM recurring', [], false)
+      await db.run('DELETE FROM transactions', [], false)
+      await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
+      for (const { id, name, color } of data.categories) {
+        await db.run(
+          'INSERT INTO categories (id, name, color) VALUES (?, ?, ?)',
+          [id, name, color],
+          false,
+        )
+      }
+      for (const tx of data.transactions) {
+        await db.run(
+          `INSERT INTO transactions
+            (id, amount_cents, currency, type, category_id, note, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [tx.id, ...transactionParams(tx)],
+          false,
+        )
+      }
+      for (const b of data.budgets) {
+        await db.run(
+          `INSERT INTO budgets (category_id, currency, amount_cents)
+            VALUES (?, ?, ?)`,
+          [b.categoryId, b.currency, Math.round(b.amount * 100)],
+          false,
+        )
+      }
+      for (const item of data.recurring) {
+        await db.run(
+          `INSERT INTO recurring
+            (id, amount_cents, currency, type, category_id, note, schedule,
+              last_period)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [item.id, ...recurringParams(item), item.lastPeriod],
+          false,
+        )
+      }
+    })
+    await persist()
+    return readAll(db)
   })
 }
 

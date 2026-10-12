@@ -18,6 +18,9 @@ export function customColorAt(index) {
   return customColors[index % customColors.length]
 }
 
+// Stands in for expenses whose category is missing; never saved
+export const uncategorized = { id: 0, key: 'uncategorized', color: 'slate' }
+
 export function categoryColor(category) {
   return `var(--cat-${category.color})`
 }

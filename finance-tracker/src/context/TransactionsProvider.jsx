@@ -15,6 +15,7 @@ import {
   insertTransaction,
   insertTransactions,
   loadAll,
+  restoreAll,
   setBudget as saveBudget,
   skipRecurring as saveSkippedRecurring,
   updateCategory as replaceCategory,
@@ -183,6 +184,15 @@ export default function TransactionsProvider({ children }) {
     setRecurring([])
   }
 
+  // replaces everything with the (already cleaned) data of a backup
+  const restoreData = async (data) => {
+    const state = await restoreAll(data)
+    setTransactions(state.transactions)
+    setCategories(state.categories)
+    setBudgets(state.budgets)
+    setRecurring(state.recurring)
+  }
+
   // screens never see a half-loaded state
   if (loading) return null
 
@@ -224,6 +234,7 @@ export default function TransactionsProvider({ children }) {
         confirmRecurring,
         loadSampleData,
         clearAllData,
+        restoreData,
       }}
     >
       {children}

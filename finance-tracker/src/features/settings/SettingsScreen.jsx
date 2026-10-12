@@ -2,15 +2,31 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
 import { useSettings } from '../../context/useSettings'
-import { downloadCsv, transactionRows } from '../../lib/csv'
-import { byNewest } from '../../lib/dates'
+import { buildBackup, parseBackup } from '../../lib/backup'
+import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
+import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
+import { readPref, writePref } from '../../lib/prefs'
+
+// The date of the last backup made on this device, or null
+function readLastBackup() {
+  const saved = readPref('lastBackup')
+  return saved && isValidDate(saved) ? saved : null
+}
 
 export default function SettingsScreen() {
-  const { lang, setLang, theme, setTheme, t } = useSettings()
-  const { transactions, categories, loadSampleData, clearAllData } =
-    useTransactions()
+  const { lang, setLang, theme, setTheme, locale, t } = useSettings()
+  const {
+    transactions,
+    categories,
+    budgets,
+    recurring,
+    loadSampleData,
+    clearAllData,
+    restoreData,
+  } = useTransactions()
 
   const [busy, setBusy] = useState(false)
+  const [lastBackup, setLastBackup] = useState(readLastBackup)
 
   const hasTransactions = transactions.length > 0
   const hasCustomCategories = categories.some((c) => c.name)
@@ -33,6 +49,44 @@ export default function SettingsScreen() {
   const handleExportAll = () => {
     const list = [...transactions].sort(byNewest)
     downloadCsv('quincena-all.csv', transactionRows(list, categories, t))
+  }
+
+  const handleDownloadBackup = () => {
+    const backup = buildBackup({ transactions, categories, budgets, recurring })
+    const today = todayString()
+    downloadFile(
+      `quincena-backup-${today}.json`,
+      JSON.stringify(backup, null, 2),
+      'application/json',
+    )
+    writePref('lastBackup', today)
+    setLastBackup(today)
+  }
+
+  const handleRestoreFile = async (event) => {
+    const input = event.target
+    const file = input.files[0]
+    if (!file) return
+    let text
+    try {
+      text = await file.text()
+    } catch (error) {
+      console.error(error)
+      window.alert(t('invalidBackup'))
+      return
+    } finally {
+      // so the same file can be picked again
+      input.value = ''
+    }
+    const data = parseBackup(
+      text,
+      categories.filter((c) => c.key),
+    )
+    if (!data) {
+      window.alert(t('invalidBackup'))
+      return
+    }
+    if (window.confirm(t('confirmRestore'))) run(() => restoreData(data))
   }
 
   const handleClear = () => {
@@ -109,6 +163,24 @@ export default function SettingsScreen() {
           >
             {t('exportAll')}
           </button>
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={busy}
+            onClick={handleDownloadBackup}
+          >
+            {t('downloadBackup')}
+          </button>
+          <label className={busy ? 'btn secondary disabled' : 'btn secondary'}>
+            {t('restoreBackup')}
+            <input
+              type="file"
+              accept="application/json,.json"
+              hidden
+              disabled={busy}
+              onChange={handleRestoreFile}
+            />
+          </label>
           {!hasTransactions && (
             <button
               type="button"
@@ -130,6 +202,11 @@ export default function SettingsScreen() {
             </button>
           )}
         </div>
+        <p className="sub backup-note">
+          {lastBackup
+            ? `${t('lastBackup')} ${parseDate(lastBackup).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}`
+            : t('noBackupYet')}
+        </p>
       </section>
     </>
   )

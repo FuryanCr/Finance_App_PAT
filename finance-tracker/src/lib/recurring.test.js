@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDue, schedules } from './recurring'
+import { isDue, pendingTotal, schedules } from './recurring'
 
 // 2026-10-05 is in the first quincena, 2026-10-20 in the second
 const first = new Date(2026, 9, 5)
@@ -49,5 +49,47 @@ describe('isDue', () => {
 
   it('is due in the same quincena of the next month', () => {
     expect(isDue(item('first', '2026-10-1'), new Date(2026, 10, 5))).toBe(true)
+  })
+})
+
+describe('pendingTotal', () => {
+  const bill = (overrides) => ({
+    type: 'expense',
+    currency: 'CRC',
+    amount: 100,
+    schedule: 'every',
+    lastPeriod: null,
+    ...overrides,
+  })
+
+  it('adds up the due expenses of one currency', () => {
+    const list = [bill({ amount: 100 }), bill({ amount: 50.25 })]
+    expect(pendingTotal(list, 'CRC', first)).toBe(150.25)
+  })
+
+  it('leaves out items that are not due in this quincena', () => {
+    const list = [bill({ amount: 100 }), bill({ schedule: 'second', amount: 70 })]
+    expect(pendingTotal(list, 'CRC', first)).toBe(100)
+    expect(pendingTotal(list, 'CRC', second)).toBe(170)
+  })
+
+  it('does not count income', () => {
+    const list = [bill({ amount: 100 }), bill({ type: 'income', amount: 900 })]
+    expect(pendingTotal(list, 'CRC', first)).toBe(100)
+  })
+
+  it('does not count other currencies', () => {
+    const list = [bill({ amount: 100 }), bill({ currency: 'USD', amount: 20 })]
+    expect(pendingTotal(list, 'CRC', first)).toBe(100)
+    expect(pendingTotal(list, 'USD', first)).toBe(20)
+  })
+
+  it('does not count items already handled this quincena', () => {
+    const list = [bill({ amount: 100, lastPeriod: '2026-10-1' }), bill({ amount: 5 })]
+    expect(pendingTotal(list, 'CRC', first)).toBe(5)
+  })
+
+  it('is 0 for an empty list', () => {
+    expect(pendingTotal([], 'CRC', first)).toBe(0)
   })
 })
