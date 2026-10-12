@@ -7,10 +7,12 @@ import {
   getQuincenaRange,
   parseDate,
 } from '../../lib/dates'
+import { useToday } from '../../lib/useToday'
 import {
   currencies,
   formatMoney,
   getTotals,
+  laterTotal,
   safePerDay,
   sum,
 } from '../../lib/money'
@@ -26,8 +28,9 @@ import TransactionItem from '../../components/TransactionItem'
 export default function HomeScreen() {
   const { locale, t } = useSettings()
 
-  const { start, end } = getQuincenaRange()
-  const daysLeft = daysLeftInQuincena()
+  const today = useToday()
+  const { start, end } = getQuincenaRange(today)
+  const daysLeft = daysLeftInQuincena(today)
   const {
     transactions,
     categories,
@@ -45,7 +48,7 @@ export default function HomeScreen() {
     .sort(byNewest)
     .slice(0, 5)
 
-  const due = recurring.filter((item) => isDue(item))
+  const due = recurring.filter((item) => isDue(item, today))
 
   // one action at a time; a failed write is reported, not swallowed
   const handleDue = async (action, item) => {
@@ -63,10 +66,16 @@ export default function HomeScreen() {
 
   const format = { month: 'short', day: 'numeric' }
 
-  // only currencies with transactions get a card; the first one is highlighted
+  // a currency gets a card when it has transactions or pending bills; the
+  // first one is highlighted
   const shown = currencies
-    .map((c) => ({ ...c, ...getTotals(current, c.code) }))
-    .filter((c) => c.count > 0)
+    .map((c) => ({
+      ...c,
+      ...getTotals(current, c.code),
+      // due bills are not transactions yet, but the money is spoken for
+      pending: pendingTotal(recurring, c.code, today),
+    }))
+    .filter((c) => c.count > 0 || c.pending > 0)
 
   return (
     <>
@@ -78,15 +87,15 @@ export default function HomeScreen() {
         </p>
       </div>
 
-      {shown.map(({ code, labelKey, income, spent, net }, index) => {
+      {shown.map(({ code, labelKey, income, spent, net, pending }, index) => {
         const expenses = current.filter(
           (tx) => tx.currency === code && tx.type === 'expense',
         )
         const pct =
           income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
-        // due bills are not transactions yet, but the money is spoken for
-        const pending = pendingTotal(recurring, code)
         const available = sum([net, -pending])
+        const later = laterTotal(current, code, today)
+        const categoryTotals = getCategoryTotals(expenses, categories)
 
         return (
           <section className={index === 0 ? 'card hero' : 'card'} key={code}>
@@ -101,6 +110,11 @@ export default function HomeScreen() {
             <p className="sub">
               {pct}% {t('ofIncomeSpent')}
             </p>
+            {later > 0 && (
+              <p className="sub">
+                {t('includesLater')} {formatMoney(later, code)}
+              </p>
+            )}
 
             <div className="stats-row">
               <div>
@@ -114,7 +128,7 @@ export default function HomeScreen() {
             </div>
 
             {/* hidden until the quincena has income */}
-            {income > 0 && (
+            {income > 0 ? (
               <div className="safe-day">
                 <p className="label">{t('safePerDay')}</p>
                 {available > 0 ? (
@@ -144,14 +158,23 @@ export default function HomeScreen() {
                   <p className="stat over">{t('overBudget')}</p>
                 )}
               </div>
+            ) : (
+              pending > 0 && (
+                <div className="safe-day">
+                  <p className="label">{t('pendingBills')}</p>
+                  <p className="stat">{formatMoney(pending, code)}</p>
+                </div>
+              )
             )}
 
-            <CategoryBars
-              className="list divider"
-              totals={getCategoryTotals(expenses, categories)}
-              currency={code}
-              budgets={budgets.filter((b) => b.currency === code)}
-            />
+            {categoryTotals.length > 0 && (
+              <CategoryBars
+                className="list divider"
+                totals={categoryTotals}
+                currency={code}
+                budgets={budgets.filter((b) => b.currency === code)}
+              />
+            )}
           </section>
         )
       })}

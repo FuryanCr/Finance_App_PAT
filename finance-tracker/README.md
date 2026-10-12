@@ -190,3 +190,4 @@ Newest first.
 - Visual polish: larger touch targets, readable disabled buttons and placeholders, consistent type sizes; highlighted balance card fixed for dollar-only periods
 - One tab at a time, persistent storage request, backup reminder and a loading message
 - Tests for migrations and the storage layer
+- Dashboard: the day count stays current overnight, a currency with only pending bills is shown, and later-dated expenses are flagged

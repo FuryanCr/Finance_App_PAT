@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   byNewest,
   daysBetween,
+  dayChanged,
   daysLeftInQuincena,
   getQuincenaRange,
   isSameMonth,
   isValidDate,
+  msUntilTomorrow,
   parseDate,
   quincenaKey,
   todayString,
@@ -240,5 +242,62 @@ describe('quincenaKey', () => {
 
   it('works in December', () => {
     expect(quincenaKey(new Date(2026, 11, 20))).toBe('2026-12-2')
+  })
+})
+
+describe('dayChanged', () => {
+  it('is false for the same day at different times', () => {
+    expect(
+      dayChanged(new Date(2026, 9, 12, 0, 0, 0), new Date(2026, 9, 12, 23, 59)),
+    ).toBe(false)
+  })
+
+  it('is true from 23:59 to 00:00 of the next day', () => {
+    expect(
+      dayChanged(new Date(2026, 9, 12, 23, 59), new Date(2026, 9, 13, 0, 0)),
+    ).toBe(true)
+  })
+
+  it('is true across a month end', () => {
+    expect(
+      dayChanged(new Date(2026, 9, 31, 23, 59), new Date(2026, 10, 1)),
+    ).toBe(true)
+  })
+
+  it('is true across a year end', () => {
+    expect(
+      dayChanged(new Date(2026, 11, 31, 23, 59), new Date(2027, 0, 1)),
+    ).toBe(true)
+  })
+})
+
+describe('msUntilTomorrow', () => {
+  const times = [
+    new Date(2026, 9, 12, 0, 0, 0),
+    new Date(2026, 9, 12, 12, 30, 15),
+    new Date(2026, 9, 12, 23, 59, 59),
+    new Date(2026, 9, 31, 23, 59, 59),
+    new Date(2026, 11, 31, 0, 0, 0),
+  ]
+
+  it('is positive and at most 24 hours plus a second', () => {
+    for (const now of times) {
+      const ms = msUntilTomorrow(now)
+      expect(ms).toBeGreaterThan(0)
+      expect(ms).toBeLessThanOrEqual(86400000 + 1000)
+    }
+  })
+
+  it('lands on the next calendar day', () => {
+    for (const now of times) {
+      const later = new Date(now.getTime() + msUntilTomorrow(now))
+      expect(daysBetween(now, later)).toBe(1)
+      expect(dayChanged(now, later)).toBe(true)
+    }
+  })
+
+  it('is two seconds at 23:59:59 and a day plus a second at midnight', () => {
+    expect(msUntilTomorrow(new Date(2026, 9, 12, 23, 59, 59))).toBe(2000)
+    expect(msUntilTomorrow(new Date(2026, 9, 12, 0, 0, 0))).toBe(86401000)
   })
 })

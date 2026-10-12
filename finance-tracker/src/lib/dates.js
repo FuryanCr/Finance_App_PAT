@@ -65,3 +65,21 @@ export function quincenaKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   return `${date.getFullYear()}-${month}-${date.getDate() <= 15 ? 1 : 2}`
 }
+
+// True when the two dates fall on different calendar days
+export function dayChanged(previous, now) {
+  return todayString(previous) !== todayString(now)
+}
+
+// Milliseconds until one second after the next local midnight
+export function msUntilTomorrow(now = new Date()) {
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    1,
+  )
+  return tomorrow.getTime() - now.getTime()
+}

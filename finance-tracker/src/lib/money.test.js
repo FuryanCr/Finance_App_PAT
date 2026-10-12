@@ -3,6 +3,7 @@ import {
   currencies,
   formatMoney,
   getTotals,
+  laterTotal,
   parseAmount,
   safePerDay,
   sum,
@@ -150,5 +151,47 @@ describe('parseAmount', () => {
     expect(parseAmount('abc')).toBeNull()
     expect(parseAmount('Infinity')).toBeNull()
     expect(parseAmount('1e999')).toBeNull()
+  })
+})
+
+describe('laterTotal', () => {
+  const today = new Date(2026, 9, 12, 15, 0)
+  const tx = (date, amount, type = 'expense', currency = 'CRC') => ({
+    date,
+    amount,
+    type,
+    currency,
+  })
+
+  it('does not count an expense dated today', () => {
+    expect(laterTotal([tx('2026-10-12', 500)], 'CRC', today)).toBe(0)
+  })
+
+  it('counts an expense dated tomorrow', () => {
+    expect(laterTotal([tx('2026-10-13', 500)], 'CRC', today)).toBe(500)
+  })
+
+  it('does not count income', () => {
+    expect(laterTotal([tx('2026-10-14', 500, 'income')], 'CRC', today)).toBe(0)
+  })
+
+  it('does not count another currency', () => {
+    expect(
+      laterTotal([tx('2026-10-14', 5, 'expense', 'USD')], 'CRC', today),
+    ).toBe(0)
+  })
+
+  it('is 0 for an empty list', () => {
+    expect(laterTotal([], 'CRC', today)).toBe(0)
+  })
+
+  it('does not count past expenses', () => {
+    expect(laterTotal([tx('2026-10-11', 500)], 'CRC', today)).toBe(0)
+  })
+
+  it('rounds like sum', () => {
+    expect(
+      laterTotal([tx('2026-10-13', 0.1), tx('2026-10-15', 0.2)], 'CRC', today),
+    ).toBe(0.3)
   })
 })
