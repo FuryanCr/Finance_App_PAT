@@ -2,7 +2,7 @@ import { translations } from './translations'
 
 // Colors for custom categories, taken in order and then repeated.
 // Each one is the name of a --cat-* variable in index.css
-export const customColors = ['cyan', 'fuchsia', 'slate', 'sand']
+export const customColors = ['fuchsia', 'slate', 'sand', 'cyan']
 
 // Every color a category can have; each is a --cat-* variable in index.css
 export const categoryColors = [

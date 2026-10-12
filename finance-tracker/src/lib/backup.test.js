@@ -180,6 +180,22 @@ describe('parseBackup', () => {
     expect(Object.keys(result.recurring[0])).toHaveLength(8)
   })
 
+  it('drops records whose id is not a positive safe integer', () => {
+    const badIds = [0, -1, 2 ** 60, 1.5]
+    const goodCategory = { id: 7, name: 'Mascotas', color: 'cyan' }
+    const result = parse({
+      categories: [
+        goodCategory,
+        ...badIds.map((id) => ({ id, name: 'Bad', color: 'cyan' })),
+      ],
+      transactions: [validTx, ...badIds.map((id) => ({ ...validTx, id }))],
+      recurring: [validRecurring, ...badIds.map((id) => ({ ...validRecurring, id }))],
+    })
+    expect(result.categories).toEqual([goodCategory])
+    expect(result.transactions).toEqual([validTx])
+    expect(result.recurring).toEqual([validRecurring])
+  })
+
   it('keeps the first of any duplicate', () => {
     const result = parse({
       categories: [

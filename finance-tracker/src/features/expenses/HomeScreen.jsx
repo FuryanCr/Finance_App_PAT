@@ -61,6 +61,11 @@ export default function HomeScreen() {
 
   const format = { month: 'short', day: 'numeric' }
 
+  // only currencies with transactions get a card; the first one is highlighted
+  const shown = currencies
+    .map((c) => ({ ...c, ...getTotals(current, c.code) }))
+    .filter((c) => c.count > 0)
+
   return (
     <>
       <div>
@@ -71,10 +76,7 @@ export default function HomeScreen() {
         </p>
       </div>
 
-      {currencies.map(({ code, labelKey }, index) => {
-        const { count, income, spent, net } = getTotals(current, code)
-        if (count === 0) return null
-
+      {shown.map(({ code, labelKey, income, spent, net }, index) => {
         const expenses = current.filter(
           (tx) => tx.currency === code && tx.type === 'expense',
         )

@@ -25,6 +25,11 @@ export function buildBackup(
   }
 }
 
+// Ids are positive safe integers (0 is the "Uncategorized" stand-in)
+function isValidId(value) {
+  return Number.isSafeInteger(value) && value > 0
+}
+
 function isObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -50,7 +55,7 @@ function keepFirst(items, keyOf) {
 
 function cleanCategory(c, builtInIds) {
   if (!isObject(c)) return null
-  if (!Number.isInteger(c.id) || builtInIds.has(c.id)) return null
+  if (!isValidId(c.id) || builtInIds.has(c.id)) return null
   if (typeof c.name !== 'string' || c.name.trim() === '') return null
   if (!categoryColors.includes(c.color)) return null
   return { id: c.id, name: c.name, color: c.color }
@@ -59,7 +64,7 @@ function cleanCategory(c, builtInIds) {
 // Fields shared by transactions and recurring items; null when invalid
 function cleanEntry(item, knownIds) {
   if (!isObject(item)) return null
-  if (!Number.isInteger(item.id)) return null
+  if (!isValidId(item.id)) return null
   if (!isPositiveAmount(item.amount)) return null
   if (!currencyCodes.includes(item.currency)) return null
   if (!types.includes(item.type)) return null

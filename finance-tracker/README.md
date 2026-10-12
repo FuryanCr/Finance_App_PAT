@@ -182,3 +182,4 @@ Newest first.
 - Past quincenas on Statistics; search and filters in History
 - Add screen remembers the last currency and category; pending bills counted in safe-to-spend; uncategorized spending shown
 - Backup file and restore in Settings
+- Visual polish: larger touch targets, readable disabled buttons and placeholders, consistent type sizes; highlighted balance card fixed for dollar-only periods

@@ -52,15 +52,15 @@ export default function AddExpenseScreen() {
   const [type, setType] = useState(
     editing?.type ?? (params.get('type') === 'income' ? 'income' : 'expense'),
   )
-  const [currency, setCurrency] = useState(
-    editing?.currency ?? lastCurrency(),
+  const [currency, setCurrency] = useState(() =>
+    editing ? editing.currency : lastCurrency(),
   )
   const [amountText, setAmountText] = useState(
     editing ? String(editing.amount) : '',
   )
   // categoryId is null while a custom category is being typed
-  const [categoryId, setCategoryId] = useState(
-    editing?.categoryId ?? lastCategoryId(categories),
+  const [categoryId, setCategoryId] = useState(() =>
+    editing ? (editing.categoryId ?? categories[0].id) : lastCategoryId(categories),
   )
   const [customName, setCustomName] = useState('')
   const [note, setNote] = useState(editing?.note ?? '')

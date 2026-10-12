@@ -24,9 +24,9 @@
   /* Colores con significado: cada uno se usa solo para lo suyo */
   --income: #34d399; /* menta: montos de ingreso */
   --spending: #fb7185; /* coral: montos de gasto */
-  --spending-dim: rgba(251, 113, 133, 0.35); /* barras del gráfico */
+  --spending-dim: rgba(251, 113, 133, 0.5); /* barras del gráfico */
   --warning: #fbbf24; /* ámbar: avisos */
-  --danger: #ef4444; /* rojo: borrar, errores y presupuesto pasado */
+  --danger: #f35b5b; /* rojo: borrar, errores y presupuesto pasado */
 
   /* Tarjeta principal del inicio */
   --hero-from: #123038; /* inicio del degradado */
@@ -63,7 +63,7 @@
 
   --income: #15803d;
   --spending: #e11d48;
-  --spending-dim: rgba(225, 29, 72, 0.3);
+  --spending-dim: rgba(225, 29, 72, 0.5);
   --warning: #b45309;
   --danger: #b91c1c;
 
@@ -98,6 +98,17 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Los botones usan la misma fuente que el resto de la app */
+button {
+  font-family: inherit;
+}
+
+/* Texto de ejemplo en los inputs, con contraste suficiente */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 /* Sin márgenes por defecto: el espacio lo da cada contenedor con gap */
 h1, h2, h3, h4, p {
   margin: 0;
@@ -130,8 +141,8 @@ main {
 /* Botón redondo con el ícono de engranaje centrado */
 .settings-bar .icon-link {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   background: transparent;
   color: var(--muted);
@@ -193,6 +204,10 @@ main {
 }
 
 .top-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* tamaño mínimo cómodo para tocar */
   padding: 10px 18px;
   border-radius: 999px;
   background: var(--surface);
@@ -218,6 +233,20 @@ main {
     flex: 1 0 auto;
     padding: 10px 8px;
     text-align: center;
+  }
+}
+
+/* En celulares muy angostos (320px) las pestañas en español necesitan aún menos espacio */
+@media (max-width: 360px) {
+  .top-nav {
+    gap: 6px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .top-nav a {
+    padding: 10px 6px;
+    font-size: 13px;
   }
 }
 
@@ -248,6 +277,7 @@ main {
 /* Texto secundario pequeño */
 .sub {
   font-size: 13px;
+  line-height: 1.4;
   color: var(--muted);
 }
 
@@ -330,7 +360,7 @@ main {
   border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   text-decoration: none; /* también se usa en enlaces <Link> */
   cursor: pointer;
@@ -350,12 +380,12 @@ main {
 }
 
 .pill {
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-radius: 999px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -395,7 +425,7 @@ main {
 }
 
 .row-name {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* Segunda línea de la fila: categoría y fecha */
@@ -406,7 +436,7 @@ main {
 }
 
 .row-amount {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   text-align: right;
 }
@@ -478,7 +508,7 @@ main {
 }
 
 .bar-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -536,6 +566,11 @@ main {
   margin-bottom: 0;
 }
 
+/* Filtros sueltos en la pantalla: el espacio ya lo da el gap de main */
+main > .field {
+  margin-bottom: 0;
+}
+
 /* Campo que va justo después de un grupo de pills (categoría personalizada) */
 .pill-group + .field {
   margin-top: 14px;
@@ -568,12 +603,6 @@ main {
   font-family: inherit;
 }
 
-/* Botón desactivado (por ejemplo, Guardar sin monto) */
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* Pantalla de historial */
 
 /* Selector de mes: flecha, nombre del mes, flecha */
@@ -585,7 +614,7 @@ main {
 }
 
 .month-name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -596,8 +625,8 @@ main {
 
 /* Flechas para cambiar de mes */
 .month-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -692,6 +721,8 @@ main {
 
 /* Enlace para volver a Ajustes */
 .back-link {
+  display: inline-block;
+  padding: 8px 0;
   font-size: 13px;
   color: var(--muted);
   text-decoration: none;
@@ -699,16 +730,16 @@ main {
 
 /* Rejilla de colores del editor de categorías */
 .swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, 36px);
+  gap: 12px;
   margin: 8px 0 14px;
 }
 
 /* Un color para elegir */
 .swatch {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -779,8 +810,13 @@ main {
   margin-top: 12px;
 }
 
-/* Botón deshabilitado hecho con <label> (no admite :disabled) */
+/* Botón desactivado (por ejemplo, Guardar sin monto) o hecho con <label>, que
+   no admite :disabled. Va al final para ganarle a .secondary y .danger */
+.btn:disabled,
 .btn.disabled {
-  opacity: 0.4;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  opacity: 1;
   cursor: not-allowed;
 }

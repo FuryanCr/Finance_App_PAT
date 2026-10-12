@@ -35,18 +35,18 @@ describe('categoryColor', () => {
 })
 
 describe('customColorAt', () => {
-  it('gives cyan, fuchsia, slate, sand for 0 to 3', () => {
+  it('gives fuchsia, slate, sand, cyan for 0 to 3', () => {
     expect([0, 1, 2, 3].map(customColorAt)).toEqual([
-      'cyan',
       'fuchsia',
       'slate',
       'sand',
+      'cyan',
     ])
   })
 
   it('wraps around after the last color', () => {
-    expect(customColorAt(4)).toBe('cyan')
-    expect(customColorAt(5)).toBe('fuchsia')
+    expect(customColorAt(4)).toBe('fuchsia')
+    expect(customColorAt(5)).toBe('slate')
   })
 })
 
