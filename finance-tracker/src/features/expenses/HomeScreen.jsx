@@ -1,16 +1,27 @@
 import { Link } from 'react-router-dom'
-import { categoryLabel } from '../../lib/categories'
 import { useTransactions } from '../../context/useTransactions'
-import { getQuincenaRange, parseDate } from '../../lib/dates'
-import { currencies, formatMoney, getTotals, sum } from '../../lib/money'
+import {
+  daysLeftInQuincena,
+  getQuincenaRange,
+  parseDate,
+} from '../../lib/dates'
+import {
+  currencies,
+  formatMoney,
+  getTotals,
+  safePerDay,
+} from '../../lib/money'
+import { getCategoryTotals } from '../../lib/stats'
 import { useSettings } from '../../context/useSettings'
+import CategoryBars from '../../components/CategoryBars'
 import TransactionItem from '../../components/TransactionItem'
 
 export default function HomeScreen() {
   const { locale, t } = useSettings()
 
   const { start, end } = getQuincenaRange()
-  const { transactions, categories } = useTransactions()
+  const daysLeft = daysLeftInQuincena()
+  const { transactions, categories, budgets } = useTransactions()
   const current = transactions.filter((tx) => {
     const date = parseDate(tx.date)
     return date >= start && date <= end
@@ -62,36 +73,48 @@ export default function HomeScreen() {
               </div>
               <div>
                 <p className="label">{t('spent')}</p>
-                <p className="stat">−{formatMoney(spent, code)}</p>
+                <p className="stat spending">−{formatMoney(spent, code)}</p>
               </div>
             </div>
 
-            <ul className="list divider">
-              {categories.map((c) => {
-                const total = sum(
-                  expenses
-                    .filter((tx) => tx.categoryId === c.id)
-                    .map((tx) => tx.amount),
-                )
-                if (total === 0) return null
-                return (
-                  <li key={c.id}>
-                    <div className="row">
-                      <span className="row-name">{categoryLabel(c, t)}</span>
-                      <span className="row-amount">
-                        {formatMoney(total, code)}
-                      </span>
-                    </div>
-                    <div className="mini-bar">
-                      <div style={{ width: `${(total / spent) * 100}%` }} />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            {/* hidden until the quincena has income */}
+            {income > 0 && (
+              <div className="safe-day">
+                <p className="label">{t('safePerDay')}</p>
+                {net > 0 ? (
+                  <>
+                    <p className="stat">
+                      {formatMoney(safePerDay(net, daysLeft, code), code)}
+                    </p>
+                    <p className="sub">
+                      {daysLeft === 1
+                        ? t('lastDay')
+                        : `${daysLeft} ${t('daysLeft')}`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="stat over">{t('overBudget')}</p>
+                )}
+              </div>
+            )}
+
+            <CategoryBars
+              className="list divider"
+              totals={getCategoryTotals(expenses, categories)}
+              currency={code}
+              budgets={budgets.filter((b) => b.currency === code)}
+            />
           </section>
         )
       })}
+
+      {current.length === 0 && (
+        <section className="card">
+          <p className="sub empty">
+            {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
+          </p>
+        </section>
+      )}
 
       <div className="btn-row">
         <Link className="btn" to="/add?type=expense">
@@ -102,14 +125,16 @@ export default function HomeScreen() {
         </Link>
       </div>
 
-      <section className="card">
-        <p className="label">{t('recent')}</p>
-        <ul className="list">
-          {recent.map((tx) => (
-            <TransactionItem key={tx.id} tx={tx} />
-          ))}
-        </ul>
-      </section>
+      {recent.length > 0 && (
+        <section className="card">
+          <p className="label">{t('recent')}</p>
+          <ul className="list">
+            {recent.map((tx) => (
+              <TransactionItem key={tx.id} tx={tx} />
+            ))}
+          </ul>
+        </section>
+      )}
     </>
   )
 }

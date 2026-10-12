@@ -1,17 +1,15 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
+import { downloadCsv, transactionRows } from '../../lib/csv'
 import { isSameMonth, parseDate } from '../../lib/dates'
 import { currencies, formatMoney, getTotals } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
+import EmptyState from '../../components/EmptyState'
 import TransactionItem from '../../components/TransactionItem'
-
-function formatSigned(amount, code) {
-  return (amount < 0 ? '' : '+') + formatMoney(amount, code)
-}
 
 export default function HistoryScreen() {
   const { locale, t } = useSettings()
-  const { transactions } = useTransactions()
+  const { transactions, categories } = useTransactions()
 
   const today = new Date()
   const [month, setMonth] = useState(
@@ -38,6 +36,24 @@ export default function HistoryScreen() {
   const summaries = currencies
     .map((c) => ({ ...c, ...getTotals(list, c.code) }))
     .filter((c) => c.count > 0)
+
+  // Same rows and order as the list on screen
+  const handleExport = () => {
+    const monthNumber = String(month.getMonth() + 1).padStart(2, '0')
+    downloadCsv(
+      `quincena-${month.getFullYear()}-${monthNumber}.csv`,
+      transactionRows(list, categories, t),
+    )
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <>
+        <h1 className="screen-title">{t('history')}</h1>
+        <EmptyState />
+      </>
+    )
+  }
 
   return (
     <>
@@ -72,7 +88,7 @@ export default function HistoryScreen() {
         </section>
       ) : (
         <>
-          <section className="card hero">
+          <section className="card">
             {summaries.map((s, index) => (
               <div className={index === 0 ? undefined : 'divider'} key={s.code}>
                 <p className="label">
@@ -88,7 +104,9 @@ export default function HistoryScreen() {
                   </div>
                   <div>
                     <p className="label">{t('spent')}</p>
-                    <p className="stat">−{formatMoney(s.spent, s.code)}</p>
+                    <p className="stat spending">
+                      −{formatMoney(s.spent, s.code)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -106,12 +124,20 @@ export default function HistoryScreen() {
                       month: 'short',
                     })}
                   </p>
-                  <p className="sub">
+                  {/* net of the day per currency: + income color, − spending */}
+                  <p className="sub day-totals">
                     {currencies
                       .map((c) => ({ ...c, ...getTotals(day.items, c.code) }))
                       .filter((c) => c.count > 0)
-                      .map((c) => formatSigned(c.net, c.code))
-                      .join(' · ')}
+                      .map((c) => (
+                        <span
+                          className={c.net < 0 ? 'spending' : 'income'}
+                          key={c.code}
+                        >
+                          {c.net < 0 ? '' : '+'}
+                          {formatMoney(c.net, c.code)}
+                        </span>
+                      ))}
                   </p>
                 </div>
                 <ul className="list">
@@ -124,6 +150,20 @@ export default function HistoryScreen() {
           </section>
         </>
       )}
+
+      <section className="card">
+        <p className="label">{t('data')}</p>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={list.length === 0}
+            onClick={handleExport}
+          >
+            {t('exportCsv')}
+          </button>
+        </div>
+      </section>
     </>
   )
 }

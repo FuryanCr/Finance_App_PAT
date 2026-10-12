@@ -8,34 +8,78 @@
    solo hay que tocar estas variables. */
 :root {
   color-scheme: dark; /* controles nativos (scroll, calendario) en oscuro */
-  --bg: #0e130f; /* fondo de la página */
-  --surface: #151c16; /* fondo de las tarjetas */
-  --surface-2: #1c251d; /* fondo de pills, teclas e inputs */
-  --hero-from: #1b2c20; /* inicio del degradado de la tarjeta principal */
-  --text: #e8efe9; /* texto principal */
-  --muted: #9aab9d; /* texto secundario */
-  --border: #26332a; /* bordes y líneas divisorias */
-  --accent: #22c55e; /* verde principal: botones y barras */
-  --accent-bright: #4ade80; /* verde claro: ingresos y elementos activos */
-  --accent-dim: rgba(74, 222, 128, 0.28); /* verde transparente */
-  --on-accent: #052e16; /* texto encima del verde */
+  --bg: #0b1114; /* fondo de la página */
+  --surface: #121b20; /* fondo de las tarjetas */
+  --surface-2: #1a262c; /* fondo de pills, teclas e inputs */
+  --border: #243239; /* bordes y líneas divisorias */
+  --text: #e6eef0; /* texto principal */
+  --muted: #94a8ad; /* texto secundario */
+
+  /* Color de marca (teal): solo para cosas que se pueden tocar
+     (botones, pestaña activa) y el acento del título */
+  --accent: #2dd4bf;
+  --accent-dim: rgba(45, 212, 191, 0.3); /* teal transparente */
+  --on-accent: #04201c; /* texto encima del teal */
+
+  /* Colores con significado: cada uno se usa solo para lo suyo */
+  --income: #34d399; /* menta: montos de ingreso */
+  --spending: #fb7185; /* coral: montos de gasto */
+  --spending-dim: rgba(251, 113, 133, 0.35); /* barras del gráfico */
+  --warning: #fbbf24; /* ámbar: avisos */
+  --danger: #ef4444; /* rojo: borrar, errores y presupuesto pasado */
+
+  /* Tarjeta principal del inicio */
+  --hero-from: #123038; /* inicio del degradado */
+  --hero-stop: 85%; /* dónde el degradado llega al color de la tarjeta */
+  --hero-glow: rgba(45, 212, 191, 0.14); /* brillo alrededor */
+
+  /* Colores de categoría. Cada categoría guarda el nombre del color
+     (por ejemplo "orange") y aquí se define su valor en cada tema. */
+  --cat-orange: #fb923c; /* Comida */
+  --cat-blue: #60a5fa; /* Transporte */
+  --cat-violet: #a78bfa; /* Servicios */
+  --cat-lime: #a3e635; /* Diversión */
+  --cat-cyan: #22d3ee; /* de aquí en adelante: categorías personalizadas */
+  --cat-fuchsia: #e879f9;
+  --cat-slate: #94a3b8;
+  --cat-sand: #d6b98c;
 }
 
-/* Tema claro: mismas variables con otros valores.
+/* Tema claro: mismas variables con otros valores (base arena, no blanco
+   puro, y acentos más oscuros para que se lean sobre fondo claro).
    SettingsProvider pone data-theme="light" en <html> al cambiar de tema. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f2f6f2;
+  --bg: #f5f2ee;
   --surface: #ffffff;
-  --surface-2: #e9f0ea;
-  --hero-from: #e3f3e7;
-  --text: #101712;
-  --muted: #566358;
-  --border: #d9e3da;
-  --accent: #15803d;
-  --accent-bright: #166534;
-  --accent-dim: rgba(21, 128, 61, 0.28);
+  --surface-2: #ece8e1;
+  --border: #ddd7ce;
+  --text: #14201f;
+  --muted: #5b6b6a;
+
+  --accent: #0f766e;
+  --accent-dim: rgba(15, 118, 110, 0.3);
   --on-accent: #ffffff;
+
+  --income: #15803d;
+  --spending: #e11d48;
+  --spending-dim: rgba(225, 29, 72, 0.3);
+  --warning: #b45309;
+  --danger: #b91c1c;
+
+  --hero-from: #e3f3f0;
+  /* termina antes: los montos quedan sobre blanco y se leen bien */
+  --hero-stop: 40%;
+  --hero-glow: rgba(15, 118, 110, 0.12);
+
+  --cat-orange: #c2410c;
+  --cat-blue: #2563eb;
+  --cat-violet: #7c3aed;
+  --cat-lime: #4d7c0f;
+  --cat-cyan: #0e7490;
+  --cat-fuchsia: #a21caf;
+  --cat-slate: #475569;
+  --cat-sand: #8a6d3b;
 }
 
 /* Base */
@@ -61,7 +105,7 @@ h1, h2, h3, h4, p {
 
 /* Contorno visible al navegar con el teclado */
 :focus-visible {
-  outline: 2px solid var(--accent-bright);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -75,7 +119,7 @@ main {
   gap: 16px; /* espacio entre las secciones de la pantalla */
 }
 
-/* Controles superiores: botón de idioma y de tema */
+/* Controles superiores: enlace a la pantalla de ajustes */
 .settings-bar {
   display: flex;
   justify-content: flex-end;
@@ -83,28 +127,28 @@ main {
   padding: 16px 20px 0;
 }
 
-.settings-bar button {
+/* Botón redondo con el ícono de engranaje centrado */
+.settings-bar .icon-link {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px; /* 999px = bordes totalmente redondos */
-  padding: 6px 14px;
-  font-size: 13px;
-  cursor: pointer;
 }
 
-/* Botón redondo con el ícono de sol/luna centrado */
-.settings-bar .theme-toggle {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  padding: 8px;
-  place-items: center;
-}
-
-.theme-toggle svg {
+/* Tamaño del ícono de engranaje */
+.icon-link svg {
   width: 18px;
   height: 18px;
+}
+
+/* Enlace resaltado cuando estamos en ajustes */
+.settings-bar .icon-link.active {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Título de la app */
@@ -123,7 +167,7 @@ main {
   color: var(--text);
 }
 
-/* Segunda parte del título, en verde */
+/* Segunda parte del título, en el color de marca */
 .title-accent {
   color: var(--accent);
 }
@@ -139,7 +183,13 @@ main {
   margin: 0 auto;
   padding: 16px 20px 8px;
   overflow-x: auto; /* scroll horizontal si los enlaces no caben */
+  scrollbar-width: none; /* oculta la barra, pero se sigue pudiendo deslizar */
   background: var(--bg);
+}
+
+/* Oculta la barra de scroll en Chrome/Safari (el deslizamiento sigue funcionando) */
+.top-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .top-nav a {
@@ -160,6 +210,15 @@ main {
   border-color: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
+}
+
+/* En celulares: menos relleno y las pestañas reparten el ancho para que quepan las cuatro */
+@media (max-width: 440px) {
+  .top-nav a {
+    flex: 1 0 auto;
+    padding: 10px 8px;
+    text-align: center;
+  }
 }
 
 /* Estilos de texto */
@@ -192,7 +251,7 @@ main {
   color: var(--muted);
 }
 
-/* Tarjetas: la profundidad viene del color de fondo, no de sombras */
+/* Tarjetas: tranquilas, la profundidad viene del color de fondo */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -200,10 +259,16 @@ main {
   padding: 20px;
 }
 
-/* Tarjeta destacada con degradado verde */
+/* Tarjeta principal del inicio: la única con degradado fuerte, borde
+   teal y un brillo suave alrededor, para que sea la que más destaca */
 .card.hero {
-  background: linear-gradient(160deg, var(--hero-from) 0%, var(--surface) 70%);
+  background: linear-gradient(
+    160deg,
+    var(--hero-from) 0%,
+    var(--surface) var(--hero-stop)
+  );
   border-color: var(--accent-dim);
+  box-shadow: 0 0 28px var(--hero-glow);
 }
 
 /* Barra de progreso y estadísticas */
@@ -217,11 +282,11 @@ main {
   margin-bottom: 8px;
 }
 
-/* Relleno de la barra; el ancho (%) se pone desde React */
+/* Relleno de la barra, en color de gasto; el ancho (%) se pone desde React */
 .progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+  background: var(--spending);
 }
 
 /* Dos columnas iguales: ingresos y gastado */
@@ -238,8 +303,14 @@ main {
   margin-top: 2px;
 }
 
-.stat.income {
-  color: var(--accent-bright);
+/* Montos con significado: se usan junto con .stat, .row-amount o solos.
+   El signo + o − siempre va en el texto; el color solo lo refuerza. */
+.income {
+  color: var(--income);
+}
+
+.spending {
+  color: var(--spending);
 }
 
 /* Botones */
@@ -250,7 +321,7 @@ main {
   gap: 12px;
 }
 
-/* Botón principal (verde) */
+/* Botón principal (color de marca) */
 .btn {
   flex: 1;
   text-align: center;
@@ -290,8 +361,8 @@ main {
 
 /* Opción seleccionada */
 .pill.active {
-  background: var(--accent-bright);
-  border-color: var(--accent-bright);
+  background: var(--accent);
+  border-color: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
 }
@@ -340,10 +411,6 @@ main {
   text-align: right;
 }
 
-.row-amount.income {
-  color: var(--accent-bright);
-}
-
 /* Barra delgada bajo cada categoría: su parte del gasto total */
 .mini-bar {
   height: 4px;
@@ -353,11 +420,19 @@ main {
   overflow: hidden;
 }
 
-/* Relleno; el ancho (%) se pone desde React */
+/* Relleno; el ancho (%) y el color de la categoría se ponen desde React */
 .mini-bar > div {
   height: 100%;
   border-radius: 999px;
-  background: var(--accent);
+}
+
+/* Punto con el color de la categoría, antes de su nombre */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-right: 6px;
 }
 
 /* Gráfico de barras (Estadísticas) */
@@ -394,12 +469,12 @@ main {
   width: 100%;
   min-height: 4px; /* se ve una línea aunque el total sea 0 */
   border-radius: 8px;
-  background: var(--accent-dim);
+  background: var(--spending-dim); /* color de gasto, atenuado */
 }
 
-/* La barra más alta se resalta */
+/* La barra más alta se resalta con el color de gasto completo */
 .bar-fill.max {
-  background: var(--accent-bright);
+  background: var(--spending);
 }
 
 .bar-label {
@@ -476,6 +551,17 @@ main {
   font-family: inherit;
 }
 
+/* Los desplegables se ven igual que los inputs */
+.field select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-family: inherit;
+}
+
 /* Botón desactivado (por ejemplo, Guardar sin monto) */
 .btn:disabled {
   opacity: 0.4;
@@ -533,4 +619,133 @@ main {
 .empty {
   text-align: center;
   padding: 12px 0;
+}
+
+/* Fila que lleva a editar la transacción: se ve igual que una fila normal */
+.row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Estado vacío: mensaje centrado con los botones para agregar */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+/* Botones uno debajo del otro (tarjeta de datos del historial) */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Botón de acciones que borran: sin relleno y en rojo */
+.btn.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+
+/* Mensaje debajo de un campo del formulario */
+.field-note {
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* Aviso: se puede guardar igual */
+.field-note.warning {
+  color: var(--warning);
+}
+
+/* Error: no se puede guardar hasta corregirlo */
+.field-note.error {
+  color: var(--danger);
+}
+
+/* Inicio: "disponible por día" debajo de ingresos y gastado */
+.safe-day {
+  margin-top: 16px;
+}
+
+/* Texto de "te pasaste del presupuesto" */
+.stat.over {
+  color: var(--danger);
+}
+
+/* Totales netos del día en el historial, uno por moneda */
+.day-totals {
+  display: flex;
+  gap: 10px;
+}
+
+/* Pantalla de categorías */
+
+/* Enlace para volver a Ajustes */
+.back-link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* Rejilla de colores del editor de categorías */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+
+/* Un color para elegir */
+.swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+/* Color elegido: con anillo, no solo con otro color */
+.swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface) inset;
+}
+
+/* Panel de edición debajo de la fila de la categoría */
+.editor {
+  margin-top: 14px;
+}
+
+/* Presupuestos */
+
+/* Campo del límite de cada categoría */
+.budget-input {
+  width: 120px;
+  text-align: right;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+/* Aviso de texto debajo de la barra */
+.budget-note {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Cerca del límite (80% o más) */
+.budget-note.near {
+  color: var(--warning);
+}
+
+/* Límite superado */
+.budget-note.over {
+  color: var(--danger);
 }

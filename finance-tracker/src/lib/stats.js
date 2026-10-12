@@ -1,6 +1,31 @@
 import { sum } from './money'
 import { isSameMonth, parseDate } from './dates'
 
+// First day covered by the chart of each period
+export function getPeriodStart(period, today = new Date()) {
+  if (period === 'week') {
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)
+  }
+  if (period === 'month') {
+    return new Date(today.getFullYear(), today.getMonth() - 5, 1)
+  }
+  return new Date(today.getFullYear() - 2, 0, 1)
+}
+
+// Total spent per category, leaving out categories with nothing spent
+export function getCategoryTotals(expenses, categories) {
+  return categories
+    .map((category) => ({
+      category,
+      total: sum(
+        expenses
+          .filter((t) => t.categoryId === category.id)
+          .map((t) => t.amount),
+      ),
+    }))
+    .filter((item) => item.total > 0)
+}
+
 export function getSpendingBars(
   transactions,
   currency,

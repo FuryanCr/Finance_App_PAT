@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useSettings } from '../context/useSettings'
 
-export default function BottomNav() {
+export default function TopNav() {
   const { t } = useSettings()
 
   return (

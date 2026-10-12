@@ -2,11 +2,14 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import SettingsProvider from './context/SettingsProvider'
 import TransactionsProvider from './context/TransactionsProvider'
 import SettingsBar from './components/SettingsBar'
-import BottomNav from './components/BottomNav'
+import TopNav from './components/TopNav'
 import HomeScreen from './features/expenses/HomeScreen'
 import AddExpenseScreen from './features/expenses/AddExpenseScreen'
 import StatisticsScreen from './features/expenses/StatisticsScreen'
 import HistoryScreen from './features/expenses/HistoryScreen'
+import SettingsScreen from './features/settings/SettingsScreen'
+import CategoriesScreen from './features/settings/CategoriesScreen'
+import BudgetsScreen from './features/settings/BudgetsScreen'
 import Header from './Header'
 
 export default function App() {
@@ -16,13 +19,24 @@ export default function App() {
         <BrowserRouter>
           <SettingsBar />
           <Header />
-          <BottomNav />
+          <TopNav />
           <main>
             <Routes>
               <Route path="/" element={<HomeScreen />} />
-              <Route path="/add" element={<AddExpenseScreen />} />
+              {/* different keys so the form starts fresh between add and edit */}
+              <Route path="/add" element={<AddExpenseScreen key="add" />} />
+              <Route
+                path="/edit/:id"
+                element={<AddExpenseScreen key="edit" />}
+              />
               <Route path="/stats" element={<StatisticsScreen />} />
               <Route path="/history" element={<HistoryScreen />} />
+              <Route path="/settings" element={<SettingsScreen />} />
+              <Route
+                path="/settings/categories"
+                element={<CategoriesScreen />}
+              />
+              <Route path="/settings/budgets" element={<BudgetsScreen />} />
             </Routes>
           </main>
         </BrowserRouter>

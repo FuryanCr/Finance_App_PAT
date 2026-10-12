@@ -20,6 +20,13 @@ export function getTotals(transactions, code) {
   return { count: list.length, income, spent, net: sum([income, -spent]) }
 }
 
+// What is left split over the remaining days, rounded down so it stays safe:
+// whole colones, or cents for dollars
+export function safePerDay(net, days, code) {
+  const factor = code === 'USD' ? 100 : 1
+  return Math.floor((net / days) * factor) / factor
+}
+
 // CRC: ₡1.800.000 | USD: $1,234.50 | negative: −₡31.000
 export function formatMoney(amount, currency = 'CRC') {
   const sign = amount < 0 ? '−' : ''

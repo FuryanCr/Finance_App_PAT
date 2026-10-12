@@ -7,7 +7,10 @@ function getInitialTheme() {
 }
 
 export default function SettingsProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem('lang') || 'es')
+  // English unless Spanish was saved
+  const [lang, setLang] = useState(() =>
+    localStorage.getItem('lang') === 'es' ? 'es' : 'en',
+  )
   const [theme, setTheme] = useState(getInitialTheme)
 
   useEffect(() => {

@@ -1,12 +1,21 @@
 ## What is this app?
 A personal finance tracker built with React. Quincena helps you follow your income and expenses through each pay period, in colones and dollars, in Spanish or English.
 
-> **Status:** in development. The dashboard and statistics screens work with sample data. Add-expense and history are placeholders, and nothing is saved yet.
+> **Status:** in development. All four screens work and your data is saved in a SQLite database (in the browser it lives in IndexedDB), so it survives a refresh. The app starts empty; sample data is optional. The Android app is next.
 
 ## Features
 
 - Income, expenses and remaining balance for the current pay period
+- "Safe to spend per day": what is left this pay period divided by the days remaining
+- Add expenses and income with a numeric keypad, in colones or dollars
+- Edit or delete any transaction by tapping it
+- Custom expense categories: name your own and reuse them
 - Spending statistics by time period and currency
+- Monthly history: balance, income and spent per currency, with transactions grouped by day
+- CSV export of the month shown in History
+- Settings screen: language, theme, export everything as CSV, load sample data and clear all data
+- Manage custom categories: rename, recolor, or delete and move their transactions
+- Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
 - Spanish / English interface
 - Dark and light themes
 - Navigation between Dashboard, Add expense, Statistics and History
@@ -72,9 +81,8 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 | Build tool | Vite | In use |
 | Routing | React Router | In use |
 | App state | React Context | In use |
-| Styling | Plain CSS | In use |
-| Data | Sample data in `src/db/mockData.js` | In use (temporary) |
-| Storage | SQLite | Planned |
+| Styling | Plain CSS in `src/index.css` | In use |
+| Storage | SQLite via `@capacitor-community/sqlite` (WebAssembly + IndexedDB in the browser) | In use |
 | Android app | Capacitor | Installed, not built yet |
 | Cloud backups | To be decided | Later |
 | Linting | ESLint | In use |
@@ -84,26 +92,35 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 - **React** builds the interface from small, reusable components.
 - **Vite** gives a fast dev server with hot reload and creates the production build.
 - **React Router** handles navigation between screens without reloading the page.
-- **React Context** holds app-wide settings such as language and theme.
-- **Plain CSS** keeps styling simple, with no styling library.
-- **SQLite** (planned) is a single local database file with no server to run, which suits a personal app.
+- **React Context** holds app-wide settings such as language and theme, plus the transactions and categories.
+- **Plain CSS** keeps styling simple, with no styling library. All styles live in one file, `src/index.css`, with comments in Spanish.
+- **SQLite** (in use) is a single local database file with no server to run, which suits a personal app.
 - **Capacitor** (installed) will let the same React app be packaged as an Android app.
 - **ESLint** uses the Vite template defaults. There is no Prettier or custom formatting.
 
 ### Data and storage
 
-Right now the app reads sample categories and transactions from `src/db/mockData.js`, so nothing is saved between sessions. The plan is to replace it with SQLite so expenses persist on the device, then add cloud backups.
+Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table and a `budgets` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
+
+Screens never touch storage directly: they read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL for reading and writing. On the first launch after upgrading, data saved by the older `localStorage` version is imported once, and the old copy is left untouched.
+
+In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. Cloud backups come later.
 
 ## Project structure
 
 ```text
 src/
   components/         Shared interface components
-  context/            App-wide settings (language, theme)
-  db/mockData.js      Sample categories and transactions
-  features/expenses/  Expense screens
-  lib/                Date, money, statistics and translation helpers
+  context/            App-wide settings (language, theme) and transactions
+  db/database.js      Opens SQLite and runs schema migrations
+  db/mockData.js      Built-in categories and optional sample transactions
+  db/storage.js       Reads and writes data (SQLite)
+  features/expenses/  Expense screens (home, add and edit, statistics, history)
+  features/settings/  Settings, category and budget screens
+  lib/                Date, money, category, CSV, statistics and translation helpers
   App.jsx             Routes and page layout
+  Header.jsx          App title
+  index.css           All styles
   main.jsx            App entry point
 ```
 
@@ -119,9 +136,16 @@ src/
 - [x] Dashboard and statistics screens
 - [x] Spanish / English and dark / light mode
 - [x] Colones and dollars
-- [ ] Add-expense screen
-- [ ] History screen
-- [ ] SQLite storage
+- [x] Add-expense screen
+- [x] Custom categories
+- [x] History screen
+- [x] Data saved in the browser
+- [x] CSV export
+- [x] Start empty, with optional sample data
+- [x] Edit and delete transactions
+- [x] "Safe to spend per day" on the dashboard
+- [x] Settings screen
+- [x] SQLite storage
 - [ ] Android app with Capacitor
 - [ ] Cloud backups
 
@@ -133,3 +157,17 @@ Newest first.
 - Project created and pushed to GitHub
 - Dashboard and statistics screens working with sample data
 - Language and theme switching in place
+- Add-expense screen with custom categories
+- History screen, one month at a time
+- Styles commented in Spanish
+- Cleanup: removed unused starter files and merged repeated code
+- Data saved in the browser, behind a small storage module
+- CSV export of the month shown in History
+- App starts empty; sample data and "clear all data" are optional actions
+- Edit and delete transactions from any list
+- "Safe to spend per day" on the dashboard
+- Storage moved from localStorage to SQLite, with a one-time import of existing data
+- English is now the default language
+- Settings screen with language, theme and data actions
+- Categories screen: rename, recolor and delete custom categories
+- Budgets per category, shown on the dashboard
