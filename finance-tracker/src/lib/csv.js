@@ -1,8 +1,11 @@
 import { categoryLabel } from './categories'
 
-// Quotes a value when it has a comma, a quote, a line break or outer spaces
+// Quotes a value when it has a comma, a quote, a line break or outer spaces.
+// Text starting with = + - or @ is run as a formula by Excel and Sheets, so
+// it gets a leading quote; numbers (the amount column) are left as they are.
 function escapeCell(value) {
-  const text = String(value)
+  const risky = typeof value === 'string' && /^[=+\-@]/.test(value)
+  const text = risky ? `'${value}` : String(value)
   if (!/[",\r\n]|^\s|\s$/.test(text)) return text
   return `"${text.replace(/"/g, '""')}"`
 }
@@ -34,6 +37,9 @@ export function downloadCsv(filename, rows) {
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(url)
+  link.remove()
+  // some browsers cancel the download if the URL is revoked right away
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

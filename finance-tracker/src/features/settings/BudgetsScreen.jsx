@@ -1,17 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { categoryColor, categoryLabel } from '../../lib/categories'
-import { currencies } from '../../lib/money'
+import { parseAmount } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
-
-// Empty means no budget (0); null means the text is not a valid amount
-function parseAmount(text) {
-  const trimmed = text.trim()
-  if (trimmed === '') return 0
-  const value = Number(trimmed.replace(',', '.'))
-  return Number.isNaN(value) || value < 0 ? null : value
-}
+import CurrencyPills from '../../components/CurrencyPills'
 
 function BudgetForm({ currency }) {
   const { t } = useSettings()
@@ -111,18 +104,7 @@ export default function BudgetsScreen() {
       <h1 className="screen-title">{t('budgets')}</h1>
       <p className="sub">{t('budgetHint')}</p>
 
-      <div className="pill-group">
-        {currencies.map(({ code }) => (
-          <button
-            key={code}
-            type="button"
-            className={currency === code ? 'pill active' : 'pill'}
-            onClick={() => setCurrency(code)}
-          >
-            {code}
-          </button>
-        ))}
-      </div>
+      <CurrencyPills value={currency} onChange={setCurrency} />
 
       <BudgetForm key={currency} currency={currency} />
     </>

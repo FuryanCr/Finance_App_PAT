@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
-import { parseDate } from '../../lib/dates'
+import { byNewest, parseDate } from '../../lib/dates'
 import {
   getCategoryTotals,
   getPeriodStart,
+  getQuincenaHistory,
   getSpendingBars,
 } from '../../lib/stats'
-import { currencies, formatMoney } from '../../lib/money'
+import { formatMoney } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import BarChart from '../../components/BarChart'
 import CategoryBars from '../../components/CategoryBars'
+import CurrencyPills from '../../components/CurrencyPills'
 import EmptyState from '../../components/EmptyState'
 import TransactionItem from '../../components/TransactionItem'
 
@@ -19,7 +21,8 @@ export default function StatisticsScreen() {
   const [currency, setCurrency] = useState('CRC')
   const { transactions, categories } = useTransactions()
 
-  const bars = getSpendingBars(transactions, currency, period, new Date(), locale)
+  const today = new Date()
+  const bars = getSpendingBars(transactions, currency, period, today, locale)
   // same range as the chart: last 7 days, 6 months or 3 years
   const periodStart = getPeriodStart(period)
   const byCategory = getCategoryTotals(
@@ -27,13 +30,17 @@ export default function StatisticsScreen() {
       (tx) =>
         tx.type === 'expense' &&
         tx.currency === currency &&
-        parseDate(tx.date) >= periodStart,
+        parseDate(tx.date) >= periodStart &&
+        parseDate(tx.date) <= today,
     ),
     categories,
   ).sort((a, b) => b.total - a.total)
+  const history = getQuincenaHistory(transactions, currency, 6, today)
+  const shortDate = (date) =>
+    date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
   const recent = transactions
     .filter((tx) => tx.currency === currency)
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort(byNewest)
     .slice(0, 8)
 
   if (transactions.length === 0) {
@@ -53,6 +60,7 @@ export default function StatisticsScreen() {
         {['week', 'month', 'year'].map((p) => (
           <button
             key={p}
+            type="button"
             className={period === p ? 'pill active' : 'pill'}
             onClick={() => setPeriod(p)}
           >
@@ -61,17 +69,7 @@ export default function StatisticsScreen() {
         ))}
       </div>
 
-      <div className="pill-group">
-        {currencies.map(({ code }) => (
-          <button
-            key={code}
-            className={currency === code ? 'pill active' : 'pill'}
-            onClick={() => setCurrency(code)}
-          >
-            {code}
-          </button>
-        ))}
-      </div>
+      <CurrencyPills value={currency} onChange={setCurrency} />
 
       <section className="card">
         <p className="label">{t('spending')}</p>
@@ -88,6 +86,33 @@ export default function StatisticsScreen() {
         ) : (
           <CategoryBars totals={byCategory} currency={currency} />
         )}
+      </section>
+
+      <section className="card">
+        <p className="label">{t('pastQuincenas')}</p>
+        <ul className="list">
+          {history.map((q) => (
+            <li className="row" key={q.start.getTime()}>
+              <div>
+                <p className="row-name">
+                  {shortDate(q.start)} – {shortDate(q.end)}
+                </p>
+                <p className="row-meta">
+                  <span className="income">
+                    +{formatMoney(q.income, currency)}
+                  </span>
+                  {' · '}
+                  <span className="spending">
+                    −{formatMoney(q.spent, currency)}
+                  </span>
+                </p>
+              </div>
+              <p className={q.net < 0 ? 'row-amount spending' : 'row-amount'}>
+                {formatMoney(q.net, currency)}
+              </p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card">

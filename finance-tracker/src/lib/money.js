@@ -23,8 +23,20 @@ export function getTotals(transactions, code) {
 // What is left split over the remaining days, rounded down so it stays safe:
 // whole colones, or cents for dollars
 export function safePerDay(net, days, code) {
-  const factor = code === 'USD' ? 100 : 1
-  return Math.floor((net / days) * factor) / factor
+  const cents = Math.floor(Math.round(net * 100) / days)
+  return code === 'USD' ? cents / 100 : Math.floor(cents / 100)
+}
+
+// Empty means 0; null means the text is not a valid amount (not a number,
+// negative, or a positive amount below one cent).
+// The result is rounded to cents.
+export function parseAmount(text) {
+  const trimmed = text.trim()
+  if (trimmed === '') return 0
+  const value = Number(trimmed.replace(',', '.'))
+  if (!Number.isFinite(value) || value < 0) return null
+  const rounded = Math.round(value * 100) / 100
+  return value > 0 && rounded === 0 ? null : rounded
 }
 
 // CRC: ₡1.800.000 | USD: $1,234.50 | negative: −₡31.000

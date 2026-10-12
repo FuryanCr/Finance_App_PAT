@@ -39,7 +39,7 @@ export default function TransactionItem({ tx, showDate = true }) {
           </p>
         </div>
         <p className={isIncome ? 'row-amount income' : 'row-amount spending'}>
-          {isIncome ? '+' : '-'}
+          {isIncome ? '+' : '−'}
           {formatMoney(tx.amount, tx.currency)}
         </p>
       </Link>

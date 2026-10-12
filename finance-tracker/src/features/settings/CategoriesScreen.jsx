@@ -79,7 +79,7 @@ function CategoryEditor({ category, onDone }) {
             type="button"
             className={color === c ? 'swatch active' : 'swatch'}
             style={{ background: `var(--cat-${c})` }}
-            aria-label={c}
+            aria-label={t(`color.${c}`)}
             aria-pressed={color === c}
             onClick={() => setColor(c)}
           />

@@ -6,23 +6,30 @@ import {
 } from '../db/mockData'
 import {
   clearAll,
+  confirmRecurring as saveConfirmedRecurring,
   deleteCategory as removeCategory,
+  deleteRecurring as removeRecurring,
   deleteTransaction as removeTransaction,
   insertCategory,
+  insertRecurring,
   insertTransaction,
   insertTransactions,
   loadAll,
   setBudget as saveBudget,
+  skipRecurring as saveSkippedRecurring,
   updateCategory as replaceCategory,
+  updateRecurring as replaceRecurring,
   updateTransaction as replaceTransaction,
 } from '../db/storage'
 import { customColorAt, findCategoryByName } from '../lib/categories'
+import { quincenaKey, todayString } from '../lib/dates'
 import { useSettings } from './useSettings'
 
 export default function TransactionsProvider({ children }) {
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState(builtInCategories)
   const [budgets, setBudgets] = useState([])
+  const [recurring, setRecurring] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const { t } = useSettings()
@@ -35,6 +42,7 @@ export default function TransactionsProvider({ children }) {
         setTransactions(data.transactions)
         setCategories(data.categories)
         setBudgets(data.budgets)
+        setRecurring(data.recurring)
         setLoading(false)
       })
       .catch((err) => {
@@ -94,6 +102,11 @@ export default function TransactionsProvider({ children }) {
         item.categoryId === id ? { ...item, categoryId: moveToId } : item,
       ),
     )
+    setRecurring((current) =>
+      current.map((item) =>
+        item.categoryId === id ? { ...item, categoryId: moveToId } : item,
+      ),
+    )
     // the database already removed them
     setBudgets((current) => current.filter((item) => item.categoryId !== id))
   }
@@ -109,8 +122,57 @@ export default function TransactionsProvider({ children }) {
     })
   }
 
+  const addRecurring = async (item) => {
+    const saved = await insertRecurring(item)
+    setRecurring((current) => [...current, saved])
+  }
+
+  const updateRecurring = async (id, item) => {
+    const saved = await replaceRecurring(id, item)
+    setRecurring((current) =>
+      current.map((existing) => (existing.id === id ? saved : existing)),
+    )
+  }
+
+  const deleteRecurring = async (id) => {
+    await removeRecurring(id)
+    setRecurring((current) => current.filter((item) => item.id !== id))
+  }
+
+  // handled for this quincena, without adding anything
+  const skipRecurring = async (item) => {
+    const period = quincenaKey()
+    await saveSkippedRecurring(item.id, period)
+    setRecurring((current) =>
+      current.map((existing) =>
+        existing.id === item.id ? { ...existing, lastPeriod: period } : existing,
+      ),
+    )
+  }
+
+  // adds a real transaction dated today and marks the item as handled
+  const confirmRecurring = async (item) => {
+    const period = quincenaKey()
+    const tx = {
+      amount: item.amount,
+      currency: item.currency,
+      type: item.type,
+      categoryId: item.type === 'expense' ? item.categoryId : null,
+      note: item.note,
+      date: todayString(),
+    }
+    const saved = await saveConfirmedRecurring(item.id, period, tx)
+    setTransactions((current) => [...current, saved])
+    setRecurring((current) =>
+      current.map((existing) =>
+        existing.id === item.id ? { ...existing, lastPeriod: period } : existing,
+      ),
+    )
+  }
+
   const loadSampleData = async () => {
-    setTransactions(await insertTransactions(sampleTransactions))
+    const saved = await insertTransactions(sampleTransactions)
+    setTransactions((current) => [...current, ...saved])
   }
 
   const clearAllData = async () => {
@@ -118,6 +180,7 @@ export default function TransactionsProvider({ children }) {
     setTransactions([])
     setCategories(builtInCategories)
     setBudgets([])
+    setRecurring([])
   }
 
   // screens never see a half-loaded state
@@ -153,6 +216,12 @@ export default function TransactionsProvider({ children }) {
         deleteCategory,
         budgets,
         setBudget,
+        recurring,
+        addRecurring,
+        updateRecurring,
+        deleteRecurring,
+        skipRecurring,
+        confirmRecurring,
         loadSampleData,
         clearAllData,
       }}

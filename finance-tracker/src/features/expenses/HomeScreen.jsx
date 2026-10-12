@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
 import {
+  byNewest,
   daysLeftInQuincena,
   getQuincenaRange,
   parseDate,
@@ -11,9 +13,11 @@ import {
   getTotals,
   safePerDay,
 } from '../../lib/money'
+import { isDue } from '../../lib/recurring'
 import { getCategoryTotals } from '../../lib/stats'
 import { useSettings } from '../../context/useSettings'
 import CategoryBars from '../../components/CategoryBars'
+import RecurringRow from '../../components/RecurringRow'
 import TransactionItem from '../../components/TransactionItem'
 
 export default function HomeScreen() {
@@ -21,14 +25,38 @@ export default function HomeScreen() {
 
   const { start, end } = getQuincenaRange()
   const daysLeft = daysLeftInQuincena()
-  const { transactions, categories, budgets } = useTransactions()
+  const {
+    transactions,
+    categories,
+    budgets,
+    recurring,
+    confirmRecurring,
+    skipRecurring,
+  } = useTransactions()
+  const [busy, setBusy] = useState(false)
   const current = transactions.filter((tx) => {
     const date = parseDate(tx.date)
     return date >= start && date <= end
   })
   const recent = [...transactions]
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort(byNewest)
     .slice(0, 5)
+
+  const due = recurring.filter((item) => isDue(item))
+
+  // one action at a time; a failed write is reported, not swallowed
+  const handleDue = async (action, item) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await action(item)
+    } catch (error) {
+      console.error(error)
+      window.alert(t('saveError'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const format = { month: 'short', day: 'numeric' }
 
@@ -113,6 +141,37 @@ export default function HomeScreen() {
           <p className="sub empty">
             {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
           </p>
+        </section>
+      )}
+
+      {due.length > 0 && (
+        <section className="card">
+          <p className="label">{t('dueThisQuincena')}</p>
+          <ul className="list">
+            {due.map((item) => (
+              <li key={item.id}>
+                <RecurringRow item={item} />
+                <div className="due-actions">
+                  <button
+                    type="button"
+                    className="pill active"
+                    disabled={busy}
+                    onClick={() => handleDue(confirmRecurring, item)}
+                  >
+                    {t('confirm')}
+                  </button>
+                  <button
+                    type="button"
+                    className="pill"
+                    disabled={busy}
+                    onClick={() => handleDue(skipRecurring, item)}
+                  >
+                    {t('skip')}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

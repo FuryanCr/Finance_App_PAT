@@ -28,7 +28,7 @@ export function categoryLabel(category, t) {
 }
 
 // 'Comída ' -> 'comida': ignores case, accents and outer spaces
-function normalize(text) {
+export function normalize(text) {
   return text
     .trim()
     .toLowerCase()

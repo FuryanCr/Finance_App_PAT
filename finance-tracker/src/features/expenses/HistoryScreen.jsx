@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
+import { categoryLabel } from '../../lib/categories'
 import { downloadCsv, transactionRows } from '../../lib/csv'
-import { isSameMonth, parseDate } from '../../lib/dates'
+import { byNewest, isSameMonth, parseDate } from '../../lib/dates'
 import { currencies, formatMoney, getTotals } from '../../lib/money'
+import { filterTransactions, hasFilters } from '../../lib/search'
 import { useSettings } from '../../context/useSettings'
 import EmptyState from '../../components/EmptyState'
 import TransactionItem from '../../components/TransactionItem'
@@ -15,15 +17,34 @@ export default function HistoryScreen() {
   const [month, setMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   )
-  const isCurrentMonth = isSameMonth(month, today)
+  const [query, setQuery] = useState('')
+  const [type, setType] = useState('all')
+  const [categoryId, setCategoryId] = useState('all')
+  const filters = { query, type, categoryId }
+  const filtering = hasFilters(filters)
+
+  // later months can be seen too when a transaction is dated in one
+  const nextMonth = new Date(month.getFullYear(), month.getMonth() + 1, 1)
+  const canGoNext =
+    nextMonth <= today ||
+    transactions.some((tx) => parseDate(tx.date) >= nextMonth)
 
   const changeMonth = (step) => {
     setMonth((m) => new Date(m.getFullYear(), m.getMonth() + step, 1))
   }
 
-  const list = transactions
-    .filter((tx) => isSameMonth(parseDate(tx.date), month))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
+  const clearFilters = () => {
+    setQuery('')
+    setType('all')
+    setCategoryId('all')
+  }
+
+  // Filtering searches every month; otherwise it is the month on screen
+  const list = (
+    filtering
+      ? filterTransactions(transactions, filters, categories, t)
+      : transactions.filter((tx) => isSameMonth(parseDate(tx.date), month))
+  ).sort(byNewest)
 
   // one group per day, newest first
   const days = []
@@ -41,7 +62,9 @@ export default function HistoryScreen() {
   const handleExport = () => {
     const monthNumber = String(month.getMonth() + 1).padStart(2, '0')
     downloadCsv(
-      `quincena-${month.getFullYear()}-${monthNumber}.csv`,
+      filtering
+        ? 'quincena-search.csv'
+        : `quincena-${month.getFullYear()}-${monthNumber}.csv`,
       transactionRows(list, categories, t),
     )
   }
@@ -59,32 +82,93 @@ export default function HistoryScreen() {
     <>
       <h1 className="screen-title">{t('history')}</h1>
 
-      <div className="month-nav">
-        <button
-          type="button"
-          className="month-btn"
-          aria-label={t('prevMonth')}
-          onClick={() => changeMonth(-1)}
-        >
-          ‹
-        </button>
-        <p className="month-name">
-          {month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
-        </p>
-        <button
-          type="button"
-          className="month-btn"
-          aria-label={t('nextMonth')}
-          disabled={isCurrentMonth}
-          onClick={() => changeMonth(1)}
-        >
-          ›
-        </button>
+      <label className="field">
+        <span className="label">{t('search')}</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('searchHint')}
+        />
+      </label>
+
+      <div className="pill-group">
+        {[
+          ['all', t('all')],
+          ['expense', t('typeExpense')],
+          ['income', t('typeIncome')],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={type === value ? 'pill active' : 'pill'}
+            onClick={() => setType(value)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      <label className="field">
+        <span className="label">{t('category')}</span>
+        <select
+          value={categoryId}
+          onChange={(e) =>
+            setCategoryId(
+              e.target.value === 'all' ? 'all' : Number(e.target.value),
+            )
+          }
+        >
+          <option value="all">{t('allCategories')}</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {categoryLabel(c, t)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {filtering && (
+        <div className="pill-group">
+          <button type="button" className="pill" onClick={clearFilters}>
+            {t('clearFilters')}
+          </button>
+        </div>
+      )}
+
+      {!filtering && (
+        <div className="month-nav">
+          <button
+            type="button"
+            className="month-btn"
+            aria-label={t('prevMonth')}
+            onClick={() => changeMonth(-1)}
+          >
+            ‹
+          </button>
+          <p className="month-name">
+            {month.toLocaleDateString(locale, {
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+          <button
+            type="button"
+            className="month-btn"
+            aria-label={t('nextMonth')}
+            disabled={!canGoNext}
+            onClick={() => changeMonth(1)}
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {list.length === 0 ? (
         <section className="card">
-          <p className="sub empty">{t('noTransactions')}</p>
+          <p className="sub empty">
+            {filtering ? t('noResults') : t('noTransactions')}
+          </p>
         </section>
       ) : (
         <>
@@ -122,6 +206,8 @@ export default function HistoryScreen() {
                       weekday: 'short',
                       day: 'numeric',
                       month: 'short',
+                      // results can span years
+                      ...(filtering && { year: 'numeric' }),
                     })}
                   </p>
                   {/* net of the day per currency: + income color, − spending */}
@@ -160,7 +246,7 @@ export default function HistoryScreen() {
             disabled={list.length === 0}
             onClick={handleExport}
           >
-            {t('exportCsv')}
+            {filtering ? t('exportResults') : t('exportCsv')}
           </button>
         </div>
       </section>

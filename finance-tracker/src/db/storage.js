@@ -7,6 +7,16 @@ import { isValidDate } from '../lib/dates'
 // Amounts are stored as whole cents and converted here, so the rest of the
 // app only sees normal numbers.
 
+// The database has one connection: operations run one at a time, in the
+// order they were called, so two can never overlap inside a transaction
+let queue = Promise.resolve()
+
+function enqueue(work) {
+  const result = queue.then(work)
+  queue = result.catch(() => {})
+  return result
+}
+
 function toTransaction(row) {
   return {
     id: row.id,
@@ -16,6 +26,19 @@ function toTransaction(row) {
     categoryId: row.category_id,
     note: row.note,
     date: row.date,
+  }
+}
+
+function toRecurring(row) {
+  return {
+    id: row.id,
+    amount: row.amount_cents / 100,
+    currency: row.currency,
+    type: row.type,
+    categoryId: row.category_id,
+    note: row.note,
+    schedule: row.schedule,
+    lastPeriod: row.last_period,
   }
 }
 
@@ -203,132 +226,247 @@ function importLegacyDataOnce(db) {
 }
 // --- End of legacy import --------------------------------------------------
 
-export async function loadAll() {
-  const db = await getDb()
-  await importLegacyDataOnce(db)
+export function loadAll() {
+  return enqueue(async () => {
+    const db = await getDb()
+    await importLegacyDataOnce(db)
 
-  const categories = await db.query('SELECT * FROM categories ORDER BY id')
-  const transactions = await db.query('SELECT * FROM transactions ORDER BY id')
-  const budgets = await db.query(
-    'SELECT * FROM budgets ORDER BY category_id, currency',
-  )
-  return {
-    transactions: transactions.values.map(toTransaction),
-    categories: categories.values.map(toCategory),
-    budgets: budgets.values.map(toBudget),
-  }
+    const categories = await db.query('SELECT * FROM categories ORDER BY id')
+    const transactions = await db.query('SELECT * FROM transactions ORDER BY id')
+    const budgets = await db.query(
+      'SELECT * FROM budgets ORDER BY category_id, currency',
+    )
+    const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
+    return {
+      transactions: transactions.values.map(toTransaction),
+      categories: categories.values.map(toCategory),
+      budgets: budgets.values.map(toBudget),
+      recurring: recurring.values.map(toRecurring),
+    }
+  })
 }
 
-export async function insertTransaction(tx) {
-  const db = await getDb()
-  const result = await db.run(INSERT_TRANSACTION, transactionParams(tx))
-  await persist()
-  return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+export function insertTransaction(tx) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const result = await db.run(INSERT_TRANSACTION, transactionParams(tx))
+    await persist()
+    return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+  })
 }
 
-export async function insertTransactions(list) {
-  const db = await getDb()
-  const saved = await inTransaction(db, async () => {
-    const items = []
-    for (const tx of list) {
+export function insertTransactions(list) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const saved = await inTransaction(db, async () => {
+      const items = []
+      for (const tx of list) {
+        const result = await db.run(
+          INSERT_TRANSACTION,
+          transactionParams(tx),
+          false,
+        )
+        items.push({ ...tx, note: tx.note ?? '', id: result.changes.lastId })
+      }
+      return items
+    })
+    await persist()
+    return saved
+  })
+}
+
+export function updateTransaction(id, tx) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run(
+      `UPDATE transactions SET
+        amount_cents = ?, currency = ?, type = ?, category_id = ?, note = ?,
+        date = ?
+        WHERE id = ?`,
+      [...transactionParams(tx), id],
+    )
+    await persist()
+    return { ...tx, note: tx.note ?? '', id }
+  })
+}
+
+export function deleteTransaction(id) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run('DELETE FROM transactions WHERE id = ?', [id])
+    await persist()
+  })
+}
+
+export function insertCategory({ name, color }) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const result = await db.run(
+      'INSERT INTO categories (name, color) VALUES (?, ?)',
+      [name, color],
+    )
+    await persist()
+    return { id: result.changes.lastId, name, color }
+  })
+}
+
+export function updateCategory(id, { name, color }) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run(
+      'UPDATE categories SET name = ?, color = ? WHERE id = ? AND key IS NULL',
+      [name, color, id],
+    )
+    await persist()
+    return { id, name, color }
+  })
+}
+
+// Its transactions move to another category first, in the same transaction
+export function deleteCategory(id, moveToId) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await inTransaction(db, async () => {
+      await db.run(
+        'UPDATE transactions SET category_id = ? WHERE category_id = ?',
+        [moveToId, id],
+        false,
+      )
+      await db.run(
+        'UPDATE recurring SET category_id = ? WHERE category_id = ?',
+        [moveToId, id],
+        false,
+      )
+      await db.run(
+        'DELETE FROM categories WHERE id = ? AND key IS NULL',
+        [id],
+        false,
+      )
+    })
+    await persist()
+  })
+}
+
+export function clearAll() {
+  return enqueue(async () => {
+    const db = await getDb()
+    await inTransaction(db, async () => {
+      await db.run('DELETE FROM budgets', [], false)
+      await db.run('DELETE FROM recurring', [], false)
+      await db.run('DELETE FROM transactions', [], false)
+      await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
+    })
+    await persist()
+  })
+}
+
+// An amount of 0 (or none) removes the budget; returns the saved budget or null
+export function setBudget(categoryId, currency, amount) {
+  return enqueue(async () => {
+    const db = await getDb()
+    if (amount > 0) {
+      await db.run(
+        `INSERT INTO budgets (category_id, currency, amount_cents)
+          VALUES (?, ?, ?)
+          ON CONFLICT (category_id, currency)
+          DO UPDATE SET amount_cents = excluded.amount_cents`,
+        [categoryId, currency, Math.round(amount * 100)],
+      )
+      await persist()
+      return { categoryId, currency, amount }
+    }
+    await db.run('DELETE FROM budgets WHERE category_id = ? AND currency = ?', [
+      categoryId,
+      currency,
+    ])
+    await persist()
+    return null
+  })
+}
+
+function recurringParams(item) {
+  return [
+    Math.round(item.amount * 100),
+    item.currency,
+    item.type,
+    item.categoryId,
+    item.note ?? '',
+    item.schedule,
+  ]
+}
+
+export function insertRecurring(item) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const result = await db.run(
+      `INSERT INTO recurring
+        (amount_cents, currency, type, category_id, note, schedule)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+      recurringParams(item),
+    )
+    await persist()
+    return {
+      ...item,
+      note: item.note ?? '',
+      id: result.changes.lastId,
+      lastPeriod: null,
+    }
+  })
+}
+
+// last_period is not touched here: only confirm and skip change it
+export function updateRecurring(id, item) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run(
+      `UPDATE recurring SET
+        amount_cents = ?, currency = ?, type = ?, category_id = ?, note = ?,
+        schedule = ?
+        WHERE id = ?`,
+      [...recurringParams(item), id],
+    )
+    await persist()
+    return { ...item, note: item.note ?? '', id }
+  })
+}
+
+export function deleteRecurring(id) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run('DELETE FROM recurring WHERE id = ?', [id])
+    await persist()
+  })
+}
+
+export function skipRecurring(id, period) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run('UPDATE recurring SET last_period = ? WHERE id = ?', [
+      period,
+      id,
+    ])
+    await persist()
+  })
+}
+
+// Adds the transaction and marks the item as handled in one transaction
+export function confirmRecurring(id, period, tx) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const saved = await inTransaction(db, async () => {
       const result = await db.run(
         INSERT_TRANSACTION,
         transactionParams(tx),
         false,
       )
-      items.push({ ...tx, note: tx.note ?? '', id: result.changes.lastId })
-    }
-    return items
-  })
-  await persist()
-  return saved
-}
-
-export async function updateTransaction(id, tx) {
-  const db = await getDb()
-  await db.run(
-    `UPDATE transactions SET
-      amount_cents = ?, currency = ?, type = ?, category_id = ?, note = ?,
-      date = ?
-      WHERE id = ?`,
-    [...transactionParams(tx), id],
-  )
-  await persist()
-  return { ...tx, id }
-}
-
-export async function deleteTransaction(id) {
-  const db = await getDb()
-  await db.run('DELETE FROM transactions WHERE id = ?', [id])
-  await persist()
-}
-
-export async function insertCategory({ name, color }) {
-  const db = await getDb()
-  const result = await db.run(
-    'INSERT INTO categories (name, color) VALUES (?, ?)',
-    [name, color],
-  )
-  await persist()
-  return { id: result.changes.lastId, name, color }
-}
-
-export async function updateCategory(id, { name, color }) {
-  const db = await getDb()
-  await db.run(
-    'UPDATE categories SET name = ?, color = ? WHERE id = ? AND key IS NULL',
-    [name, color, id],
-  )
-  await persist()
-  return { id, name, color }
-}
-
-// Its transactions move to another category first, in the same transaction
-export async function deleteCategory(id, moveToId) {
-  const db = await getDb()
-  await inTransaction(db, async () => {
-    await db.run(
-      'UPDATE transactions SET category_id = ? WHERE category_id = ?',
-      [moveToId, id],
-      false,
-    )
-    await db.run(
-      'DELETE FROM categories WHERE id = ? AND key IS NULL',
-      [id],
-      false,
-    )
-  })
-  await persist()
-}
-
-export async function clearAll() {
-  const db = await getDb()
-  await inTransaction(db, async () => {
-    await db.run('DELETE FROM budgets', [], false)
-    await db.run('DELETE FROM transactions', [], false)
-    await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
-  })
-  await persist()
-}
-
-// An amount of 0 (or none) removes the budget; returns the saved budget or null
-export async function setBudget(categoryId, currency, amount) {
-  const db = await getDb()
-  if (amount > 0) {
-    await db.run(
-      `INSERT INTO budgets (category_id, currency, amount_cents)
-        VALUES (?, ?, ?)
-        ON CONFLICT (category_id, currency)
-        DO UPDATE SET amount_cents = excluded.amount_cents`,
-      [categoryId, currency, Math.round(amount * 100)],
-    )
+      await db.run(
+        'UPDATE recurring SET last_period = ? WHERE id = ?',
+        [period, id],
+        false,
+      )
+      return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+    })
     await persist()
-    return { categoryId, currency, amount }
-  }
-  await db.run('DELETE FROM budgets WHERE category_id = ? AND currency = ?', [
-    categoryId,
-    currency,
-  ])
-  await persist()
-  return null
+    return saved
+  })
 }

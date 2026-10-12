@@ -551,6 +551,12 @@ main {
   font-family: inherit;
 }
 
+/* El buscador se ve igual que los demás inputs (sin el estilo del navegador) */
+.field input[type='search'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Los desplegables se ven igual que los inputs */
 .field select {
   background: var(--surface-2);
@@ -748,4 +754,20 @@ main {
 /* Límite superado */
 .budget-note.over {
   color: var(--danger);
+}
+
+/* Transacciones recurrentes */
+
+/* Botones Confirmar y Omitir bajo cada pendiente */
+.due-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Lado derecho de la fila: monto y botón Editar, uno al lado del otro */
+.row-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

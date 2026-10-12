@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import SettingsProvider from './context/SettingsProvider'
 import TransactionsProvider from './context/TransactionsProvider'
 import SettingsBar from './components/SettingsBar'
@@ -10,6 +10,7 @@ import HistoryScreen from './features/expenses/HistoryScreen'
 import SettingsScreen from './features/settings/SettingsScreen'
 import CategoriesScreen from './features/settings/CategoriesScreen'
 import BudgetsScreen from './features/settings/BudgetsScreen'
+import RecurringScreen from './features/settings/RecurringScreen'
 import Header from './Header'
 
 export default function App() {
@@ -37,6 +38,11 @@ export default function App() {
                 element={<CategoriesScreen />}
               />
               <Route path="/settings/budgets" element={<BudgetsScreen />} />
+              <Route
+                path="/settings/recurring"
+                element={<RecurringScreen />}
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
         </BrowserRouter>

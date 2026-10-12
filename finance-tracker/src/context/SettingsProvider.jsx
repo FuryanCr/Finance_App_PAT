@@ -2,24 +2,40 @@ import { useEffect, useState } from 'react'
 import { SettingsContext } from './SettingsContext'
 import { translations } from '../lib/translations'
 
-function getInitialTheme() {
-  return localStorage.getItem('theme') || 'dark'
+// Storage can be blocked: reading gives null, writing does nothing
+function readSetting(key) {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeSetting(key, value) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // blocked: the setting just is not remembered
+  }
 }
 
 export default function SettingsProvider({ children }) {
   // English unless Spanish was saved
   const [lang, setLang] = useState(() =>
-    localStorage.getItem('lang') === 'es' ? 'es' : 'en',
+    readSetting('lang') === 'es' ? 'es' : 'en',
   )
-  const [theme, setTheme] = useState(getInitialTheme)
+  // dark unless light was saved
+  const [theme, setTheme] = useState(() =>
+    readSetting('theme') === 'light' ? 'light' : 'dark',
+  )
 
   useEffect(() => {
-    localStorage.setItem('lang', lang)
+    writeSetting('lang', lang)
     document.documentElement.lang = lang
   }, [lang])
 
   useEffect(() => {
-    localStorage.setItem('theme', theme)
+    writeSetting('theme', theme)
     document.documentElement.dataset.theme = theme
   }, [theme])
 

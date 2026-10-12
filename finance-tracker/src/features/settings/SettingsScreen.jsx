@@ -1,27 +1,37 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
 import { useSettings } from '../../context/useSettings'
 import { downloadCsv, transactionRows } from '../../lib/csv'
+import { byNewest } from '../../lib/dates'
 
 export default function SettingsScreen() {
   const { lang, setLang, theme, setTheme, t } = useSettings()
   const { transactions, categories, loadSampleData, clearAllData } =
     useTransactions()
 
+  const [busy, setBusy] = useState(false)
+
   const hasTransactions = transactions.length > 0
   const hasCustomCategories = categories.some((c) => c.name)
 
-  // writes can fail: tell the user instead of failing silently
-  const run = (action) =>
-    action().catch((error) => {
+  // writes can fail: tell the user instead of failing silently.
+  // Only one data action runs at a time.
+  const run = async (action) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await action()
+    } catch (error) {
       console.error(error)
       window.alert(t('saveError'))
-    })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const handleExportAll = () => {
-    const list = [...transactions].sort(
-      (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
-    )
+    const list = [...transactions].sort(byNewest)
     downloadCsv('quincena-all.csv', transactionRows(list, categories, t))
   }
 
@@ -82,6 +92,9 @@ export default function SettingsScreen() {
           <Link className="btn secondary" to="/settings/budgets">
             {t('budgets')}
           </Link>
+          <Link className="btn secondary" to="/settings/recurring">
+            {t('recurring')}
+          </Link>
         </div>
       </section>
 
@@ -91,7 +104,7 @@ export default function SettingsScreen() {
           <button
             type="button"
             className="btn secondary"
-            disabled={!hasTransactions}
+            disabled={!hasTransactions || busy}
             onClick={handleExportAll}
           >
             {t('exportAll')}
@@ -100,13 +113,19 @@ export default function SettingsScreen() {
             <button
               type="button"
               className="btn secondary"
+              disabled={busy}
               onClick={() => run(loadSampleData)}
             >
               {t('loadSample')}
             </button>
           )}
           {(hasTransactions || hasCustomCategories) && (
-            <button type="button" className="btn danger" onClick={handleClear}>
+            <button
+              type="button"
+              className="btn danger"
+              disabled={busy}
+              onClick={handleClear}
+            >
               {t('clearAll')}
             </button>
           )}

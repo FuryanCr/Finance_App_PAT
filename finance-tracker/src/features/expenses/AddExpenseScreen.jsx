@@ -7,21 +7,15 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
-import { daysBetween, isValidDate, parseDate } from '../../lib/dates'
+import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { currencies } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
+import CurrencyPills from '../../components/CurrencyPills'
 import Keypad from '../../components/Keypad'
 
 // A warning shows when the date is more than this many days ahead
 const FUTURE_DAYS_LIMIT = 3
-
-function todayString() {
-  const d = new Date()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${month}-${day}`
-}
 
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
@@ -120,6 +114,7 @@ export default function AddExpenseScreen() {
     if (saving) return
     // once deleted, the check above sends the screen back
     if (!window.confirm(t('confirmDelete'))) return
+    setSaveError(false)
     try {
       await deleteTransaction(editing.id)
     } catch (error) {
@@ -149,18 +144,7 @@ export default function AddExpenseScreen() {
       </div>
 
       <section className="card">
-        <div className="pill-group">
-          {currencies.map(({ code }) => (
-            <button
-              key={code}
-              type="button"
-              className={currency === code ? 'pill active' : 'pill'}
-              onClick={() => setCurrency(code)}
-            >
-              {code}
-            </button>
-          ))}
-        </div>
+        <CurrencyPills value={currency} onChange={setCurrency} />
         <p className="label amount-label">{t('amount')}</p>
         <p className="amount-display">
           {symbol}

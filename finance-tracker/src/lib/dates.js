@@ -27,9 +27,14 @@ export function daysLeftInQuincena(date = new Date()) {
 }
 
 export function isValidDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const date = parseDate(value)
+  // the engine rolls 2026-02-31 over to March 3: reject dates that moved
   return (
-    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    !Number.isNaN(parseDate(value).getTime())
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
   )
 }
 
@@ -37,7 +42,26 @@ export function isSameMonth(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
 }
 
+// Sort order for transactions: newest date first; on the same date, the one
+// added last comes first
+export function byNewest(a, b) {
+  return b.date.localeCompare(a.date) || b.id - a.id
+}
+
 // Parses 'YYYY-MM-DD' as a local date (avoids timezone shifts)
 export function parseDate(value) {
   return new Date(`${value}T00:00:00`)
+}
+
+// Local 'YYYY-MM-DD'
+export function todayString(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+// 'YYYY-MM-1' for days 1-15, 'YYYY-MM-2' for the rest of the month
+export function quincenaKey(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${date.getDate() <= 15 ? 1 : 2}`
 }

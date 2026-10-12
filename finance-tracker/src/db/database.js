@@ -34,6 +34,7 @@ const migrations = [
       CREATE INDEX idx_transactions_date ON transactions (date);`,
       false,
     )
+    // seeds from mockData.js: see the note above `categories` there
     for (const { id, key, color } of builtInCategories) {
       await db.run(
         'INSERT INTO categories (id, key, color) VALUES (?, ?, ?)',
@@ -49,6 +50,21 @@ const migrations = [
         currency TEXT NOT NULL CHECK (currency IN ('CRC', 'USD')),
         amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
         PRIMARY KEY (category_id, currency)
+      );`,
+      false,
+    )
+  },
+  async (db) => {
+    await db.execute(
+      `CREATE TABLE recurring (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        currency TEXT NOT NULL CHECK (currency IN ('CRC', 'USD')),
+        type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+        category_id INTEGER REFERENCES categories (id) ON DELETE SET NULL,
+        note TEXT NOT NULL DEFAULT '',
+        schedule TEXT NOT NULL CHECK (schedule IN ('every', 'first', 'second')),
+        last_period TEXT
       );`,
       false,
     )

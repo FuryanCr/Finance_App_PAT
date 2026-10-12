@@ -1,5 +1,5 @@
-import { sum } from './money'
-import { isSameMonth, parseDate } from './dates'
+import { getTotals, sum } from './money'
+import { getQuincenaRange, isSameMonth, parseDate } from './dates'
 
 // First day covered by the chart of each period
 export function getPeriodStart(period, today = new Date()) {
@@ -84,4 +84,30 @@ export function getSpendingBars(
   }
 
   return bars
+}
+
+// The last `count` quincenas up to and including the one containing `today`,
+// newest first, with the totals of one currency in each
+export function getQuincenaHistory(
+  transactions,
+  currency,
+  count,
+  today = new Date(),
+) {
+  const history = []
+  let range = getQuincenaRange(today)
+  for (let i = 0; i < count; i++) {
+    const { start, end } = range
+    const inRange = transactions.filter((tx) => {
+      const date = parseDate(tx.date)
+      return date >= start && date <= end
+    })
+    const { income, spent, net } = getTotals(inRange, currency)
+    history.push({ start, end, income, spent, net })
+    // the day before this start belongs to the previous quincena
+    range = getQuincenaRange(
+      new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1),
+    )
+  }
+  return history
 }

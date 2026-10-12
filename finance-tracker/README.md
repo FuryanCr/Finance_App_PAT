@@ -1,7 +1,7 @@
 ## What is this app?
 A personal finance tracker built with React. Quincena helps you follow your income and expenses through each pay period, in colones and dollars, in Spanish or English.
 
-> **Status:** in development. All four screens work and your data is saved in a SQLite database (in the browser it lives in IndexedDB), so it survives a refresh. The app starts empty; sample data is optional. The Android app is next.
+> **Status:** in development. All screens work and your data is saved in a SQLite database (in the browser it lives in IndexedDB), so it survives a refresh. The app starts empty; sample data is optional. The Android app is next.
 
 ## Features
 
@@ -10,15 +10,16 @@ A personal finance tracker built with React. Quincena helps you follow your inco
 - Add expenses and income with a numeric keypad, in colones or dollars
 - Edit or delete any transaction by tapping it
 - Custom expense categories: name your own and reuse them
-- Spending statistics by time period and currency
-- Monthly history: balance, income and spent per currency, with transactions grouped by day
+- Spending statistics by time period and currency, plus a comparison of past quincenas
+- Monthly history: balance, income and spent per currency, with transactions grouped by day, plus search and filters by text, type and category
 - CSV export of the month shown in History
 - Settings screen: language, theme, export everything as CSV, load sample data and clear all data
 - Manage custom categories: rename, recolor, or delete and move their transactions
 - Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
+- Recurring transactions: rent, salary or subscriptions show up as due each pay period, and you confirm or skip them
 - Spanish / English interface
 - Dark and light themes
-- Navigation between Dashboard, Add expense, Statistics and History
+- Navigation between Home, Add, Statistics and History, with Settings behind the gear icon
 
 ## Getting started
 
@@ -72,6 +73,7 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 | `npm run build` | Creates the production build in `dist/` |
 | `npm run preview` | Previews the production build locally (run `build` first) |
 | `npm run lint` | Checks the code with ESLint |
+| `npm test` | Runs the automated tests once |
 
 ## Tech stack
 
@@ -85,6 +87,7 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 | Storage | SQLite via `@capacitor-community/sqlite` (WebAssembly + IndexedDB in the browser) | In use |
 | Android app | Capacitor | Installed, not built yet |
 | Cloud backups | To be decided | Later |
+| Tests | Vitest | In use |
 | Linting | ESLint | In use |
 
 ### Why these choices
@@ -96,11 +99,12 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 - **Plain CSS** keeps styling simple, with no styling library. All styles live in one file, `src/index.css`, with comments in Spanish.
 - **SQLite** (in use) is a single local database file with no server to run, which suits a personal app.
 - **Capacitor** (installed) will let the same React app be packaged as an Android app.
+- **Poppins**, the title font, is bundled with the app through `@fontsource/poppins`, so it works offline.
 - **ESLint** uses the Vite template defaults. There is no Prettier or custom formatting.
 
 ### Data and storage
 
-Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table and a `budgets` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
+Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table, a `budgets` table and a `recurring` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
 
 Screens never touch storage directly: they read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL for reading and writing. On the first launch after upgrading, data saved by the older `localStorage` version is imported once, and the old copy is left untouched.
 
@@ -116,7 +120,7 @@ src/
   db/mockData.js      Built-in categories and optional sample transactions
   db/storage.js       Reads and writes data (SQLite)
   features/expenses/  Expense screens (home, add and edit, statistics, history)
-  features/settings/  Settings, category and budget screens
+  features/settings/  Settings, category, budget and recurring screens
   lib/                Date, money, category, CSV, statistics and translation helpers
   App.jsx             Routes and page layout
   Header.jsx          App title
@@ -169,5 +173,9 @@ Newest first.
 - Storage moved from localStorage to SQLite, with a one-time import of existing data
 - English is now the default language
 - Settings screen with language, theme and data actions
+- Recurring transactions with a confirm list on the dashboard
 - Categories screen: rename, recolor and delete custom categories
 - Budgets per category, shown on the dashboard
+- Code review fixes: per-day rounding, date validation, write queue, shared helpers, self-hosted font
+- Automated tests for the money, date, statistics, category and CSV helpers
+- Past quincenas on Statistics; search and filters in History
