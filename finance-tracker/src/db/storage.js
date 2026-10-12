@@ -378,6 +378,12 @@ export function updateCategory(id, { name, color }) {
 export function deleteCategory(id, moveToId) {
   return enqueue(async () => {
     const db = await getDb()
+    // built-in categories stay, and so do their transactions
+    const custom = await db.query(
+      'SELECT id FROM categories WHERE id = ? AND key IS NULL',
+      [id],
+    )
+    if (custom.values.length === 0) return
     await inTransaction(db, async () => {
       await db.run(
         'UPDATE transactions SET category_id = ? WHERE category_id = ?',

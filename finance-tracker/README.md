@@ -87,7 +87,7 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 | Storage | SQLite via `@capacitor-community/sqlite` (WebAssembly + IndexedDB in the browser) | In use |
 | Android app | Capacitor | Installed, not built yet |
 | Cloud backups | To be decided | Later |
-| Tests | Vitest | In use |
+| Tests | Vitest, plus sql.js to run the real SQL of the database layer against an in-memory SQLite | In use |
 | Linting | ESLint | In use |
 
 ### Why these choices
@@ -118,7 +118,8 @@ The app can only be open in one tab at a time: a second tab is blocked, because 
 src/
   components/         Shared interface components
   context/            App-wide settings (language, theme) and transactions
-  db/database.js      Opens SQLite and runs schema migrations
+  db/database.js      Opens SQLite and runs the migrations
+  db/migrations.js    Schema migrations
   db/mockData.js      Built-in categories and optional sample transactions
   db/storage.js       Reads and writes data (SQLite)
   features/expenses/  Expense screens (home, add and edit, statistics, history)
@@ -188,3 +189,4 @@ Newest first.
 - Backup file and restore in Settings
 - Visual polish: larger touch targets, readable disabled buttons and placeholders, consistent type sizes; highlighted balance card fixed for dollar-only periods
 - One tab at a time, persistent storage request, backup reminder and a loading message
+- Tests for migrations and the storage layer
