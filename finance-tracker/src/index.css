@@ -1,19 +1,35 @@
 :root {
-  color-scheme: light;
-  --bg: #ffffff;
-  --text: #1d1d1b;
-  --muted: #555555;
-  --border: #dddddd;
-  --accent: #0f7a5c;
+  color-scheme: dark;
+  --bg: #0e130f;
+  --surface: #151c16;
+  --surface-2: #1c251d;
+  --hero-from: #1b2c20;
+  --text: #e8efe9;
+  --muted: #9aab9d;
+  --border: #26332a;
+  --accent: #22c55e;
+  --accent-bright: #4ade80;
+  --accent-dim: rgba(74, 222, 128, 0.28);
+  --on-accent: #052e16;
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #141413;
-  --text: #ecebe6;
-  --muted: #a6a59e;
-  --border: #33322f;
-  --accent: #4cc79f;
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f2f6f2;
+  --surface: #ffffff;
+  --surface-2: #e9f0ea;
+  --hero-from: #e3f3e7;
+  --text: #101712;
+  --muted: #566358;
+  --border: #d9e3da;
+  --accent: #15803d;
+  --accent-bright: #166534;
+  --accent-dim: rgba(21, 128, 61, 0.28);
+  --on-accent: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -21,51 +37,291 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, h4, p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
 }
 
 main {
   max-width: 480px;
   margin: 0 auto;
-  padding: 0 16px 80px;
+  padding: 8px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+/* Header controls */
 .settings-bar {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 16px 0;
-  box-sizing: border-box;
+  padding: 16px 20px 0;
 }
 
 .settings-bar button {
   background: transparent;
-  color: var(--text);
+  color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  justify-content: space-around;
-  padding: 14px;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 20px 8px;
+  overflow-x: auto;
   background: var(--bg);
-  border-top: 1px solid var(--border);
 }
 
-nav a {
+.top-nav a {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
   text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.top-nav a.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Text styles */
+.screen-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.balance {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 6px 0 14px;
+}
+
+.sub {
+  font-size: 13px;
   color: var(--muted);
 }
 
-nav a.active {
-  color: var(--accent);
+/* Cards: depth comes from surface color, not shadows */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.card.hero {
+  background: linear-gradient(160deg, var(--hero-from) 0%, var(--surface) 70%);
+  border-color: var(--accent-dim);
+}
+
+/* Progress and stats */
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.stat {
+  font-size: 16px;
   font-weight: 600;
+  margin-top: 2px;
+}
+
+.stat.income {
+  color: var(--accent-bright);
+}
+
+/* Buttons */
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  flex: 1;
+  text-align: center;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn.secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.pill-group {
+  display: flex;
+  gap: 8px;
+}
+
+.pill {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pill.active {
+  background: var(--accent-bright);
+  border-color: var(--accent-bright);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Lists */
+.list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.divider {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.row-name {
+  font-size: 15px;
+}
+
+.row-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.row-amount {
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.row-amount.income {
+  color: var(--accent-bright);
+}
+
+.mini-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.mini-bar > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* Bar chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 160px;
+  margin-top: 16px;
+}
+
+.bar-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar-fill {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+}
+
+.bar-fill.max {
+  background: var(--accent-bright);
+}
+
+.bar-label {
+  font-size: 11px;
+  color: var(--muted);
 }

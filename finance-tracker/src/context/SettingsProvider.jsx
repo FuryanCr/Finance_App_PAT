@@ -3,11 +3,7 @@ import { SettingsContext } from './SettingsContext'
 import { translations } from '../lib/translations'
 
 function getInitialTheme() {
-  const saved = localStorage.getItem('theme')
-  if (saved) return saved
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
+  return localStorage.getItem('theme') || 'dark'
 }
 
 export default function SettingsProvider({ children }) {

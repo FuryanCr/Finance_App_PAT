@@ -5,9 +5,12 @@ export default function BottomNav() {
   const { t } = useSettings()
 
   return (
-    <nav>
-      <NavLink to="/">{t('home')}</NavLink>
+    <nav className="top-nav">
+      <NavLink to="/" end>
+        {t('home')}
+      </NavLink>
       <NavLink to="/add">{t('add')}</NavLink>
+      <NavLink to="/stats">{t('statistics')}</NavLink>
       <NavLink to="/history">{t('history')}</NavLink>
     </nav>
   )
