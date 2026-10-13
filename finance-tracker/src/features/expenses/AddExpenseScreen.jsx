@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Navigate,
   useLocation,
@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
+import { applyKey, formatTyping } from '../../lib/keypad'
 import { MAX_AMOUNT, currencies, parseAmount } from '../../lib/money'
 import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
 import { readPref, writePref } from '../../lib/prefs'
@@ -93,6 +94,30 @@ export default function AddExpenseScreen() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
 
+  const handleKey = (key) => {
+    setAmountText((text) => applyKey(text, key, currency))
+  }
+
+  // the physical keyboard types the amount too (digits, point or comma,
+  // Backspace), unless the focus is on a field that takes text itself
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      if (event.target.closest?.('input, select, textarea, [contenteditable]')) {
+        return
+      }
+      let key = null
+      if (/^[0-9]$/.test(event.key)) key = event.key
+      else if (event.key === 'Backspace') key = '⌫'
+      else if (event.key === '.' || event.key === ',') key = '.'
+      if (key === null) return
+      event.preventDefault()
+      setAmountText((text) => applyKey(text, key, currency))
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [currency])
+
   // the id in the address does not exist, or was just deleted: go back
   if (id && !editing) return <Navigate to={backTo} replace />
 
@@ -119,20 +144,6 @@ export default function AddExpenseScreen() {
     dateValid &&
     (!isCustom || customName.trim() !== '') &&
     (!showToSavings || toSavingsValid)
-
-  const handleKey = (key) => {
-    setAmountText((text) => {
-      if (key === '⌫') return text.slice(0, -1)
-      if (key === '.') {
-        if (text.includes('.')) return text
-        return text === '' ? '0.' : text + '.'
-      }
-      if (text.length >= 10) return text
-      if (text.includes('.') && text.split('.')[1].length >= 2) return text
-      if (text === '0') return key
-      return text + key
-    })
-  }
 
   // the same name RecurringRow shows for the item
   const matchQuestion = (item) => {
@@ -249,9 +260,9 @@ export default function AddExpenseScreen() {
             <p className="label amount-label">{t('amount')}</p>
             <p className="amount-display">
               {symbol}
-              {amountText || '0'}
+              {formatTyping(amountText, currency) || '0'}
             </p>
-            <Keypad onKey={handleKey} />
+            <Keypad onKey={handleKey} currency={currency} />
           </section>
         </div>
 
@@ -367,14 +378,24 @@ export default function AddExpenseScreen() {
           )}
           {saveError && <p className="field-note error">{t('saveError')}</p>}
 
-          <button
-            type="button"
-            className="btn"
-            disabled={!canSave || saving}
-            onClick={handleSave}
-          >
-            {t('save')}
-          </button>
+          {/* always visible at the bottom of the screen, even with the
+              keypad and the category list above it */}
+          <div className="save-bar">
+            {amount === 0 && (
+              <p className="sub" id="save-hint">
+                {t('typeAmountFirst')}
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={!canSave || saving}
+              aria-describedby={amount === 0 ? 'save-hint' : undefined}
+              onClick={handleSave}
+            >
+              {t('save')}
+            </button>
+          </div>
 
           {editing && (
             <button

@@ -686,6 +686,33 @@ main {
   background: var(--accent-dim);
 }
 
+/* Teclas más bajas en celular: así el teclado, las categorías y Guardar
+   caben juntos en pantallas de 360x640 y 390x844 */
+@media (max-width: 440px) {
+  .key {
+    height: 54px;
+  }
+}
+
+/* Barra de Guardar: queda pegada abajo y siempre visible mientras se escribe
+   el monto. El degradado deja ver el contenido que pasa por debajo; el
+   relleno inferior respeta la zona segura de los teléfonos con muesca */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: -12px;
+  background: linear-gradient(to bottom, transparent, var(--bg) 28%);
+}
+
+.save-bar .sub {
+  text-align: center;
+}
+
 /* Campo de formulario: etiqueta arriba, input abajo */
 .field {
   display: flex;

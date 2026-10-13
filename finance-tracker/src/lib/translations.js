@@ -180,6 +180,8 @@ export const translations = {
     askContinue: '¿Continuar?',
     clearIntro: 'Vas a borrar todo esto:',
     cannotUndo: 'No se puede deshacer.',
+    deleteDigit: 'Borrar un dígito',
+    typeAmountFirst: 'Escribe el monto para poder guardar',
   },
   en: {
     titleMain: 'I AM POOR',
@@ -362,5 +364,7 @@ export const translations = {
     askContinue: 'Continue?',
     clearIntro: 'You are about to delete all of this:',
     cannotUndo: 'This cannot be undone.',
+    deleteDigit: 'Delete last digit',
+    typeAmountFirst: 'Type the amount to be able to save',
   },
 }
