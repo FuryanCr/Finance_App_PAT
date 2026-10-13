@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
-import { currencies } from '../../lib/money'
+import { currencies, parseAmount } from '../../lib/money'
 import { readPref, writePref } from '../../lib/prefs'
 import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
@@ -52,6 +52,8 @@ export default function AddExpenseScreen() {
     addCategory,
     recurring,
     confirmRecurring,
+    addSavingsMove,
+    addIncomeWithSavings,
   } = useTransactions()
   const navigate = useNavigate()
   const location = useLocation()
@@ -86,6 +88,7 @@ export default function AddExpenseScreen() {
     typeof source?.note === 'string' ? source.note : '',
   )
   const [date, setDate] = useState(editing?.date ?? todayString)
+  const [toSavingsText, setToSavingsText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
 
@@ -99,8 +102,17 @@ export default function AddExpenseScreen() {
   const dateValid = isValidDate(date)
   const isFarFuture =
     dateValid && daysBetween(new Date(), parseDate(date)) > FUTURE_DAYS_LIMIT
+  // part of an income can go straight to savings (only when adding)
+  const showToSavings = !editing && type === 'income'
+  const toSavingsParsed = parseAmount(toSavingsText)
+  const toSavingsValid =
+    toSavingsParsed !== null && toSavingsParsed <= amount
+  const toSavings = showToSavings && toSavingsValid ? toSavingsParsed : 0
   const canSave =
-    amount > 0 && dateValid && (!isCustom || customName.trim() !== '')
+    amount > 0 &&
+    dateValid &&
+    (!isCustom || customName.trim() !== '') &&
+    (!showToSavings || toSavingsValid)
 
   const handleKey = (key) => {
     setAmountText((text) => {
@@ -150,8 +162,21 @@ export default function AddExpenseScreen() {
       } else {
         // a due recurring item with the same amount may be this very bill
         const match = findMatchingDue(recurring, tx)
+        const move =
+          toSavings > 0
+            ? {
+                amount: toSavings,
+                currency,
+                direction: 'in',
+                note: tx.note,
+                date,
+              }
+            : null
         if (match && window.confirm(matchQuestion(match))) {
           await confirmRecurring(match, tx)
+          if (move) await addSavingsMove(move)
+        } else if (move) {
+          await addIncomeWithSavings(tx, move)
         } else {
           await addTransaction(tx)
         }
@@ -292,6 +317,20 @@ export default function AddExpenseScreen() {
         {!dateValid && <p className="field-note error">{t('invalidDate')}</p>}
         {isFarFuture && (
           <p className="field-note warning">{t('futureDateWarning')}</p>
+        )}
+        {showToSavings && (
+          <label className="field">
+            <span className="label">{t('toSavingsOptional')}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={toSavingsText}
+              onChange={(e) => setToSavingsText(e.target.value)}
+            />
+          </label>
+        )}
+        {showToSavings && !toSavingsValid && (
+          <p className="field-note error">{t('toSavingsInvalid')}</p>
         )}
       </section>
 

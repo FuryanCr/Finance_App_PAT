@@ -61,6 +61,19 @@ export const migrations = [
       false,
     )
   },
+  async (db) => {
+    await db.execute(
+      `CREATE TABLE savings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        currency TEXT NOT NULL CHECK (currency IN ('CRC', 'USD')),
+        direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+        note TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL
+      );`,
+      false,
+    )
+  },
 ]
 
 export async function runMigrations(db, list = migrations) {

@@ -11,6 +11,7 @@ import SettingsScreen from './features/settings/SettingsScreen'
 import CategoriesScreen from './features/settings/CategoriesScreen'
 import BudgetsScreen from './features/settings/BudgetsScreen'
 import RecurringScreen from './features/settings/RecurringScreen'
+import SavingsScreen from './features/settings/SavingsScreen'
 import Header from './Header'
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
                 path="/settings/recurring"
                 element={<RecurringScreen />}
               />
+              <Route path="/savings" element={<SavingsScreen />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

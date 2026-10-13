@@ -9,9 +9,12 @@ import {
   confirmRecurring as saveConfirmedRecurring,
   deleteCategory as removeCategory,
   deleteRecurring as removeRecurring,
+  deleteSavingsMove as removeSavingsMove,
   deleteTransaction as removeTransaction,
   insertCategory,
+  insertIncomeWithSavings,
   insertRecurring,
+  insertSavingsMove,
   insertTransaction,
   insertTransactions,
   loadAll,
@@ -33,6 +36,7 @@ export default function TransactionsProvider({ children }) {
   const [categories, setCategories] = useState(builtInCategories)
   const [budgets, setBudgets] = useState([])
   const [recurring, setRecurring] = useState([])
+  const [savings, setSavings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [blocked, setBlocked] = useState(false)
@@ -56,6 +60,7 @@ export default function TransactionsProvider({ children }) {
         setCategories(data.categories)
         setBudgets(data.budgets)
         setRecurring(data.recurring)
+        setSavings(data.savings)
         setLoading(false)
       })
       .catch((err) => {
@@ -186,6 +191,25 @@ export default function TransactionsProvider({ children }) {
     return saved
   }
 
+  const addSavingsMove = async (move) => {
+    const saved = await insertSavingsMove(move)
+    setSavings((current) => [...current, saved])
+    return saved
+  }
+
+  const deleteSavingsMove = async (id) => {
+    await removeSavingsMove(id)
+    setSavings((current) => current.filter((item) => item.id !== id))
+  }
+
+  // an income and the part of it sent to savings, saved together
+  const addIncomeWithSavings = async (tx, move) => {
+    const saved = await insertIncomeWithSavings(tx, move)
+    setTransactions((current) => [...current, saved.transaction])
+    setSavings((current) => [...current, saved.move])
+    return saved.transaction
+  }
+
   const loadSampleData = async () => {
     const saved = await insertTransactions(sampleTransactions)
     setTransactions((current) => [...current, ...saved])
@@ -197,6 +221,7 @@ export default function TransactionsProvider({ children }) {
     setCategories(builtInCategories)
     setBudgets([])
     setRecurring([])
+    setSavings([])
   }
 
   // replaces everything with the (already cleaned) data of a backup
@@ -206,6 +231,7 @@ export default function TransactionsProvider({ children }) {
     setCategories(state.categories)
     setBudgets(state.budgets)
     setRecurring(state.recurring)
+    setSavings(state.savings)
   }
 
   // screens never see a half-loaded state
@@ -279,6 +305,10 @@ export default function TransactionsProvider({ children }) {
         deleteRecurring,
         skipRecurring,
         confirmRecurring,
+        savings,
+        addSavingsMove,
+        deleteSavingsMove,
+        addIncomeWithSavings,
         loadSampleData,
         clearAllData,
         restoreData,

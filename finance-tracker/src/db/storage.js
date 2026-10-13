@@ -50,6 +50,17 @@ function toBudget(row) {
   }
 }
 
+function toSavingsMove(row) {
+  return {
+    id: row.id,
+    amount: row.amount_cents / 100,
+    currency: row.currency,
+    direction: row.direction,
+    note: row.note,
+    date: row.date,
+  }
+}
+
 // Built-in rows have a key, custom rows have a name
 function toCategory(row) {
   if (row.key !== null) return { id: row.id, key: row.key, color: row.color }
@@ -68,6 +79,20 @@ function transactionParams(tx) {
     tx.categoryId,
     tx.note ?? '',
     tx.date,
+  ]
+}
+
+const INSERT_SAVINGS = `INSERT INTO savings
+  (amount_cents, currency, direction, note, date)
+  VALUES (?, ?, ?, ?, ?)`
+
+function savingsParams(move) {
+  return [
+    Math.round(move.amount * 100),
+    move.currency,
+    move.direction,
+    move.note ?? '',
+    move.date,
   ]
 }
 
@@ -233,11 +258,13 @@ async function readAll(db) {
     'SELECT * FROM budgets ORDER BY category_id, currency',
   )
   const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
+  const savings = await db.query('SELECT * FROM savings ORDER BY id')
   return {
     transactions: transactions.values.map(toTransaction),
     categories: categories.values.map(toCategory),
     budgets: budgets.values.map(toBudget),
     recurring: recurring.values.map(toRecurring),
+    savings: savings.values.map(toSavingsMove),
   }
 }
 
@@ -256,6 +283,7 @@ export function restoreAll(data) {
     await inTransaction(db, async () => {
       await db.run('DELETE FROM budgets', [], false)
       await db.run('DELETE FROM recurring', [], false)
+      await db.run('DELETE FROM savings', [], false)
       await db.run('DELETE FROM transactions', [], false)
       await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
       for (const { id, name, color } of data.categories) {
@@ -289,6 +317,15 @@ export function restoreAll(data) {
               last_period)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [item.id, ...recurringParams(item), item.lastPeriod],
+          false,
+        )
+      }
+      for (const move of data.savings ?? []) {
+        await db.run(
+          `INSERT INTO savings
+            (id, amount_cents, currency, direction, note, date)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+          [move.id, ...savingsParams(move)],
           false,
         )
       }
@@ -411,6 +448,7 @@ export function clearAll() {
     await inTransaction(db, async () => {
       await db.run('DELETE FROM budgets', [], false)
       await db.run('DELETE FROM recurring', [], false)
+      await db.run('DELETE FROM savings', [], false)
       await db.run('DELETE FROM transactions', [], false)
       await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
     })
@@ -523,6 +561,48 @@ export function confirmRecurring(id, period, tx) {
         false,
       )
       return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+    })
+    await persist()
+    return saved
+  })
+}
+
+export function insertSavingsMove(move) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const result = await db.run(INSERT_SAVINGS, savingsParams(move))
+    await persist()
+    return { ...move, note: move.note ?? '', id: result.changes.lastId }
+  })
+}
+
+export function deleteSavingsMove(id) {
+  return enqueue(async () => {
+    const db = await getDb()
+    await db.run('DELETE FROM savings WHERE id = ?', [id])
+    await persist()
+  })
+}
+
+// Adds an income and the part of it sent to savings in one transaction
+export function insertIncomeWithSavings(tx, move) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const saved = await inTransaction(db, async () => {
+      const txResult = await db.run(
+        INSERT_TRANSACTION,
+        transactionParams(tx),
+        false,
+      )
+      const moveResult = await db.run(
+        INSERT_SAVINGS,
+        savingsParams(move),
+        false,
+      )
+      return {
+        transaction: { ...tx, note: tx.note ?? '', id: txResult.changes.lastId },
+        move: { ...move, note: move.note ?? '', id: moveResult.changes.lastId },
+      }
     })
     await persist()
     return saved

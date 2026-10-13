@@ -17,6 +17,7 @@ A personal finance tracker built with React. Quincena helps you follow your inco
 - Manage custom categories: rename, recolor, or delete and move their transactions
 - Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
 - Recurring transactions: rent, salary or subscriptions show up as due each pay period, and you confirm or skip them; typing a due bill by hand offers to mark it as paid, so it is not counted twice
+- Savings: set money aside per currency, send part of an income straight to savings, and take it back when needed
 - Spanish / English interface
 - Dark and light themes
 - Navigation between Home, Add, Statistics and History, with Settings behind the gear icon
@@ -104,11 +105,11 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 
 ### Data and storage
 
-Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table, a `budgets` table and a `recurring` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
+Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table, a `budgets` table and a `recurring` table and a `savings` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
 
 Screens never touch storage directly: they read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL for reading and writing. On the first launch after upgrading, data saved by the older `localStorage` version is imported once, and the old copy is left untouched.
 
-In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. A backup is a JSON file with your custom categories, transactions, budgets and recurring items; restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
+In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. A backup is a JSON file with your custom categories, transactions, budgets, recurring items and savings; restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
 
 The app can only be open in one tab at a time: a second tab is blocked, because each tab saves the whole database and would overwrite the other. It also asks the browser to keep the data (persistent storage), which the browser may or may not grant. Home shows a reminder when the last backup is more than 14 days old.
 
@@ -125,7 +126,7 @@ src/
   db/tabLock.js       Allows only one open tab at a time
   db/testDb.js        In-memory SQLite used by the tests
   features/expenses/  Expense screens (home, add and edit, statistics, history)
-  features/settings/  Settings, category, budget and recurring screens
+  features/settings/  Settings, category, budget, recurring and savings screens
   lib/                Date, money, category, CSV, backup, search, suggestion, statistics and translation helpers
   App.jsx             Routes and page layout
   Header.jsx          App title
@@ -196,3 +197,4 @@ Newest first.
 - Note suggestions and "Repeat today"
 - A hand-typed bill that matches a due recurring item can be marked as paid
 - Visual refinements (suggestion pills, primary backup button, disabled style, title on loading screens, light-theme contrast); History filters behind a toggle; past quincenas trimmed
+- Savings: balance per currency, moves in and out, and a share of an income sent to savings

@@ -9,7 +9,7 @@ const types = ['income', 'expense']
 // Everything the user has entered, as one JSON-friendly object.
 // Built-in categories are not included: every install already has them.
 export function buildBackup(
-  { transactions, categories, budgets, recurring },
+  { transactions, categories, budgets, recurring, savings = [] },
   now = new Date(),
 ) {
   return {
@@ -22,6 +22,7 @@ export function buildBackup(
     transactions,
     budgets,
     recurring,
+    savings,
   }
 }
 
@@ -107,14 +108,32 @@ function cleanBudget(b, knownIds) {
   return { categoryId: b.categoryId, currency: b.currency, amount: b.amount }
 }
 
+function cleanSavingsMove(move) {
+  if (!isObject(move)) return null
+  if (!isValidId(move.id)) return null
+  if (!isPositiveAmount(move.amount)) return null
+  if (!currencyCodes.includes(move.currency)) return null
+  if (move.direction !== 'in' && move.direction !== 'out') return null
+  if (typeof move.date !== 'string' || !isValidDate(move.date)) return null
+  return {
+    id: move.id,
+    amount: move.amount,
+    currency: move.currency,
+    direction: move.direction,
+    note: typeof move.note === 'string' ? move.note : '',
+    date: move.date,
+  }
+}
+
 // Applies the cleaner to each record and drops the ones it rejects
 function clean(list, cleaner) {
   return list.map(cleaner).filter((item) => item !== null)
 }
 
 // Checks and cleans the text of a backup file.
-// Returns { transactions, categories, budgets, recurring } ready to restore,
-// or null when the text is not a Quincena backup at all.
+// Returns { transactions, categories, budgets, recurring, savings } ready to
+// restore, or null when the text is not a Quincena backup at all.
+// Older backups have no savings: they read as an empty list.
 export function parseBackup(text, builtInCategories) {
   try {
     let data
@@ -133,6 +152,7 @@ export function parseBackup(text, builtInCategories) {
       data.recurring,
     ]
     if (!lists.every(Array.isArray)) return null
+    if (data.savings !== undefined && !Array.isArray(data.savings)) return null
 
     const builtInIds = new Set(builtInCategories.map((c) => c.id))
     const categories = keepFirst(
@@ -154,6 +174,10 @@ export function parseBackup(text, builtInCategories) {
       recurring: keepFirst(
         clean(data.recurring, (item) => cleanRecurring(item, knownIds)),
         (item) => item.id,
+      ),
+      savings: keepFirst(
+        clean(data.savings ?? [], cleanSavingsMove),
+        (move) => move.id,
       ),
     }
   } catch {

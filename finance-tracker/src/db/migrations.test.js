@@ -31,10 +31,10 @@ describe('runMigrations on a new database', () => {
   it('ends at the latest version with every table and the date index', async () => {
     await runMigrations(db)
 
-    expect(migrations).toHaveLength(3)
-    expect(await version()).toBe(3)
+    expect(migrations).toHaveLength(4)
+    expect(await version()).toBe(4)
     const tables = await tableNames()
-    for (const table of ['categories', 'transactions', 'budgets', 'recurring']) {
+    for (const table of ['categories', 'transactions', 'budgets', 'recurring', 'savings']) {
       expect(tables).toContain(table)
     }
     const indexes = await rows(
@@ -69,7 +69,7 @@ describe('runMigrations on a new database', () => {
 
     await expect(runMigrations(db)).resolves.toBeUndefined()
 
-    expect(await version()).toBe(3)
+    expect(await version()).toBe(4)
     expect(await rows('SELECT * FROM categories ORDER BY id')).toEqual(before)
   })
 })
@@ -85,9 +85,9 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(3)
+    expect(await version()).toBe(4)
     expect(await tableNames()).toEqual(
-      expect.arrayContaining(['budgets', 'recurring']),
+      expect.arrayContaining(['budgets', 'recurring', 'savings']),
     )
     expect(
       await rows('SELECT id, amount_cents, category_id FROM transactions'),
@@ -111,13 +111,38 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(3)
-    expect(await tableNames()).toContain('recurring')
+    expect(await version()).toBe(4)
+    expect(await tableNames()).toEqual(
+      expect.arrayContaining(['recurring', 'savings']),
+    )
     expect(await rows('SELECT amount_cents FROM transactions')).toEqual([
       { amount_cents: 700 },
     ])
     expect(await rows('SELECT * FROM budgets')).toEqual([
       { category_id: 2, currency: 'USD', amount_cents: 5000 },
+    ])
+  })
+
+  it('goes from version 3 to the latest and keeps the rows', async () => {
+    await migrateTo(3)
+    expect(await version()).toBe(3)
+    expect(await tableNames()).not.toContain('savings')
+    await insertTx(1, 300)
+    await db.run(
+      `INSERT INTO recurring (amount_cents, currency, type, category_id, schedule)
+        VALUES (100, 'CRC', 'expense', 1, 'every')`,
+    )
+
+    await runMigrations(db)
+
+    expect(await version()).toBe(4)
+    expect(await tableNames()).toContain('savings')
+    expect(await rows('SELECT * FROM savings')).toEqual([])
+    expect(await rows('SELECT amount_cents FROM transactions')).toEqual([
+      { amount_cents: 300 },
+    ])
+    expect(await rows('SELECT amount_cents FROM recurring')).toEqual([
+      { amount_cents: 100 },
     ])
   })
 })
@@ -183,6 +208,26 @@ describe('schema constraints', () => {
     ).toEqual([
       { id: 1, category_id: null },
       { id: 2, category_id: 1 },
+    ])
+  })
+
+  it('rejects a savings move with a bad direction, currency or amount', async () => {
+    const add = (amountCents, currency, direction) =>
+      db.run(
+        `INSERT INTO savings (amount_cents, currency, direction, date)
+          VALUES (?, ?, ?, '2026-10-01')`,
+        [amountCents, currency, direction],
+      )
+    await expect(add(100, 'CRC', 'sideways')).rejects.toThrow()
+    await expect(add(100, 'EUR', 'in')).rejects.toThrow()
+    await expect(add(0, 'CRC', 'in')).rejects.toThrow()
+    await expect(add(-5, 'CRC', 'out')).rejects.toThrow()
+    expect(await rows('SELECT * FROM savings')).toEqual([])
+    await expect(add(100, 'CRC', 'in')).resolves.toBeDefined()
+    await expect(add(100, 'USD', 'out')).resolves.toBeDefined()
+    expect(await rows('SELECT note FROM savings')).toEqual([
+      { note: '' },
+      { note: '' },
     ])
   })
 

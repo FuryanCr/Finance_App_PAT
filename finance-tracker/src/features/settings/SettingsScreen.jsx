@@ -20,6 +20,7 @@ export default function SettingsScreen() {
     categories,
     budgets,
     recurring,
+    savings,
     loadSampleData,
     clearAllData,
     restoreData,
@@ -52,7 +53,13 @@ export default function SettingsScreen() {
   }
 
   const handleDownloadBackup = () => {
-    const backup = buildBackup({ transactions, categories, budgets, recurring })
+    const backup = buildBackup({
+      transactions,
+      categories,
+      budgets,
+      recurring,
+      savings,
+    })
     const today = todayString()
     downloadFile(
       `quincena-backup-${today}.json`,
@@ -140,6 +147,9 @@ export default function SettingsScreen() {
       <section className="card">
         <p className="label">{t('manage')}</p>
         <div className="actions">
+          <Link className="btn secondary" to="/savings">
+            {t('savings')}
+          </Link>
           <Link className="btn secondary" to="/settings/categories">
             {t('categories')}
           </Link>

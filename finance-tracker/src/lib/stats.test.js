@@ -279,6 +279,60 @@ describe('getQuincenaHistory', () => {
   })
 })
 
+describe('getQuincenaHistory with savings moves', () => {
+  const today = new Date(2026, 9, 12)
+  const tx = (id, date, amount, type) => ({
+    id,
+    amount,
+    currency: 'CRC',
+    type,
+    date,
+  })
+  const move = (id, direction, amount, date, currency = 'CRC') => ({
+    id,
+    amount,
+    currency,
+    direction,
+    note: '',
+    date,
+  })
+  const transactions = [
+    tx(1, '2026-10-02', 1000, 'income'),
+    tx(2, '2026-10-03', 300, 'expense'),
+  ]
+
+  it('subtracts money moved in and adds money taken out, keeping income and spent', () => {
+    const moves = [
+      move(1, 'in', 200, '2026-10-05'),
+      move(2, 'out', 50, '2026-10-06'),
+      move(3, 'in', 999, '2026-10-06', 'USD'),
+      move(4, 'in', 70, '2026-09-20'),
+    ]
+    const [current, previous] = getQuincenaHistory(
+      transactions,
+      'CRC',
+      2,
+      today,
+      moves,
+    )
+    expect(current).toMatchObject({ income: 1000, spent: 300, net: 550 })
+    expect(previous).toMatchObject({ income: 0, spent: 0, net: -70 })
+  })
+
+  it('is exactly as before with no moves', () => {
+    const without = getQuincenaHistory(transactions, 'CRC', 3, today)
+    expect(getQuincenaHistory(transactions, 'CRC', 3, today, [])).toEqual(without)
+    expect(without[0].net).toBe(700)
+  })
+
+  it('counts a quincena with only a move', () => {
+    const [q] = getQuincenaHistory([], 'CRC', 1, today, [
+      move(1, 'in', 40, '2026-10-15'),
+    ])
+    expect(q).toMatchObject({ income: 0, spent: 0, net: -40 })
+  })
+})
+
 describe('trimQuincenaHistory', () => {
   const tx = (id, date, currency = 'CRC', type = 'expense') => ({
     id,

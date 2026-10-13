@@ -20,7 +20,7 @@ export default function StatisticsScreen() {
   const { locale, t } = useSettings()
   const [period, setPeriod] = useState('week')
   const [currency, setCurrency] = useState('CRC')
-  const { transactions, categories } = useTransactions()
+  const { transactions, categories, savings } = useTransactions()
 
   const today = new Date()
   const bars = getSpendingBars(transactions, currency, period, today, locale)
@@ -37,7 +37,7 @@ export default function StatisticsScreen() {
     categories,
   ).sort((a, b) => b.total - a.total)
   const history = trimQuincenaHistory(
-    getQuincenaHistory(transactions, currency, 6, today),
+    getQuincenaHistory(transactions, currency, 6, today, savings),
     transactions,
     currency,
   )

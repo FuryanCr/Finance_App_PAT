@@ -51,6 +51,15 @@ const recurringItem = (changes = {}) => ({
   ...changes,
 })
 
+const move = (changes = {}) => ({
+  amount: 5000,
+  currency: 'CRC',
+  direction: 'in',
+  note: 'Trip',
+  date: '2026-10-02',
+  ...changes,
+})
+
 const rows = async (sql) => (await current.db.query(sql)).values
 const noPending = () => expect(current.db.isTransactionActive()).resolves.toEqual({ result: false })
 
@@ -67,6 +76,7 @@ describe('loadAll', () => {
     }
     expect(state.budgets).toEqual([])
     expect(state.recurring).toEqual([])
+    expect(state.savings).toEqual([])
   })
 })
 
@@ -402,6 +412,104 @@ describe('recurring items', () => {
   })
 })
 
+describe('savings', () => {
+  it('inserts with a new id, stores whole cents and defaults a missing note', async () => {
+    const withNote = await storage.insertSavingsMove(move({ amount: 9.99 }))
+    const item = move({ direction: 'out', currency: 'USD' })
+    delete item.note
+    const withoutNote = await storage.insertSavingsMove(item)
+
+    expect(withNote).toEqual({ ...move({ amount: 9.99 }), id: 1 })
+    expect(withoutNote).toEqual({
+      ...move({ direction: 'out', currency: 'USD', note: '' }),
+      id: 2,
+    })
+    expect(
+      await rows('SELECT id, amount_cents, direction FROM savings ORDER BY id'),
+    ).toEqual([
+      { id: 1, amount_cents: 999, direction: 'in' },
+      { id: 2, amount_cents: 500000, direction: 'out' },
+    ])
+    const { savings } = await storage.loadAll()
+    expect(savings).toEqual([withNote, withoutNote])
+  })
+
+  it('deletes a move', async () => {
+    const first = await storage.insertSavingsMove(move({ note: 'a' }))
+    await storage.insertSavingsMove(move({ note: 'b' }))
+
+    await storage.deleteSavingsMove(first.id)
+
+    const { savings } = await storage.loadAll()
+    expect(savings.map((item) => item.note)).toEqual(['b'])
+  })
+
+  it('rejects a bad direction, currency or amount and does not persist', async () => {
+    current.persist.mockClear()
+
+    await expect(
+      storage.insertSavingsMove(move({ direction: 'up' })),
+    ).rejects.toThrow()
+    await expect(
+      storage.insertSavingsMove(move({ currency: 'EUR' })),
+    ).rejects.toThrow()
+    await expect(storage.insertSavingsMove(move({ amount: 0 }))).rejects.toThrow()
+
+    expect(await rows('SELECT * FROM savings')).toEqual([])
+    expect(current.persist).not.toHaveBeenCalled()
+  })
+
+  it('saves an income and its move together', async () => {
+    const income = tx({ type: 'income', categoryId: null, amount: 100000 })
+
+    const saved = await storage.insertIncomeWithSavings(
+      income,
+      move({ amount: 20000, note: 'Pay' }),
+    )
+
+    expect(saved).toEqual({
+      transaction: { ...income, id: 1 },
+      move: { ...move({ amount: 20000, note: 'Pay' }), id: 1 },
+    })
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([saved.transaction])
+    expect(state.savings).toEqual([saved.move])
+    expect(current.persist).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves neither when the move is invalid', async () => {
+    await storage.insertTransaction(tx({ note: 'kept' }))
+    current.persist.mockClear()
+
+    await expect(
+      storage.insertIncomeWithSavings(
+        tx({ type: 'income', categoryId: null, note: 'lost' }),
+        move({ amount: 0 }),
+      ),
+    ).rejects.toThrow()
+
+    const state = await storage.loadAll()
+    expect(state.transactions.map((item) => item.note)).toEqual(['kept'])
+    expect(state.savings).toEqual([])
+    await noPending()
+    expect(current.persist).not.toHaveBeenCalled()
+  })
+
+  it('saves neither when the income is invalid', async () => {
+    await expect(
+      storage.insertIncomeWithSavings(
+        tx({ type: 'income', categoryId: null, amount: 0 }),
+        move(),
+      ),
+    ).rejects.toThrow()
+
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([])
+    expect(state.savings).toEqual([])
+    await noPending()
+  })
+})
+
 describe('clearAll', () => {
   it('removes everything the user added and keeps the built-in categories', async () => {
     const { id } = await storage.insertCategory({ name: 'Pets', color: 'cyan' })
@@ -409,6 +517,7 @@ describe('clearAll', () => {
     await storage.setBudget(id, 'CRC', 100)
     await storage.setBudget(1, 'USD', 100)
     await storage.insertRecurring(recurringItem())
+    await storage.insertSavingsMove(move())
 
     await storage.clearAll()
 
@@ -417,6 +526,7 @@ describe('clearAll', () => {
       categories: builtIn,
       budgets: [],
       recurring: [],
+      savings: [],
     })
   })
 })
@@ -436,6 +546,10 @@ describe('restoreAll', () => {
       { id: 4, ...recurringItem({ categoryId: 7 }), lastPeriod: '2026-10-1' },
       { id: 9, ...recurringItem({ categoryId: null, note: '' }), lastPeriod: null },
     ],
+    savings: [
+      { id: 6, ...move({ amount: 12.5, currency: 'USD', note: '' }) },
+      { id: 2, ...move({ direction: 'out' }) },
+    ],
   })
 
   const seed = async () => {
@@ -443,6 +557,7 @@ describe('restoreAll', () => {
     await storage.insertTransaction(tx({ categoryId: id, note: 'old' }))
     await storage.setBudget(id, 'CRC', 100)
     await storage.insertRecurring(recurringItem({ note: 'old' }))
+    await storage.insertSavingsMove(move({ note: 'old' }))
     return storage.loadAll()
   }
 
@@ -460,18 +575,23 @@ describe('restoreAll', () => {
         { categoryId: 7, currency: 'USD', amount: 20 },
       ],
       recurring: expected.recurring,
+      // ordered by id
+      savings: [expected.savings[1], expected.savings[0]],
     })
     expect(await storage.loadAll()).toEqual(result)
     expect(await rows('SELECT amount_cents FROM transactions WHERE id = 20')).toEqual([
       { amount_cents: 999 },
     ])
-    expect(current.persist).toHaveBeenCalledTimes(5)
+    // five seed writes and the restore
+    expect(current.persist).toHaveBeenCalledTimes(6)
   })
 
   it.each([
     ['a transaction with amount 0', (d) => { d.transactions[1].amount = 0 }],
     ['a budget for a missing category', (d) => { d.budgets[0].categoryId = 99 }],
     ['a repeated transaction id', (d) => { d.transactions[1].id = 20 }],
+    ['a savings move with a bad direction', (d) => { d.savings[1].direction = 'up' }],
+    ['a savings move with amount 0', (d) => { d.savings[0].amount = 0 }],
   ])('is all or nothing with %s', async (_name, spoil) => {
     const before = await seed()
     const bad = data()
@@ -483,6 +603,23 @@ describe('restoreAll', () => {
     expect(await storage.loadAll()).toEqual(before)
     await noPending()
     expect(current.persist).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreAll without savings in the data', () => {
+  it('treats a missing savings list as empty and removes the old moves', async () => {
+    await storage.insertSavingsMove(move({ note: 'old' }))
+
+    const result = await storage.restoreAll({
+      categories: [],
+      transactions: [{ id: 1, ...tx() }],
+      budgets: [],
+      recurring: [],
+    })
+
+    expect(result.savings).toEqual([])
+    expect(await rows('SELECT * FROM savings')).toEqual([])
+    expect(result.transactions).toHaveLength(1)
   })
 })
 

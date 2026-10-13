@@ -24,11 +24,16 @@ const state = {
     { id: 1, amount: 45000, currency: 'CRC', type: 'expense', categoryId: 3, note: 'Rent', schedule: 'first', lastPeriod: '2026-10-1' },
     { id: 2, amount: 100, currency: 'USD', type: 'income', categoryId: null, note: '', schedule: 'every', lastPeriod: null },
   ],
+  savings: [
+    { id: 1, amount: 20000, currency: 'CRC', direction: 'in', note: 'Trip', date: '2026-10-01' },
+    { id: 2, amount: 5.5, currency: 'USD', direction: 'out', note: '', date: '2026-10-05' },
+  ],
 }
 
 const validTx = state.transactions[1]
 const validBudget = state.budgets[0]
 const validRecurring = state.recurring[0]
+const validMove = state.savings[0]
 
 // A backup file with the given lists replaced
 const file = (changes = {}) =>
@@ -45,6 +50,12 @@ describe('buildBackup', () => {
     expect(backup.transactions).toEqual(state.transactions)
     expect(backup.budgets).toEqual(state.budgets)
     expect(backup.recurring).toEqual(state.recurring)
+    expect(backup.savings).toEqual(state.savings)
+  })
+
+  it('writes an empty savings list when the state has none', () => {
+    const withoutSavings = { ...state, savings: undefined }
+    expect(buildBackup(withoutSavings, now).savings).toEqual([])
   })
 })
 
@@ -56,7 +67,55 @@ describe('parseBackup', () => {
       transactions: state.transactions,
       budgets: state.budgets,
       recurring: state.recurring,
+      savings: state.savings,
     })
+  })
+
+  it('reads an older backup without savings as an empty list', () => {
+    const old = JSON.parse(file())
+    delete old.savings
+    const result = parseBackup(JSON.stringify(old), builtIn)
+    expect(result).not.toBeNull()
+    expect(result.savings).toEqual([])
+    expect(result.transactions).toEqual(state.transactions)
+  })
+
+  it('rejects a backup whose savings is not an array', () => {
+    expect(parse({ savings: 'x' })).toBeNull()
+    expect(parse({ savings: {} })).toBeNull()
+    expect(parse({ savings: null })).toBeNull()
+    expect(parse({ savings: 5 })).toBeNull()
+  })
+
+  it('drops invalid savings moves and keeps the valid ones', () => {
+    const bad = [
+      { ...validMove, id: 1.5 },
+      { ...validMove, id: 0 },
+      { ...validMove, id: 11, amount: 0 },
+      { ...validMove, id: 12, amount: -5 },
+      { ...validMove, id: 13, amount: 0.001 },
+      { ...validMove, id: 14, amount: '10' },
+      { ...validMove, id: 15, currency: 'EUR' },
+      { ...validMove, id: 16, direction: 'up' },
+      { ...validMove, id: 17, direction: undefined },
+      { ...validMove, id: 18, date: '2026-02-31' },
+      { ...validMove, id: 19, date: 20261012 },
+      null,
+      5,
+    ]
+    const result = parse({ savings: [validMove, ...bad] })
+    expect(result.savings).toEqual([validMove])
+  })
+
+  it('cleans the note of a savings move and keeps exactly six fields', () => {
+    const result = parse({
+      savings: [
+        { ...validMove, id: 1, note: undefined, extra: 'x' },
+        { ...validMove, id: 2, note: 5 },
+      ],
+    })
+    expect(result.savings.map((m) => m.note)).toEqual(['', ''])
+    expect(Object.keys(result.savings[0])).toHaveLength(6)
   })
 
   it('returns null when the text is not a Quincena backup', () => {
@@ -83,12 +142,14 @@ describe('parseBackup', () => {
       transactions: [...garbage, { id: 1, date: ['2026-10-12'] }],
       budgets: garbage,
       recurring: garbage,
+      savings: garbage,
     })
     expect(result).toEqual({
       categories: [],
       transactions: [],
       budgets: [],
       recurring: [],
+      savings: [],
     })
   })
 
@@ -190,10 +251,12 @@ describe('parseBackup', () => {
       ],
       transactions: [validTx, ...badIds.map((id) => ({ ...validTx, id }))],
       recurring: [validRecurring, ...badIds.map((id) => ({ ...validRecurring, id }))],
+      savings: [validMove, ...badIds.map((id) => ({ ...validMove, id }))],
     })
     expect(result.categories).toEqual([goodCategory])
     expect(result.transactions).toEqual([validTx])
     expect(result.recurring).toEqual([validRecurring])
+    expect(result.savings).toEqual([validMove])
   })
 
   it('keeps the first of any duplicate', () => {
@@ -205,12 +268,14 @@ describe('parseBackup', () => {
       transactions: [validTx, { ...validTx, note: 'Second' }],
       budgets: [validBudget, { ...validBudget, amount: 1 }],
       recurring: [validRecurring, { ...validRecurring, note: 'Second' }],
+      savings: [validMove, { ...validMove, note: 'Second' }],
     })
     expect(result.categories).toHaveLength(1)
     expect(result.categories[0].name).toBe('Mascotas')
     expect(result.transactions).toEqual([validTx])
     expect(result.budgets).toEqual([validBudget])
     expect(result.recurring).toEqual([validRecurring])
+    expect(result.savings).toEqual([validMove])
   })
 })
 
