@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
 import { useSettings } from '../../context/useSettings'
-import { buildBackup, parseBackup } from '../../lib/backup'
+import {
+  MAX_BACKUP_BYTES,
+  buildBackup,
+  inspectBackup,
+  summarizeCounts,
+} from '../../lib/backup'
 import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
 import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { readPref, writePref } from '../../lib/prefs'
@@ -30,7 +35,16 @@ export default function SettingsScreen() {
   const [lastBackup, setLastBackup] = useState(readLastBackup)
 
   const hasTransactions = transactions.length > 0
-  const hasCustomCategories = categories.some((c) => c.name)
+  const customCount = categories.filter((c) => c.name).length
+  // what a restore or "clear all" would replace or erase
+  const currentCounts = {
+    transactions: transactions.length,
+    budgets: budgets.length,
+    recurring: recurring.length,
+    savings: savings.length,
+    categories: customCount,
+  }
+  const hasAnyData = Object.values(currentCounts).some((n) => n > 0)
 
   // writes can fail: tell the user instead of failing silently.
   // Only one data action runs at a time.
@@ -52,7 +66,7 @@ export default function SettingsScreen() {
     downloadCsv('i-am-poor-for-now-all.csv', transactionRows(list, categories, t))
   }
 
-  const handleDownloadBackup = () => {
+  const saveBackupFile = (name) => {
     const backup = buildBackup({
       transactions,
       categories,
@@ -60,20 +74,31 @@ export default function SettingsScreen() {
       recurring,
       savings,
     })
+    downloadFile(name, JSON.stringify(backup, null, 2), 'application/json')
+  }
+
+  const handleDownloadBackup = () => {
     const today = todayString()
-    downloadFile(
-      `i-am-poor-for-now-backup-${today}.json`,
-      JSON.stringify(backup, null, 2),
-      'application/json',
-    )
+    saveBackupFile(`i-am-poor-for-now-backup-${today}.json`)
     writePref('lastBackup', today)
     setLastBackup(today)
+  }
+
+  const backupError = (reason) => {
+    if (reason === 'tooBig') return t('backupTooBig')
+    if (reason === 'newer') return t('backupNewer')
+    return t('invalidBackup')
   }
 
   const handleRestoreFile = async (event) => {
     const input = event.target
     const file = input.files[0]
     if (!file) return
+    if (file.size > MAX_BACKUP_BYTES) {
+      input.value = ''
+      window.alert(t('backupTooBig'))
+      return
+    }
     let text
     try {
       text = await file.text()
@@ -85,19 +110,44 @@ export default function SettingsScreen() {
       // so the same file can be picked again
       input.value = ''
     }
-    const data = parseBackup(
+    const result = inspectBackup(
       text,
       categories.filter((c) => c.key),
     )
-    if (!data) {
-      window.alert(t('invalidBackup'))
+    if (!result.ok) {
+      window.alert(backupError(result.reason))
       return
     }
-    if (window.confirm(t('confirmRestore'))) run(() => restoreData(data))
+    const lines = [
+      t('restoreReplaces'),
+      '',
+      `${t('restoreNow')}: ${summarizeCounts(currentCounts, t)}`,
+      `${t('restoreFile')}: ${summarizeCounts(result.counts, t)}`,
+    ]
+    if (result.droppedTotal > 0) {
+      lines.push('', `${t('restoreDropped')}: ${result.droppedTotal}`)
+    }
+    if (hasAnyData) lines.push('', t('restoreAutoBackup'))
+    lines.push('', t('askContinue'))
+    if (!window.confirm(lines.join('\n'))) return
+    run(async () => {
+      // the data about to be replaced is saved to a file first
+      if (hasAnyData) {
+        saveBackupFile(`i-am-poor-for-now-before-restore-${todayString()}.json`)
+      }
+      await restoreData(result.data)
+    })
   }
 
   const handleClear = () => {
-    if (window.confirm(t('confirmClear'))) run(clearAllData)
+    const message = [
+      t('clearIntro'),
+      '',
+      summarizeCounts(currentCounts, t),
+      '',
+      t('cannotUndo'),
+    ].join('\n')
+    if (window.confirm(message)) run(clearAllData)
   }
 
   return (
@@ -205,7 +255,7 @@ export default function SettingsScreen() {
                   {t('loadSample')}
                 </button>
               )}
-              {(hasTransactions || hasCustomCategories) && (
+              {hasAnyData && (
                 <button
                   type="button"
                   className="btn danger"

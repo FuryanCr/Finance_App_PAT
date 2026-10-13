@@ -2,6 +2,10 @@ import { categories as builtInCategories } from './mockData'
 import { getDb, persist } from './database'
 import { customColorAt, customColors } from '../lib/categories'
 import { isValidDate } from '../lib/dates'
+import { MAX_CENTS, isValidAmount } from '../lib/money'
+
+// Same bound as the backup ids: above it new ids could repeat
+const MAX_ID = 2_147_483_647
 
 // The only place that knows how data is saved: SQLite, through database.js.
 // Amounts are stored as whole cents and converted here, so the rest of the
@@ -67,13 +71,39 @@ function toCategory(row) {
   return { id: row.id, name: row.name, color: row.color }
 }
 
+// Whole cents, or an error: nothing that is not a positive amount within the
+// app's cap (no NaN, Infinity or 1e308) ever reaches the database
+function toCents(amount) {
+  const cents = Math.round(amount * 100)
+  if (!Number.isSafeInteger(cents) || cents <= 0 || cents > MAX_CENTS) {
+    throw new Error(`Invalid amount: ${amount}`)
+  }
+  return cents
+}
+
+// On web a write is in memory until persist() copies it to IndexedDB. If that
+// copy fails the caller is told the save failed, so the write is undone:
+// otherwise the row would stay in memory and a retry would save it twice.
+async function persistOrUndo(undo) {
+  try {
+    await persist()
+  } catch (error) {
+    try {
+      await undo()
+    } catch (undoError) {
+      console.error(undoError)
+    }
+    throw error
+  }
+}
+
 const INSERT_TRANSACTION = `INSERT INTO transactions
   (amount_cents, currency, type, category_id, note, date)
   VALUES (?, ?, ?, ?, ?, ?)`
 
 function transactionParams(tx) {
   return [
-    Math.round(tx.amount * 100),
+    toCents(tx.amount),
     tx.currency,
     tx.type,
     tx.categoryId,
@@ -88,7 +118,7 @@ const INSERT_SAVINGS = `INSERT INTO savings
 
 function savingsParams(move) {
   return [
-    Math.round(move.amount * 100),
+    toCents(move.amount),
     move.currency,
     move.direction,
     move.note ?? '',
@@ -121,8 +151,9 @@ const IMPORTED_FLAG = 'finance-data-imported'
 function isValidTransaction(tx) {
   return (
     Number.isInteger(tx?.id) &&
-    typeof tx.amount === 'number' &&
-    Math.round(tx.amount * 100) > 0 &&
+    tx.id > 0 &&
+    tx.id <= MAX_ID &&
+    isValidAmount(tx.amount) &&
     (tx.type === 'income' || tx.type === 'expense') &&
     (tx.currency === 'CRC' || tx.currency === 'USD') &&
     isValidDate(tx.date)
@@ -132,6 +163,8 @@ function isValidTransaction(tx) {
 function isValidCustomCategory(c) {
   return (
     Number.isInteger(c?.id) &&
+    c.id > 0 &&
+    c.id <= MAX_ID &&
     typeof c.name === 'string' &&
     c.name.trim() !== '' &&
     !builtInCategories.some((builtIn) => builtIn.id === c.id)
@@ -306,7 +339,7 @@ export function restoreAll(data) {
         await db.run(
           `INSERT INTO budgets (category_id, currency, amount_cents)
             VALUES (?, ?, ?)`,
-          [b.categoryId, b.currency, Math.round(b.amount * 100)],
+          [b.categoryId, b.currency, toCents(b.amount)],
           false,
         )
       }
@@ -339,8 +372,11 @@ export function insertTransaction(tx) {
   return enqueue(async () => {
     const db = await getDb()
     const result = await db.run(INSERT_TRANSACTION, transactionParams(tx))
-    await persist()
-    return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+    const id = result.changes.lastId
+    await persistOrUndo(() =>
+      db.run('DELETE FROM transactions WHERE id = ?', [id]),
+    )
+    return { ...tx, note: tx.note ?? '', id }
   })
 }
 
@@ -359,7 +395,11 @@ export function insertTransactions(list) {
       }
       return items
     })
-    await persist()
+    await persistOrUndo(async () => {
+      for (const item of saved) {
+        await db.run('DELETE FROM transactions WHERE id = ?', [item.id])
+      }
+    })
     return saved
   })
 }
@@ -394,8 +434,11 @@ export function insertCategory({ name, color }) {
       'INSERT INTO categories (name, color) VALUES (?, ?)',
       [name, color],
     )
-    await persist()
-    return { id: result.changes.lastId, name, color }
+    const id = result.changes.lastId
+    await persistOrUndo(() =>
+      db.run('DELETE FROM categories WHERE id = ?', [id]),
+    )
+    return { id, name, color }
   })
 }
 
@@ -466,7 +509,7 @@ export function setBudget(categoryId, currency, amount) {
           VALUES (?, ?, ?)
           ON CONFLICT (category_id, currency)
           DO UPDATE SET amount_cents = excluded.amount_cents`,
-        [categoryId, currency, Math.round(amount * 100)],
+        [categoryId, currency, toCents(amount)],
       )
       await persist()
       return { categoryId, currency, amount }
@@ -482,7 +525,7 @@ export function setBudget(categoryId, currency, amount) {
 
 function recurringParams(item) {
   return [
-    Math.round(item.amount * 100),
+    toCents(item.amount),
     item.currency,
     item.type,
     item.categoryId,
@@ -500,13 +543,9 @@ export function insertRecurring(item) {
         VALUES (?, ?, ?, ?, ?, ?)`,
       recurringParams(item),
     )
-    await persist()
-    return {
-      ...item,
-      note: item.note ?? '',
-      id: result.changes.lastId,
-      lastPeriod: null,
-    }
+    const id = result.changes.lastId
+    await persistOrUndo(() => db.run('DELETE FROM recurring WHERE id = ?', [id]))
+    return { ...item, note: item.note ?? '', id, lastPeriod: null }
   })
 }
 
@@ -549,6 +588,10 @@ export function skipRecurring(id, period) {
 export function confirmRecurring(id, period, tx) {
   return enqueue(async () => {
     const db = await getDb()
+    const before = await db.query(
+      'SELECT last_period FROM recurring WHERE id = ?',
+      [id],
+    )
     const saved = await inTransaction(db, async () => {
       const result = await db.run(
         INSERT_TRANSACTION,
@@ -562,7 +605,13 @@ export function confirmRecurring(id, period, tx) {
       )
       return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
     })
-    await persist()
+    await persistOrUndo(async () => {
+      await db.run('DELETE FROM transactions WHERE id = ?', [saved.id])
+      await db.run('UPDATE recurring SET last_period = ? WHERE id = ?', [
+        before.values[0]?.last_period ?? null,
+        id,
+      ])
+    })
     return saved
   })
 }
@@ -571,8 +620,9 @@ export function insertSavingsMove(move) {
   return enqueue(async () => {
     const db = await getDb()
     const result = await db.run(INSERT_SAVINGS, savingsParams(move))
-    await persist()
-    return { ...move, note: move.note ?? '', id: result.changes.lastId }
+    const id = result.changes.lastId
+    await persistOrUndo(() => db.run('DELETE FROM savings WHERE id = ?', [id]))
+    return { ...move, note: move.note ?? '', id }
   })
 }
 
@@ -604,7 +654,12 @@ export function insertIncomeWithSavings(tx, move) {
         move: { ...move, note: move.note ?? '', id: moveResult.changes.lastId },
       }
     })
-    await persist()
+    await persistOrUndo(async () => {
+      await db.run('DELETE FROM transactions WHERE id = ?', [
+        saved.transaction.id,
+      ])
+      await db.run('DELETE FROM savings WHERE id = ?', [saved.move.id])
+    })
     return saved
   })
 }

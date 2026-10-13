@@ -149,6 +149,20 @@ describe('isValidDate', () => {
     expect(isValidDate('2026-01-00')).toBe(false)
   })
 
+  it('rejects years outside 2000-2100', () => {
+    expect(isValidDate('0001-01-01')).toBe(false)
+    expect(isValidDate('1999-12-31')).toBe(false)
+    expect(isValidDate('9999-12-31')).toBe(false)
+    expect(isValidDate('2101-01-01')).toBe(false)
+    expect(isValidDate('2000-01-01')).toBe(true)
+    expect(isValidDate('2100-12-31')).toBe(true)
+  })
+
+  it('rejects values that are not text', () => {
+    expect(isValidDate(null)).toBe(false)
+    expect(isValidDate(20261012)).toBe(false)
+  })
+
   it('rejects text in the wrong format', () => {
     expect(isValidDate('')).toBe(false)
     expect(isValidDate('abc')).toBe(false)

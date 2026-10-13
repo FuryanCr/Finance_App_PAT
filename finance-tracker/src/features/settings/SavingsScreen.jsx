@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { byNewest, parseDate, todayString } from '../../lib/dates'
 import { currencies, formatMoney, parseAmount } from '../../lib/money'
+import { availableForSavings, quincenaFigures } from '../../lib/quincena'
 import { savingsBalance } from '../../lib/savings'
+import { useToday } from '../../lib/useToday'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
 
 export default function SavingsScreen() {
   const { locale, t } = useSettings()
-  const { savings, addSavingsMove, deleteSavingsMove } = useTransactions()
+  const { transactions, savings, recurring, addSavingsMove, deleteSavingsMove } =
+    useTransactions()
+  const today = useToday()
 
   const [currency, setCurrency] = useState('CRC')
   const [amountText, setAmountText] = useState('')
@@ -19,7 +23,13 @@ export default function SavingsScreen() {
   const amount = parseAmount(amountText)
   const amountValid = amount !== null && amount > 0
   const balance = savingsBalance(savings, currency)
+  // taking out cannot exceed what is saved; putting in cannot exceed what is
+  // in hand this quincena (income dated after today is not yet money)
   const tooMuch = amountValid && amount > balance
+  const available = availableForSavings(
+    quincenaFigures({ transactions, savings, recurring }, currency, today),
+  )
+  const tooMuchToSave = amountValid && amount > available
   const canMove = amountValid && !saving
 
   const move = async (direction) => {
@@ -96,8 +106,15 @@ export default function SavingsScreen() {
           {amountText.trim() !== '' && !amountValid && (
             <p className="field-note error">{t('invalidAmount')}</p>
           )}
+          {tooMuchToSave && (
+            <p className="field-note warning" role="status">
+              {t('notEnoughAvailable')} {formatMoney(available, currency)}
+            </p>
+          )}
           {tooMuch && (
-            <p className="field-note warning">{t('notEnoughSavings')}</p>
+            <p className="field-note warning" role="status">
+              {t('notEnoughSavings')} {formatMoney(balance, currency)}
+            </p>
           )}
 
           <label className="field">
@@ -116,7 +133,7 @@ export default function SavingsScreen() {
             <button
               type="button"
               className="btn"
-              disabled={!canMove}
+              disabled={!canMove || tooMuchToSave}
               onClick={() => move('in')}
             >
               {t('moveToSavings')}

@@ -8,7 +8,8 @@ import {
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
-import { currencies, parseAmount } from '../../lib/money'
+import { MAX_AMOUNT, currencies, parseAmount } from '../../lib/money'
+import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
 import { readPref, writePref } from '../../lib/prefs'
 import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
@@ -42,7 +43,7 @@ function validRepeat(value) {
 
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
-  const { t } = useSettings()
+  const { locale, t } = useSettings()
   const {
     transactions,
     addTransaction,
@@ -108,8 +109,13 @@ export default function AddExpenseScreen() {
   const toSavingsValid =
     toSavingsParsed !== null && toSavingsParsed <= amount
   const toSavings = showToSavings && toSavingsValid ? toSavingsParsed : 0
+  const amountTooBig = amount > MAX_AMOUNT
+  // case L1: pay dated on the 15th / the last day of the month
+  const closingDayIncome = type === 'income' && dateValid && isClosingDay(date)
+  const nextStart = closingDayIncome ? nextQuincenaStart(date) : null
   const canSave =
     amount > 0 &&
+    !amountTooBig &&
     dateValid &&
     (!isCustom || customName.trim() !== '') &&
     (!showToSavings || toSavingsValid)
@@ -322,6 +328,22 @@ export default function AddExpenseScreen() {
             {isFarFuture && (
               <p className="field-note warning">{t('futureDateWarning')}</p>
             )}
+            {closingDayIncome && (
+              <div className="field-note warning">
+                <p>{t('closingDayIncome')}</p>
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => setDate(nextStart)}
+                >
+                  {t('dateItOn')}{' '}
+                  {parseDate(nextStart).toLocaleDateString(locale, {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </button>
+              </div>
+            )}
             {showToSavings && (
               <label className="field">
                 <span className="label">{t('toSavingsOptional')}</span>
@@ -338,6 +360,11 @@ export default function AddExpenseScreen() {
             )}
           </section>
 
+          {amountTooBig && (
+            <p className="field-note error" role="alert">
+              {t('amountTooBig')}
+            </p>
+          )}
           {saveError && <p className="field-note error">{t('saveError')}</p>}
 
           <button

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buildBackup, isBackupDue, parseBackup } from './backup'
+import {
+  MAX_BACKUP_BYTES,
+  MAX_ID,
+  MAX_RECORDS,
+  buildBackup,
+  inspectBackup,
+  isBackupDue,
+  parseBackup,
+  summarizeCounts,
+} from './backup'
 
 const builtIn = [
   { id: 1, key: 'food', color: 'orange' },
@@ -304,5 +313,207 @@ describe('isBackupDue', () => {
   it('accepts a custom number of days', () => {
     expect(isBackupDue('2026-10-21', today, 7)).toBe(false)
     expect(isBackupDue('2026-10-20', today, 7)).toBe(true)
+  })
+})
+
+describe('limits of a restored backup', () => {
+  const inspect = (changes) => inspectBackup(file(changes), builtIn)
+
+  it.each([1e308, 9e15, 1e21, 1_000_000_001, Infinity, -5, 0, 0.001])(
+    'drops an amount of %s',
+    (amount) => {
+      const result = inspect({
+        transactions: [{ ...validTx, amount }, { ...validTx, id: 9 }],
+        budgets: [{ ...validBudget, amount }],
+        recurring: [{ ...validRecurring, amount }],
+        savings: [{ ...validMove, amount }],
+      })
+      expect(result.ok).toBe(true)
+      expect(result.data.transactions.map((tx) => tx.id)).toEqual([9])
+      expect(result.data.budgets).toEqual([])
+      expect(result.data.recurring).toEqual([])
+      expect(result.data.savings).toEqual([])
+    },
+  )
+
+  it('keeps an amount at the cap', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, amount: 1_000_000_000 }],
+    })
+    expect(result.data.transactions).toHaveLength(1)
+  })
+
+  it('rounds amounts to cents', () => {
+    const result = inspect({ transactions: [{ ...validTx, amount: 10.126 }] })
+    expect(result.data.transactions[0].amount).toBe(10.13)
+  })
+
+  it('drops ids above 2^31 - 1 and keeps the largest allowed', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, id: MAX_ID + 1 },
+        { ...validTx, id: 9007199254740991 },
+        { ...validTx, id: MAX_ID },
+      ],
+    })
+    expect(result.data.transactions.map((tx) => tx.id)).toEqual([MAX_ID])
+  })
+
+  it('cuts notes to 60 characters', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, note: 'x'.repeat(5000) }],
+      savings: [{ ...validMove, note: 'y'.repeat(5000) }],
+      recurring: [{ ...validRecurring, note: 'z'.repeat(5000) }],
+    })
+    expect(result.data.transactions[0].note).toHaveLength(60)
+    expect(result.data.savings[0].note).toHaveLength(60)
+    expect(result.data.recurring[0].note).toHaveLength(60)
+  })
+
+  it('trims and cuts category names to 24 characters', () => {
+    const result = inspect({
+      categories: [{ id: 7, name: `  ${'A'.repeat(100)}  `, color: 'cyan' }],
+    })
+    expect(result.data.categories[0].name).toBe('A'.repeat(24))
+  })
+
+  it('merges a category named like a built-in one, in either language', () => {
+    const result = inspect({
+      categories: [
+        { id: 7, name: 'comida', color: 'cyan' },
+        { id: 8, name: 'FOOD', color: 'sand' },
+        { id: 9, name: 'Mascotas', color: 'slate' },
+        { id: 10, name: ' mascotás ', color: 'cyan' },
+      ],
+      transactions: [
+        { ...validTx, id: 1, categoryId: 7 },
+        { ...validTx, id: 2, categoryId: 10 },
+      ],
+    })
+    expect(result.data.categories.map((c) => c.id)).toEqual([9])
+    // their transactions move to the category that already had the name
+    expect(result.data.transactions.map((tx) => tx.categoryId)).toEqual([1, 9])
+    expect(result.dropped.categories).toBe(3)
+  })
+
+  it('drops years outside 2000-2100', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, id: 1, date: '0001-01-01' },
+        { ...validTx, id: 2, date: '9999-12-31' },
+        { ...validTx, id: 3, date: '2026-10-01' },
+      ],
+    })
+    expect(result.data.transactions.map((tx) => tx.id)).toEqual([3])
+  })
+
+  it('rejects text over the size limit', () => {
+    expect(inspectBackup('x'.repeat(MAX_BACKUP_BYTES + 1), builtIn)).toEqual({
+      ok: false,
+      reason: 'tooBig',
+    })
+  })
+
+  it('rejects a list over the record limit', () => {
+    const result = inspect({
+      transactions: new Array(MAX_RECORDS + 1).fill(0),
+    })
+    expect(result).toEqual({ ok: false, reason: 'tooBig' })
+  })
+})
+
+describe('inspectBackup', () => {
+  it('counts what is restored and what is dropped, per list', () => {
+    const result = inspectBackup(
+      file({
+        transactions: [
+          validTx,
+          { ...validTx, id: 2, amount: -1 },
+          { ...validTx, id: 3, date: 'x' },
+          validTx,
+          'nope',
+        ],
+        budgets: [validBudget, { categoryId: 99, currency: 'CRC', amount: 5 }],
+      }),
+      builtIn,
+    )
+    expect(result.ok).toBe(true)
+    expect(result.counts).toEqual({
+      categories: 1,
+      transactions: 1,
+      budgets: 1,
+      recurring: 2,
+      savings: 2,
+    })
+    expect(result.dropped).toEqual({
+      categories: 0,
+      transactions: 4,
+      budgets: 1,
+      recurring: 0,
+      savings: 0,
+    })
+    expect(result.droppedTotal).toBe(5)
+  })
+
+  it('reports nothing dropped for a clean backup', () => {
+    const result = inspectBackup(file(), builtIn)
+    expect(result.droppedTotal).toBe(0)
+    expect(result.data).toEqual(parseBackup(file(), builtIn))
+  })
+
+  it('tells a newer version from a file that is not a backup', () => {
+    expect(inspect2({ ...buildBackup(state, now), version: 2 })).toEqual({
+      ok: false,
+      reason: 'newer',
+    })
+    expect(inspect2({ ...buildBackup(state, now), version: 'x' }).reason).toBe(
+      'format',
+    )
+    expect(inspect2({ ...buildBackup(state, now), app: 'other' }).reason).toBe(
+      'format',
+    )
+    expect(inspectBackup('not json', builtIn).reason).toBe('format')
+    expect(inspectBackup(undefined, builtIn).reason).toBe('format')
+    expect(inspectBackup('[]', builtIn).reason).toBe('format')
+  })
+
+  it('never throws on hostile structures', () => {
+    const hostile = [
+      '{"app":"quincena","version":1,"categories":[null,1,"x",[]],"transactions":[null],"budgets":[{}],"recurring":[[]],"savings":[0]}',
+      '{"app":"quincena","version":1,"categories":[],"transactions":[{"__proto__":{"x":1},"id":1}],"budgets":[],"recurring":[]}',
+    ]
+    for (const text of hostile) {
+      expect(() => inspectBackup(text, builtIn)).not.toThrow()
+      expect(inspectBackup(text, builtIn).ok).toBe(true)
+    }
+  })
+})
+
+function inspect2(object) {
+  return inspectBackup(JSON.stringify(object), builtIn)
+}
+
+describe('summarizeCounts', () => {
+  const t = (key) => `<${key}>`
+
+  it('lists every non-empty list with its count', () => {
+    expect(
+      summarizeCounts(
+        { transactions: 12, budgets: 3, recurring: 0, savings: 4, categories: 1 },
+        t,
+      ),
+    ).toBe(
+      '<listTransactions>: 12 · <listBudgets>: 3 · <listSavings>: 4 · <listCategories>: 1',
+    )
+  })
+
+  it('says there is nothing when every list is empty', () => {
+    expect(summarizeCounts({}, t)).toBe('<listNothing>')
+    expect(
+      summarizeCounts(
+        { transactions: 0, budgets: 0, recurring: 0, savings: 0, categories: 0 },
+        t,
+      ),
+    ).toBe('<listNothing>')
   })
 })

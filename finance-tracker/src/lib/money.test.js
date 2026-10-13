@@ -5,6 +5,8 @@ import {
   getTotals,
   laterTotal,
   parseAmount,
+  MAX_AMOUNT,
+  isValidAmount,
   safePerDay,
   sum,
 } from './money'
@@ -129,29 +131,95 @@ describe('parseAmount', () => {
   it('reads decimals with a dot or a comma', () => {
     expect(parseAmount('12.5')).toBe(12.5)
     expect(parseAmount('12,5')).toBe(12.5)
+    expect(parseAmount('9.99')).toBe(9.99)
+    expect(parseAmount('0,5')).toBe(0.5)
   })
 
   it('ignores spaces around the number', () => {
     expect(parseAmount(' 7 ')).toBe(7)
   })
 
-  it('rounds to cents', () => {
-    expect(parseAmount('100.555')).toBe(100.56)
+  // Costa Rican format: the dot groups thousands, the comma is the decimal
+  it.each([
+    ['1.500', 1500],
+    ['1.500.000', 1500000],
+    ['1.000.000.000', 1000000000],
+    ['1.500,50', 1500.5],
+    ['12.345', 12345],
+    ['999.999,99', 999999.99],
+    ['1500', 1500],
+    ['1500,5', 1500.5],
+  ])('reads %s as %s', (text, value) => {
+    expect(parseAmount(text)).toBe(value)
   })
 
   it('is null below one cent', () => {
     expect(parseAmount('0.001')).toBeNull()
+    expect(parseAmount('0,001')).toBeNull()
   })
 
   it('is null for negative amounts', () => {
     expect(parseAmount('-1')).toBeNull()
+    expect(parseAmount('-0')).toBeNull()
+    expect(parseAmount('+5')).toBeNull()
   })
 
-  it('is null when it is not a finite number', () => {
-    expect(parseAmount('abc')).toBeNull()
-    expect(parseAmount('Infinity')).toBeNull()
-    expect(parseAmount('1e999')).toBeNull()
+  // hexadecimal, scientific notation and non-numbers never get through
+  it.each([
+    'abc',
+    'Infinity',
+    '-Infinity',
+    'NaN',
+    '1e999',
+    '1e5',
+    '1e300',
+    '1E5',
+    '0x10',
+    '0b11',
+    '1.5.5',
+    '1..5',
+    '1,500.50',
+    '1,500',
+    '1.5000',
+    '1.50.0',
+    '5.',
+    '.5',
+    '1 000',
+    '₡500',
+    '12abc',
+  ])('rejects %s', (text) => {
+    expect(parseAmount(text)).toBeNull()
   })
+
+  it('accepts the cap and rejects anything above it', () => {
+    expect(MAX_AMOUNT).toBe(1_000_000_000)
+    expect(parseAmount('1000000000')).toBe(MAX_AMOUNT)
+    expect(parseAmount('1.000.000.000')).toBe(MAX_AMOUNT)
+    expect(parseAmount('1000000000,01')).toBeNull()
+    expect(parseAmount('1.000.000.001')).toBeNull()
+    expect(parseAmount('99999999999999999999')).toBeNull()
+  })
+
+  it('is null when it is not text', () => {
+    expect(parseAmount(null)).toBeNull()
+    expect(parseAmount(undefined)).toBeNull()
+    expect(parseAmount(5)).toBeNull()
+  })
+})
+
+describe('isValidAmount', () => {
+  it('accepts amounts from one cent up to the cap', () => {
+    expect(isValidAmount(0.01)).toBe(true)
+    expect(isValidAmount(250000)).toBe(true)
+    expect(isValidAmount(MAX_AMOUNT)).toBe(true)
+  })
+
+  it.each([0, -1, 0.001, MAX_AMOUNT + 1, 1e308, 9e15, NaN, Infinity, '5', null])(
+    'rejects %s',
+    (value) => {
+      expect(isValidAmount(value)).toBe(false)
+    },
+  )
 })
 
 describe('laterTotal', () => {

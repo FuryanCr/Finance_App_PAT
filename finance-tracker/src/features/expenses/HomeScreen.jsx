@@ -10,23 +10,12 @@ import {
   todayString,
 } from '../../lib/dates'
 import { useToday } from '../../lib/useToday'
-import {
-  currencies,
-  formatMoney,
-  getTotals,
-  laterTotal,
-  safePerDay,
-  sum,
-} from '../../lib/money'
+import { currencies, formatMoney } from '../../lib/money'
 import { isBackupDue } from '../../lib/backup'
 import { readPref, writePref } from '../../lib/prefs'
-import { isDue, pendingTotal } from '../../lib/recurring'
-import {
-  leftInRange,
-  previousQuincenaRange,
-  savingsBalance,
-  savingsInRange,
-} from '../../lib/savings'
+import { quincenaFigures, rolloverLeftover } from '../../lib/quincena'
+import { isDue } from '../../lib/recurring'
+import { previousQuincenaRange, savingsBalance } from '../../lib/savings'
 import { getCategoryTotals } from '../../lib/stats'
 import { useSettings } from '../../context/useSettings'
 import CategoryBars from '../../components/CategoryBars'
@@ -72,13 +61,8 @@ export default function HomeScreen() {
   const offers = currencies
     .map(({ code }) => ({
       code,
-      leftover: leftInRange(
-        transactions,
-        savings,
-        code,
-        previous.start,
-        previous.end,
-      ),
+      // an income dated on the closing day is not a leftover (see lib/quincena)
+      leftover: rolloverLeftover({ transactions, savings }, code, today),
     }))
     .filter(({ code, leftover }) => leftover > 0 && skipped[code] !== previousKey)
 
@@ -122,10 +106,8 @@ export default function HomeScreen() {
   const shown = currencies
     .map((c) => ({
       ...c,
-      ...getTotals(current, c.code),
-      ...savingsInRange(savings, c.code, start, end),
       // due bills are not transactions yet, but the money is spoken for
-      pending: pendingTotal(recurring, c.code, today),
+      ...quincenaFigures({ transactions, savings, recurring }, c.code, today),
     }))
     .filter(
       (c) =>
@@ -133,18 +115,27 @@ export default function HomeScreen() {
     )
 
   const renderCard = (
-    { code, labelKey, income, spent, net, pending, toSavings, fromSavings },
+    {
+      code,
+      labelKey,
+      income,
+      spent,
+      left,
+      pending,
+      toSavings,
+      fromSavings,
+      later,
+      laterIncome,
+      status,
+      perDay,
+    },
     index,
   ) => {
     const expenses = current.filter(
       (tx) => tx.currency === code && tx.type === 'expense',
     )
-    const left = sum([net, -toSavings, fromSavings])
     const pct =
       income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
-    const available = sum([left, -pending])
-    const later = laterTotal(current, code, today)
-    const laterIncome = laterTotal(current, code, today, 'income')
     const categoryTotals = getCategoryTotals(expenses, categories)
     const daysText =
       daysLeft === 1 ? t('lastDay') : `${daysLeft} ${t('daysLeft')}`
@@ -201,27 +192,33 @@ export default function HomeScreen() {
         {income > 0 || fromSavings > 0 ? (
           <div className="safe-day">
             <p className="label">{t('safePerDay')}</p>
-            {available > 0 ? (
+            {status === 'ok' && (
               <>
-                <p className="stat">
-                  {formatMoney(safePerDay(available, daysLeft, code), code)}
-                </p>
+                <p className="stat">{formatMoney(perDay, code)}</p>
                 <p className="sub">
                   {daysText}
                   {pending > 0 &&
                     ` · ${t('afterPending')} ${formatMoney(pending, code)}`}
                 </p>
               </>
-            ) : left > 0 ? (
+            )}
+            {status === 'pendingExceeds' && (
               <>
                 <p className="stat over">{t('pendingExceeds')}</p>
                 <p className="sub">
                   {t('afterPending')} {formatMoney(pending, code)}
                 </p>
               </>
-            ) : (
-              <p className="stat over">{t('overBudget')}</p>
             )}
+            {status === 'waitingIncome' && (
+              <>
+                <p className="stat over">{t('waitingIncome')}</p>
+                <p className="sub">
+                  {t('includesLaterIncome')} {formatMoney(laterIncome, code)}
+                </p>
+              </>
+            )}
+            {status === 'over' && <p className="stat over">{t('overQuincena')}</p>}
           </div>
         ) : (
           pending > 0 && (

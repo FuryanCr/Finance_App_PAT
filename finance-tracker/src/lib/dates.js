@@ -26,9 +26,16 @@ export function daysLeftInQuincena(date = new Date()) {
   return daysBetween(date, getQuincenaRange(date).end) + 1
 }
 
+// Dates outside these years are almost surely typos or a damaged file
+export const MIN_YEAR = 2000
+export const MAX_YEAR = 2100
+
 export function isValidDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
   const [year, month, day] = value.split('-').map(Number)
+  if (year < MIN_YEAR || year > MAX_YEAR) return false
   const date = parseDate(value)
   // the engine rolls 2026-02-31 over to March 3: reject dates that moved
   return (
