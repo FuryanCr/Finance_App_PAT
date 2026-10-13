@@ -162,10 +162,12 @@ export default function TransactionsProvider({ children }) {
     )
   }
 
-  // adds a real transaction dated today and marks the item as handled
-  const confirmRecurring = async (item) => {
+  // adds a real transaction and marks the item as handled for this quincena.
+  // Without tx it is built from the item and dated today; with tx (what the
+  // user typed) that is saved instead. Returns the saved transaction.
+  const confirmRecurring = async (item, tx) => {
     const period = quincenaKey()
-    const tx = {
+    const toSave = tx ?? {
       amount: item.amount,
       currency: item.currency,
       type: item.type,
@@ -173,13 +175,14 @@ export default function TransactionsProvider({ children }) {
       note: item.note,
       date: todayString(),
     }
-    const saved = await saveConfirmedRecurring(item.id, period, tx)
+    const saved = await saveConfirmedRecurring(item.id, period, toSave)
     setTransactions((current) => [...current, saved])
     setRecurring((current) =>
       current.map((existing) =>
         existing.id === item.id ? { ...existing, lastPeriod: period } : existing,
       ),
     )
+    return saved
   }
 
   const loadSampleData = async () => {

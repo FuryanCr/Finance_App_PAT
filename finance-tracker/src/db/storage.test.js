@@ -369,6 +369,23 @@ describe('recurring items', () => {
     expect(state.recurring[0].lastPeriod).toBe('2026-10-1')
   })
 
+  it('saves the transaction exactly as given, whatever the item says', async () => {
+    const { id } = await storage.insertRecurring(recurringItem())
+    const typed = tx({
+      amount: 45000,
+      categoryId: 2,
+      note: 'Paid by hand',
+      date: '2026-10-03',
+    })
+
+    const saved = await storage.confirmRecurring(id, '2026-10-1', typed)
+
+    expect(saved).toEqual({ ...typed, id: 1 })
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([saved])
+    expect(state.recurring[0].lastPeriod).toBe('2026-10-1')
+  })
+
   it('does not set the period when the transaction cannot be added', async () => {
     const { id } = await storage.insertRecurring(recurringItem())
     current.persist.mockClear()

@@ -10,6 +10,7 @@ import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { currencies } from '../../lib/money'
 import { readPref, writePref } from '../../lib/prefs'
+import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
@@ -49,6 +50,8 @@ export default function AddExpenseScreen() {
     deleteTransaction,
     categories,
     addCategory,
+    recurring,
+    confirmRecurring,
   } = useTransactions()
   const navigate = useNavigate()
   const location = useLocation()
@@ -113,6 +116,17 @@ export default function AddExpenseScreen() {
     })
   }
 
+  // the same name RecurringRow shows for the item
+  const matchQuestion = (item) => {
+    const category =
+      item.type === 'expense'
+        ? categories.find((c) => c.id === item.categoryId)
+        : undefined
+    const fallback = item.type === 'income' ? t('income') : t('typeExpense')
+    const name = item.note || (category ? categoryLabel(category, t) : fallback)
+    return `${t('matchesRecurring')} "${name}". ${t('markPaidQuestion')}`
+  }
+
   const handleSave = async () => {
     if (!canSave || saving) return
     setSaving(true)
@@ -134,7 +148,13 @@ export default function AddExpenseScreen() {
         await updateTransaction(editing.id, tx)
         navigate(backTo)
       } else {
-        await addTransaction(tx)
+        // a due recurring item with the same amount may be this very bill
+        const match = findMatchingDue(recurring, tx)
+        if (match && window.confirm(matchQuestion(match))) {
+          await confirmRecurring(match, tx)
+        } else {
+          await addTransaction(tx)
+        }
         writePref('lastCurrency', currency)
         if (type === 'expense') writePref('lastCategoryId', savedCategoryId)
         navigate('/')

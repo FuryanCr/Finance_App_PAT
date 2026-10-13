@@ -134,6 +134,8 @@ export const translations = {
     confirm: 'Confirmar',
     skip: 'Omitir',
     confirmDeleteRecurring: '¿Eliminar esta transacción recurrente?',
+    matchesRecurring: 'Esto parece ser el pago recurrente',
+    markPaidQuestion: '¿Marcarlo como pagado en esta quincena?',
   },
   en: {
     titleMain: 'I AM POOR',
@@ -270,5 +272,7 @@ export const translations = {
     confirm: 'Confirm',
     skip: 'Skip',
     confirmDeleteRecurring: 'Delete this recurring transaction?',
+    matchesRecurring: 'This looks like the recurring item',
+    markPaidQuestion: 'Mark it as paid for this quincena?',
   },
 }

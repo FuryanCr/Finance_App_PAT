@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDue, pendingTotal, schedules } from './recurring'
+import { findMatchingDue, isDue, pendingTotal, schedules } from './recurring'
 
 // 2026-10-05 is in the first quincena, 2026-10-20 in the second
 const first = new Date(2026, 9, 5)
@@ -91,5 +91,60 @@ describe('pendingTotal', () => {
 
   it('is 0 for an empty list', () => {
     expect(pendingTotal([], 'CRC', first)).toBe(0)
+  })
+})
+
+describe('findMatchingDue', () => {
+  const bill = (overrides) => ({
+    id: 1,
+    type: 'expense',
+    currency: 'CRC',
+    amount: 45000,
+    schedule: 'every',
+    lastPeriod: null,
+    ...overrides,
+  })
+  const typed = (overrides) => ({
+    type: 'expense',
+    currency: 'CRC',
+    amount: 45000,
+    date: '2026-10-05',
+    ...overrides,
+  })
+
+  it('finds the due item with the same type, currency and amount', () => {
+    const item = bill()
+    expect(findMatchingDue([item], typed(), first)).toBe(item)
+  })
+
+  it('returns null when the amount, currency or type differs', () => {
+    expect(findMatchingDue([bill()], typed({ amount: 45001 }), first)).toBeNull()
+    expect(findMatchingDue([bill()], typed({ currency: 'USD' }), first)).toBeNull()
+    expect(findMatchingDue([bill()], typed({ type: 'income' }), first)).toBeNull()
+  })
+
+  it('returns null for an item already handled this quincena', () => {
+    const list = [bill({ lastPeriod: '2026-10-1' })]
+    expect(findMatchingDue(list, typed(), first)).toBeNull()
+  })
+
+  it('returns null for an item not scheduled for this half of the month', () => {
+    expect(findMatchingDue([bill({ schedule: 'second' })], typed(), first)).toBeNull()
+  })
+
+  it('returns null when the transaction is dated in another quincena', () => {
+    expect(findMatchingDue([bill()], typed({ date: '2026-10-20' }), first)).toBeNull()
+    expect(findMatchingDue([bill()], typed({ date: '2026-09-05' }), first)).toBeNull()
+  })
+
+  it('matches amounts that differ only by float noise', () => {
+    const item = bill({ amount: 0.3 })
+    expect(findMatchingDue([item], typed({ amount: 0.1 + 0.2 }), first)).toBe(item)
+  })
+
+  it('returns the first of several candidates', () => {
+    const a = bill({ id: 1 })
+    const b = bill({ id: 2 })
+    expect(findMatchingDue([a, b], typed(), first)).toBe(a)
   })
 })
