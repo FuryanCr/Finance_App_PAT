@@ -18,6 +18,10 @@ export default function TransactionItem({ tx, showDate = true }) {
     day: 'numeric',
   })
 
+  const dot = category && (
+    <span className="dot" style={{ background: categoryColor(category) }} />
+  )
+
   return (
     <li>
       {/* "from" tells the edit screen where to go back to */}
@@ -27,16 +31,24 @@ export default function TransactionItem({ tx, showDate = true }) {
         state={{ from: pathname }}
       >
         <div>
-          <p className="row-name">{tx.note || label}</p>
-          <p className="row-meta">
-            {category && (
-              <span
-                className="dot"
-                style={{ background: categoryColor(category) }}
-              />
-            )}
-            {showDate ? `${label} · ${date}` : label}
-          </p>
+          {tx.note ? (
+            <>
+              <p className="row-name">{tx.note}</p>
+              <p className="row-meta">
+                {dot}
+                {showDate ? `${label} · ${date}` : label}
+              </p>
+            </>
+          ) : (
+            <>
+              {/* no note: the label is the name, so meta is only the date */}
+              <p className="row-name">
+                {dot}
+                {label}
+              </p>
+              {showDate && <p className="row-meta">{date}</p>}
+            </>
+          )}
         </div>
         <p className={isIncome ? 'row-amount income' : 'row-amount spending'}>
           {isIncome ? '+' : '−'}

@@ -195,3 +195,4 @@ Newest first.
 - Dashboard: the day count stays current overnight, a currency with only pending bills is shown, and later-dated expenses are flagged
 - Note suggestions and "Repeat today"
 - A hand-typed bill that matches a due recurring item can be marked as paid
+- Visual refinements (suggestion pills, primary backup button, disabled style, title on loading screens, light-theme contrast); History filters behind a toggle; past quincenas trimmed

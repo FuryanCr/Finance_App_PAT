@@ -24,7 +24,7 @@
   /* Colores con significado: cada uno se usa solo para lo suyo */
   --income: #34d399; /* menta: montos de ingreso */
   --spending: #fb7185; /* coral: montos de gasto */
-  --spending-dim: rgba(251, 113, 133, 0.5); /* barras del gráfico */
+  --spending-dim: rgba(251, 113, 133, 0.62); /* barras del gráfico */
   --warning: #fbbf24; /* ámbar: avisos */
   --danger: #f35b5b; /* rojo: borrar, errores y presupuesto pasado */
 
@@ -62,9 +62,9 @@
   --on-accent: #ffffff;
 
   --income: #15803d;
-  --spending: #e11d48;
-  --spending-dim: rgba(225, 29, 72, 0.5);
-  --warning: #b45309;
+  --spending: #d1103f;
+  --spending-dim: rgba(209, 16, 63, 0.62);
+  --warning: #a04a08;
   --danger: #b91c1c;
 
   --hero-from: #e3f3f0;
@@ -379,8 +379,9 @@ main {
   gap: 8px;
 }
 
+/* Pill base: 44px de alto para poder tocarla */
 .pill {
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-radius: 999px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -407,6 +408,11 @@ main {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* Si la lista es lo primero de la tarjeta, no suma espacio extra arriba */
+.card > .list:first-child {
+  margin-top: 0;
 }
 
 /* Línea de separación encima de un bloque */
@@ -532,6 +538,14 @@ main {
 .pill-group.suggestions {
   margin-top: 0;
   margin-bottom: 14px;
+}
+
+/* Las sugerencias no parecen categorías: borde punteado, más chicas y apagadas */
+.pill-group.suggestions .pill {
+  border-style: dashed;
+  font-size: 13px;
+  padding: 6px 12px;
+  color: var(--muted);
 }
 
 .amount-label {
@@ -736,7 +750,7 @@ main > .field {
 /* Enlace para volver a Ajustes */
 .back-link {
   display: inline-block;
-  padding: 8px 0;
+  padding: 12px 0;
   font-size: 13px;
   color: var(--muted);
   text-decoration: none;
@@ -745,15 +759,15 @@ main > .field {
 /* Rejilla de colores del editor de categorías */
 .swatches {
   display: grid;
-  grid-template-columns: repeat(4, 36px);
+  grid-template-columns: repeat(4, 44px);
   gap: 12px;
   margin: 8px 0 14px;
 }
 
 /* Un color para elegir */
 .swatch {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -833,9 +847,9 @@ main > .field {
    no admite :disabled. Va al final para ganarle a .secondary y .danger */
 .btn:disabled,
 .btn.disabled {
-  background: var(--surface-2);
+  background: transparent;
   color: var(--muted);
-  border: 1px solid var(--border);
+  border: 1px dashed var(--border);
   opacity: 1;
   cursor: not-allowed;
 }

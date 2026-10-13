@@ -6,6 +6,7 @@ import {
   getPeriodStart,
   getQuincenaHistory,
   getSpendingBars,
+  trimQuincenaHistory,
 } from '../../lib/stats'
 import { formatMoney } from '../../lib/money'
 import { useSettings } from '../../context/useSettings'
@@ -35,7 +36,11 @@ export default function StatisticsScreen() {
     ),
     categories,
   ).sort((a, b) => b.total - a.total)
-  const history = getQuincenaHistory(transactions, currency, 6, today)
+  const history = trimQuincenaHistory(
+    getQuincenaHistory(transactions, currency, 6, today),
+    transactions,
+    currency,
+  )
   const shortDate = (date) =>
     date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
   const recent = transactions
@@ -90,29 +95,34 @@ export default function StatisticsScreen() {
 
       <section className="card">
         <p className="label">{t('pastQuincenas')}</p>
-        <ul className="list">
-          {history.map((q) => (
-            <li className="row" key={q.start.getTime()}>
-              <div>
-                <p className="row-name">
-                  {shortDate(q.start)} – {shortDate(q.end)}
+        {history.length === 0 ? (
+          <p className="sub empty">{t('noTransactionsCurrency')}</p>
+        ) : (
+          <ul className="list">
+            {history.map((q) => (
+              <li className="row" key={q.start.getTime()}>
+                <div>
+                  <p className="row-name">
+                    {shortDate(q.start)} – {shortDate(q.end)}
+                  </p>
+                  <p className="row-meta">
+                    {/* a zero keeps the muted color so color keeps its meaning */}
+                    <span className={q.income > 0 ? 'income' : undefined}>
+                      +{formatMoney(q.income, currency)}
+                    </span>
+                    {' · '}
+                    <span className={q.spent > 0 ? 'spending' : undefined}>
+                      −{formatMoney(q.spent, currency)}
+                    </span>
+                  </p>
+                </div>
+                <p className={q.net < 0 ? 'row-amount spending' : 'row-amount'}>
+                  {formatMoney(q.net, currency)}
                 </p>
-                <p className="row-meta">
-                  <span className="income">
-                    +{formatMoney(q.income, currency)}
-                  </span>
-                  {' · '}
-                  <span className="spending">
-                    −{formatMoney(q.spent, currency)}
-                  </span>
-                </p>
-              </div>
-              <p className={q.net < 0 ? 'row-amount spending' : 'row-amount'}>
-                {formatMoney(q.net, currency)}
-              </p>
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="card">

@@ -165,7 +165,7 @@ export default function SettingsScreen() {
           </button>
           <button
             type="button"
-            className="btn secondary"
+            className="btn"
             disabled={busy}
             onClick={handleDownloadBackup}
           >

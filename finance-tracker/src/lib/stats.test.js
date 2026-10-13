@@ -5,6 +5,7 @@ import {
   getPeriodStart,
   getQuincenaHistory,
   getSpendingBars,
+  trimQuincenaHistory,
 } from './stats'
 
 function ymd(date) {
@@ -275,5 +276,78 @@ describe('getQuincenaHistory', () => {
       new Date(2026, 9, 12),
     )
     expect(q).toMatchObject({ income: 0, spent: 0, net: 0 })
+  })
+})
+
+describe('trimQuincenaHistory', () => {
+  const tx = (id, date, currency = 'CRC', type = 'expense') => ({
+    id,
+    amount: 10,
+    currency,
+    type,
+    date,
+  })
+  const today = new Date(2026, 9, 12) // quincena 2026-10-01 to 2026-10-15
+  const history = getQuincenaHistory([], 'CRC', 6, today)
+
+  it('returns nothing when the currency has no transactions', () => {
+    expect(trimQuincenaHistory(history, [], 'CRC')).toEqual([])
+    expect(
+      trimQuincenaHistory(history, [tx(1, '2026-10-02', 'USD')], 'CRC'),
+    ).toEqual([])
+  })
+
+  it('keeps everything when the first transaction is in the oldest quincena', () => {
+    // the oldest of the 6 is 2026-07-16 to 2026-07-31
+    const result = trimQuincenaHistory(history, [tx(1, '2026-07-20')], 'CRC')
+    expect(result).toEqual(history)
+  })
+
+  it('drops the quincenas that ended before the first transaction', () => {
+    // two quincenas ago: 2026-09-01 to 2026-09-15
+    const result = trimQuincenaHistory(history, [tx(1, '2026-09-03')], 'CRC')
+    expect(result).toHaveLength(3)
+    expect(result).toEqual(history.slice(0, 3))
+  })
+
+  it('counts income too', () => {
+    const result = trimQuincenaHistory(
+      history,
+      [tx(1, '2026-10-02', 'CRC', 'income')],
+      'CRC',
+    )
+    expect(result).toEqual(history.slice(0, 1))
+  })
+
+  it('keeps an empty quincena between two with data', () => {
+    const result = trimQuincenaHistory(
+      history,
+      [tx(1, '2026-09-03'), tx(2, '2026-10-02')],
+      'CRC',
+    )
+    expect(result).toHaveLength(3)
+    expect(result[1]).toMatchObject({ income: 0, spent: 0, net: 0 })
+  })
+
+  it('ignores the other currency when finding the first date', () => {
+    const result = trimQuincenaHistory(
+      history,
+      [tx(1, '2026-07-20', 'USD'), tx(2, '2026-10-02')],
+      'CRC',
+    )
+    expect(result).toEqual(history.slice(0, 1))
+  })
+
+  it('a lone future transaction gives an empty result', () => {
+    // dated after the end of the current quincena (2026-10-15)
+    expect(trimQuincenaHistory(history, [tx(1, '2026-10-20')], 'CRC')).toEqual(
+      [],
+    )
+  })
+
+  it('a future transaction inside the current quincena keeps only that one', () => {
+    expect(trimQuincenaHistory(history, [tx(1, '2026-10-14')], 'CRC')).toEqual(
+      history.slice(0, 1),
+    )
   })
 })

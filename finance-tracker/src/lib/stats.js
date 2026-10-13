@@ -121,3 +121,14 @@ export function getQuincenaHistory(
   }
   return history
 }
+
+// Drops the quincenas that ended before the first transaction in that
+// currency: there is nothing to compare before the data starts
+export function trimQuincenaHistory(history, transactions, currency) {
+  const dates = transactions
+    .filter((tx) => tx.currency === currency)
+    .map((tx) => tx.date)
+  if (dates.length === 0) return []
+  const first = parseDate(dates.reduce((a, b) => (b < a ? b : a)))
+  return history.filter((q) => q.end >= first)
+}

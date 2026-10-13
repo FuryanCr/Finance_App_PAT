@@ -20,8 +20,11 @@ export default function HistoryScreen() {
   const [query, setQuery] = useState('')
   const [type, setType] = useState('all')
   const [categoryId, setCategoryId] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
   const filters = { query, type, categoryId }
   const filtering = hasFilters(filters)
+  // an active type or category filter can never be hidden
+  const open = showFilters || type !== 'all' || categoryId !== 'all'
 
   // later months can be seen too when a transaction is dated in one
   const nextMonth = new Date(month.getFullYear(), month.getMonth() + 1, 1)
@@ -37,6 +40,7 @@ export default function HistoryScreen() {
     setQuery('')
     setType('all')
     setCategoryId('all')
+    setShowFilters(false)
   }
 
   // Filtering searches every month; otherwise it is the month on screen
@@ -82,60 +86,6 @@ export default function HistoryScreen() {
     <>
       <h1 className="screen-title">{t('history')}</h1>
 
-      <label className="field">
-        <span className="label">{t('search')}</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('searchHint')}
-        />
-      </label>
-
-      <div className="pill-group">
-        {[
-          ['all', t('all')],
-          ['expense', t('typeExpense')],
-          ['income', t('typeIncome')],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={type === value ? 'pill active' : 'pill'}
-            onClick={() => setType(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <label className="field">
-        <span className="label">{t('category')}</span>
-        <select
-          value={categoryId}
-          onChange={(e) =>
-            setCategoryId(
-              e.target.value === 'all' ? 'all' : Number(e.target.value),
-            )
-          }
-        >
-          <option value="all">{t('allCategories')}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {categoryLabel(c, t)}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {filtering && (
-        <div className="pill-group">
-          <button type="button" className="pill" onClick={clearFilters}>
-            {t('clearFilters')}
-          </button>
-        </div>
-      )}
-
       {!filtering && (
         <div className="month-nav">
           <button
@@ -162,6 +112,72 @@ export default function HistoryScreen() {
             ›
           </button>
         </div>
+      )}
+
+      <label className="field">
+        <span className="label">{t('search')}</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('searchHint')}
+        />
+      </label>
+
+      <div className="pill-group">
+        <button
+          type="button"
+          className={open ? 'pill active' : 'pill'}
+          aria-expanded={open}
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          {t('filters')}
+        </button>
+        {filtering && (
+          <button type="button" className="pill" onClick={clearFilters}>
+            {t('clearFilters')}
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <>
+          <div className="pill-group">
+            {[
+              ['all', t('all')],
+              ['expense', t('typeExpense')],
+              ['income', t('typeIncome')],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={type === value ? 'pill active' : 'pill'}
+                onClick={() => setType(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <label className="field">
+            <span className="label">{t('category')}</span>
+            <select
+              value={categoryId}
+              onChange={(e) =>
+                setCategoryId(
+                  e.target.value === 'all' ? 'all' : Number(e.target.value),
+                )
+              }
+            >
+              <option value="all">{t('allCategories')}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {categoryLabel(c, t)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )}
 
       {list.length === 0 ? (

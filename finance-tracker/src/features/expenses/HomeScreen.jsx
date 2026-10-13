@@ -242,7 +242,7 @@ export default function HomeScreen() {
         <section className="card">
           <p className="sub">{t('backupReminder')}</p>
           <div className="actions">
-            <Link className="btn secondary" to="/settings">
+            <Link className="btn" to="/settings">
               {t('goToBackup')}
             </Link>
           </div>

@@ -25,6 +25,7 @@ import {
 import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
+import Header from '../Header'
 import { useSettings } from './useSettings'
 
 export default function TransactionsProvider({ children }) {
@@ -210,43 +211,52 @@ export default function TransactionsProvider({ children }) {
   // screens never see a half-loaded state
   if (loading) {
     return (
-      <main>
-        <p className="sub empty">{t('loading')}</p>
-      </main>
+      <>
+        <Header />
+        <main>
+          <p className="sub empty">{t('loading')}</p>
+        </main>
+      </>
     )
   }
 
   if (blocked) {
     return (
-      <main>
-        <section className="card empty-state">
-          <p className="sub">{t('otherTab')}</p>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => window.location.reload()}
-          >
-            {t('retry')}
-          </button>
-        </section>
-      </main>
+      <>
+        <Header />
+        <main>
+          <section className="card empty-state">
+            <p className="sub">{t('otherTab')}</p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => window.location.reload()}
+            >
+              {t('retry')}
+            </button>
+          </section>
+        </main>
+      </>
     )
   }
 
   if (error) {
     return (
-      <main>
-        <section className="card empty-state">
-          <p className="sub">{t('dbError')}</p>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => window.location.reload()}
-          >
-            {t('retry')}
-          </button>
-        </section>
-      </main>
+      <>
+        <Header />
+        <main>
+          <section className="card empty-state">
+            <p className="sub">{t('dbError')}</p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => window.location.reload()}
+            >
+              {t('retry')}
+            </button>
+          </section>
+        </main>
+      </>
     )
   }
 
