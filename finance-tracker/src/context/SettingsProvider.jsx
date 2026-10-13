@@ -16,6 +16,7 @@ export default function SettingsProvider({ children }) {
   useEffect(() => {
     writePref('lang', lang)
     document.documentElement.lang = lang
+    document.title = `${translations[lang].titleMain} ${translations[lang].titleAccent}`
   }, [lang])
 
   useEffect(() => {

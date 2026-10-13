@@ -1,8 +1,7 @@
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import SettingsProvider from './context/SettingsProvider'
 import TransactionsProvider from './context/TransactionsProvider'
-import SettingsBar from './components/SettingsBar'
-import TopNav from './components/TopNav'
+import AppBar from './components/AppBar'
 import HomeScreen from './features/expenses/HomeScreen'
 import AddExpenseScreen from './features/expenses/AddExpenseScreen'
 import StatisticsScreen from './features/expenses/StatisticsScreen'
@@ -12,16 +11,13 @@ import CategoriesScreen from './features/settings/CategoriesScreen'
 import BudgetsScreen from './features/settings/BudgetsScreen'
 import RecurringScreen from './features/settings/RecurringScreen'
 import SavingsScreen from './features/settings/SavingsScreen'
-import Header from './Header'
 
 export default function App() {
   return (
     <SettingsProvider>
       <TransactionsProvider>
         <BrowserRouter>
-          <SettingsBar />
-          <Header />
-          <TopNav />
+          <AppBar />
           <main>
             <Routes>
               <Route path="/" element={<HomeScreen />} />

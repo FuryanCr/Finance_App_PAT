@@ -49,7 +49,7 @@ export default function SettingsScreen() {
 
   const handleExportAll = () => {
     const list = [...transactions].sort(byNewest)
-    downloadCsv('quincena-all.csv', transactionRows(list, categories, t))
+    downloadCsv('i-am-poor-for-now-all.csv', transactionRows(list, categories, t))
   }
 
   const handleDownloadBackup = () => {
@@ -62,7 +62,7 @@ export default function SettingsScreen() {
     })
     const today = todayString()
     downloadFile(
-      `quincena-backup-${today}.json`,
+      `i-am-poor-for-now-backup-${today}.json`,
       JSON.stringify(backup, null, 2),
       'application/json',
     )
@@ -104,120 +104,126 @@ export default function SettingsScreen() {
     <>
       <h1 className="screen-title">{t('settings')}</h1>
 
-      <section className="card">
-        <p className="label">{t('language')}</p>
-        <div className="pill-group wrap">
-          <button
-            type="button"
-            className={lang === 'es' ? 'pill active' : 'pill'}
-            onClick={() => setLang('es')}
-          >
-            Español
-          </button>
-          <button
-            type="button"
-            className={lang === 'en' ? 'pill active' : 'pill'}
-            onClick={() => setLang('en')}
-          >
-            English
-          </button>
-        </div>
-      </section>
+      <div className="cols">
+        <div className="col">
+          <section className="card">
+            <p className="label">{t('language')}</p>
+            <div className="pill-group wrap">
+              <button
+                type="button"
+                className={lang === 'es' ? 'pill active' : 'pill'}
+                onClick={() => setLang('es')}
+              >
+                Español
+              </button>
+              <button
+                type="button"
+                className={lang === 'en' ? 'pill active' : 'pill'}
+                onClick={() => setLang('en')}
+              >
+                English
+              </button>
+            </div>
+          </section>
 
-      <section className="card">
-        <p className="label">{t('theme')}</p>
-        <div className="pill-group wrap">
-          <button
-            type="button"
-            className={theme === 'dark' ? 'pill active' : 'pill'}
-            onClick={() => setTheme('dark')}
-          >
-            {t('dark')}
-          </button>
-          <button
-            type="button"
-            className={theme === 'light' ? 'pill active' : 'pill'}
-            onClick={() => setTheme('light')}
-          >
-            {t('light')}
-          </button>
-        </div>
-      </section>
+          <section className="card">
+            <p className="label">{t('theme')}</p>
+            <div className="pill-group wrap">
+              <button
+                type="button"
+                className={theme === 'dark' ? 'pill active' : 'pill'}
+                onClick={() => setTheme('dark')}
+              >
+                {t('dark')}
+              </button>
+              <button
+                type="button"
+                className={theme === 'light' ? 'pill active' : 'pill'}
+                onClick={() => setTheme('light')}
+              >
+                {t('light')}
+              </button>
+            </div>
+          </section>
 
-      <section className="card">
-        <p className="label">{t('manage')}</p>
-        <div className="actions">
-          <Link className="btn secondary" to="/savings">
-            {t('savings')}
-          </Link>
-          <Link className="btn secondary" to="/settings/categories">
-            {t('categories')}
-          </Link>
-          <Link className="btn secondary" to="/settings/budgets">
-            {t('budgets')}
-          </Link>
-          <Link className="btn secondary" to="/settings/recurring">
-            {t('recurring')}
-          </Link>
+          <section className="card">
+            <p className="label">{t('manage')}</p>
+            <div className="actions">
+              <Link className="btn secondary" to="/savings">
+                {t('savings')}
+              </Link>
+              <Link className="btn secondary" to="/settings/categories">
+                {t('categories')}
+              </Link>
+              <Link className="btn secondary" to="/settings/budgets">
+                {t('budgets')}
+              </Link>
+              <Link className="btn secondary" to="/settings/recurring">
+                {t('recurring')}
+              </Link>
+            </div>
+          </section>
         </div>
-      </section>
 
-      <section className="card">
-        <p className="label">{t('data')}</p>
-        <div className="actions">
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={!hasTransactions || busy}
-            onClick={handleExportAll}
-          >
-            {t('exportAll')}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={handleDownloadBackup}
-          >
-            {t('downloadBackup')}
-          </button>
-          <label className={busy ? 'btn secondary disabled' : 'btn secondary'}>
-            {t('restoreBackup')}
-            <input
-              type="file"
-              accept="application/json,.json"
-              hidden
-              disabled={busy}
-              onChange={handleRestoreFile}
-            />
-          </label>
-          {!hasTransactions && (
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={busy}
-              onClick={() => run(loadSampleData)}
-            >
-              {t('loadSample')}
-            </button>
-          )}
-          {(hasTransactions || hasCustomCategories) && (
-            <button
-              type="button"
-              className="btn danger"
-              disabled={busy}
-              onClick={handleClear}
-            >
-              {t('clearAll')}
-            </button>
-          )}
+        <div className="col">
+          <section className="card">
+            <p className="label">{t('data')}</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={!hasTransactions || busy}
+                onClick={handleExportAll}
+              >
+                {t('exportAll')}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={handleDownloadBackup}
+              >
+                {t('downloadBackup')}
+              </button>
+              <label className={busy ? 'btn secondary disabled' : 'btn secondary'}>
+                {t('restoreBackup')}
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+                  disabled={busy}
+                  onChange={handleRestoreFile}
+                />
+              </label>
+              {!hasTransactions && (
+                <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={busy}
+                  onClick={() => run(loadSampleData)}
+                >
+                  {t('loadSample')}
+                </button>
+              )}
+              {(hasTransactions || hasCustomCategories) && (
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={busy}
+                  onClick={handleClear}
+                >
+                  {t('clearAll')}
+                </button>
+              )}
+            </div>
+            <p className="sub backup-note">
+              {lastBackup
+                ? `${t('lastBackup')} ${parseDate(lastBackup).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                : t('noBackupYet')}
+            </p>
+          </section>
         </div>
-        <p className="sub backup-note">
-          {lastBackup
-            ? `${t('lastBackup')} ${parseDate(lastBackup).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}`
-            : t('noBackupYet')}
-        </p>
-      </section>
+      </div>
     </>
   )
 }

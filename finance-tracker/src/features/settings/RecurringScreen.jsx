@@ -180,50 +180,52 @@ export default function RecurringScreen() {
       <h1 className="screen-title">{t('recurring')}</h1>
       <p className="sub">{t('recurringHint')}</p>
 
-      <section className="card">
-        {recurring.length === 0 ? (
-          <p className="sub empty">{t('noRecurring')}</p>
-        ) : (
-          <ul className="list">
-            {recurring.map((item) => (
-              <li key={item.id}>
-                <RecurringRow item={item}>
-                  <button
-                    type="button"
-                    className="pill"
-                    onClick={() => setEditing(editing === item.id ? null : item.id)}
-                  >
-                    {editing === item.id ? t('cancel') : t('edit')}
-                  </button>
-                </RecurringRow>
-                {editing === item.id && (
-                  <RecurringEditor
-                    key={item.id}
-                    item={item}
-                    onDone={() => setEditing(null)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {editing !== 'new' && (
-        <button type="button" className="btn" onClick={() => setEditing('new')}>
-          {t('addRecurring')}
-        </button>
-      )}
-
-      {editing === 'new' && (
+      <div className="narrow">
         <section className="card">
-          <RecurringEditor
-            key="new"
-            item={null}
-            onDone={() => setEditing(null)}
-          />
+          {recurring.length === 0 ? (
+            <p className="sub empty">{t('noRecurring')}</p>
+          ) : (
+            <ul className="list">
+              {recurring.map((item) => (
+                <li key={item.id}>
+                  <RecurringRow item={item}>
+                    <button
+                      type="button"
+                      className="pill"
+                      onClick={() => setEditing(editing === item.id ? null : item.id)}
+                    >
+                      {editing === item.id ? t('cancel') : t('edit')}
+                    </button>
+                  </RecurringRow>
+                  {editing === item.id && (
+                    <RecurringEditor
+                      key={item.id}
+                      item={item}
+                      onDone={() => setEditing(null)}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
-      )}
+
+        {editing !== 'new' && (
+          <button type="button" className="btn" onClick={() => setEditing('new')}>
+            {t('addRecurring')}
+          </button>
+        )}
+
+        {editing === 'new' && (
+          <section className="card">
+            <RecurringEditor
+              key="new"
+              item={null}
+              onDone={() => setEditing(null)}
+            />
+          </section>
+        )}
+      </div>
     </>
   )
 }

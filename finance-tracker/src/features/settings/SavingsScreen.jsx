@@ -67,112 +67,114 @@ export default function SavingsScreen() {
       <h1 className="screen-title">{t('savings')}</h1>
       <p className="sub">{t('savingsHint')}</p>
 
-      <section className="card">
-        <ul className="list">
-          {currencies.map(({ code, labelKey }) => (
-            <li key={code} className="row">
-              <span className="row-name">{t(labelKey)}</span>
-              <span className="row-amount">
-                {formatMoney(savingsBalance(savings, code), code)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="card">
-        <CurrencyPills value={currency} onChange={setCurrency} />
-
-        <label className="field">
-          <span className="label">{t('amount')}</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={amountText}
-            onChange={(e) => setAmountText(e.target.value)}
-          />
-        </label>
-        {amountText.trim() !== '' && !amountValid && (
-          <p className="field-note error">{t('invalidAmount')}</p>
-        )}
-        {tooMuch && (
-          <p className="field-note warning">{t('notEnoughSavings')}</p>
-        )}
-
-        <label className="field">
-          <span className="label">{t('note')}</span>
-          <input
-            type="text"
-            value={note}
-            maxLength={60}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
-
-        {saveError && <p className="field-note error">{t('saveError')}</p>}
-
-        <div className="actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={!canMove}
-            onClick={() => move('in')}
-          >
-            {t('moveToSavings')}
-          </button>
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={!canMove || tooMuch}
-            onClick={() => move('out')}
-          >
-            {t('takeFromSavings')}
-          </button>
-        </div>
-      </section>
-
-      <section className="card">
-        <p className="label">{t('movements')}</p>
-        {sorted.length === 0 ? (
-          <p className="sub empty">{t('noSavingsYet')}</p>
-        ) : (
+      <div className="narrow">
+        <section className="card">
           <ul className="list">
-            {sorted.map((item) => (
-              <li key={item.id} className="row">
-                <div>
-                  <p className="row-name">
-                    {item.note ||
-                      (item.direction === 'in'
-                        ? t('moveToSavings')
-                        : t('takeFromSavings'))}
-                  </p>
-                  <p className="row-meta">
-                    {parseDate(item.date).toLocaleDateString(locale, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
-                <div className="row-side">
-                  <span className="row-amount">
-                    {item.direction === 'in' ? '+' : '−'}
-                    {formatMoney(item.amount, item.currency)}
-                  </span>
-                  <button
-                    type="button"
-                    className="pill"
-                    disabled={saving}
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    {t('delete')}
-                  </button>
-                </div>
+            {currencies.map(({ code, labelKey }) => (
+              <li key={code} className="row">
+                <span className="row-name">{t(labelKey)}</span>
+                <span className="row-amount">
+                  {formatMoney(savingsBalance(savings, code), code)}
+                </span>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+
+        <section className="card">
+          <CurrencyPills value={currency} onChange={setCurrency} />
+
+          <label className="field">
+            <span className="label">{t('amount')}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amountText}
+              onChange={(e) => setAmountText(e.target.value)}
+            />
+          </label>
+          {amountText.trim() !== '' && !amountValid && (
+            <p className="field-note error">{t('invalidAmount')}</p>
+          )}
+          {tooMuch && (
+            <p className="field-note warning">{t('notEnoughSavings')}</p>
+          )}
+
+          <label className="field">
+            <span className="label">{t('note')}</span>
+            <input
+              type="text"
+              value={note}
+              maxLength={60}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+
+          {saveError && <p className="field-note error">{t('saveError')}</p>}
+
+          <div className="actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={!canMove}
+              onClick={() => move('in')}
+            >
+              {t('moveToSavings')}
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={!canMove || tooMuch}
+              onClick={() => move('out')}
+            >
+              {t('takeFromSavings')}
+            </button>
+          </div>
+        </section>
+
+        <section className="card">
+          <p className="label">{t('movements')}</p>
+          {sorted.length === 0 ? (
+            <p className="sub empty">{t('noSavingsYet')}</p>
+          ) : (
+            <ul className="list">
+              {sorted.map((item) => (
+                <li key={item.id} className="row">
+                  <div>
+                    <p className="row-name">
+                      {item.note ||
+                        (item.direction === 'in'
+                          ? t('moveToSavings')
+                          : t('takeFromSavings'))}
+                    </p>
+                    <p className="row-meta">
+                      {parseDate(item.date).toLocaleDateString(locale, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <div className="row-side">
+                    <span className="row-amount">
+                      {item.direction === 'in' ? '+' : '−'}
+                      {formatMoney(item.amount, item.currency)}
+                    </span>
+                    <button
+                      type="button"
+                      className="pill"
+                      disabled={saving}
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      {t('delete')}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </>
   )
 }

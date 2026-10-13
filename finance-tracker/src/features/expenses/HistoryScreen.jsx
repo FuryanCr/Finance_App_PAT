@@ -67,8 +67,8 @@ export default function HistoryScreen() {
     const monthNumber = String(month.getMonth() + 1).padStart(2, '0')
     downloadCsv(
       filtering
-        ? 'quincena-search.csv'
-        : `quincena-${month.getFullYear()}-${monthNumber}.csv`,
+        ? 'i-am-poor-for-now-search.csv'
+        : `i-am-poor-for-now-${month.getFullYear()}-${monthNumber}.csv`,
       transactionRows(list, categories, t),
     )
   }
@@ -77,7 +77,9 @@ export default function HistoryScreen() {
     return (
       <>
         <h1 className="screen-title">{t('history')}</h1>
-        <EmptyState />
+        <div className="narrow">
+          <EmptyState />
+        </div>
       </>
     )
   }
@@ -86,186 +88,194 @@ export default function HistoryScreen() {
     <>
       <h1 className="screen-title">{t('history')}</h1>
 
-      {!filtering && (
-        <div className="month-nav">
+      <div className="narrow">
+        {!filtering && (
+          <div className="month-nav">
+            <button
+              type="button"
+              className="month-btn"
+              aria-label={t('prevMonth')}
+              onClick={() => changeMonth(-1)}
+            >
+              ‹
+            </button>
+            <p className="month-name">
+              {month.toLocaleDateString(locale, {
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+            <button
+              type="button"
+              className="month-btn"
+              aria-label={t('nextMonth')}
+              disabled={!canGoNext}
+              onClick={() => changeMonth(1)}
+            >
+              ›
+            </button>
+          </div>
+        )}
+
+        <label className="field">
+          <span className="label">{t('search')}</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchHint')}
+          />
+        </label>
+
+        <div className="pill-group">
           <button
             type="button"
-            className="month-btn"
-            aria-label={t('prevMonth')}
-            onClick={() => changeMonth(-1)}
+            className={open ? 'pill active' : 'pill'}
+            aria-expanded={open}
+            onClick={() => setShowFilters((v) => !v)}
           >
-            ‹
+            {t('filters')}
           </button>
-          <p className="month-name">
-            {month.toLocaleDateString(locale, {
-              month: 'long',
-              year: 'numeric',
-            })}
-          </p>
-          <button
-            type="button"
-            className="month-btn"
-            aria-label={t('nextMonth')}
-            disabled={!canGoNext}
-            onClick={() => changeMonth(1)}
-          >
-            ›
-          </button>
+          {filtering && (
+            <button type="button" className="pill" onClick={clearFilters}>
+              {t('clearFilters')}
+            </button>
+          )}
         </div>
-      )}
 
-      <label className="field">
-        <span className="label">{t('search')}</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('searchHint')}
-        />
-      </label>
+        {open && (
+          <>
+            <div className="pill-group">
+              {[
+                ['all', t('all')],
+                ['expense', t('typeExpense')],
+                ['income', t('typeIncome')],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={type === value ? 'pill active' : 'pill'}
+                  onClick={() => setType(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-      <div className="pill-group">
-        <button
-          type="button"
-          className={open ? 'pill active' : 'pill'}
-          aria-expanded={open}
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          {t('filters')}
-        </button>
-        {filtering && (
-          <button type="button" className="pill" onClick={clearFilters}>
-            {t('clearFilters')}
-          </button>
+            <label className="field">
+              <span className="label">{t('category')}</span>
+              <select
+                value={categoryId}
+                onChange={(e) =>
+                  setCategoryId(
+                    e.target.value === 'all' ? 'all' : Number(e.target.value),
+                  )
+                }
+              >
+                <option value="all">{t('allCategories')}</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {categoryLabel(c, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
       </div>
 
-      {open && (
-        <>
-          <div className="pill-group">
-            {[
-              ['all', t('all')],
-              ['expense', t('typeExpense')],
-              ['income', t('typeIncome')],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={type === value ? 'pill active' : 'pill'}
-                onClick={() => setType(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <label className="field">
-            <span className="label">{t('category')}</span>
-            <select
-              value={categoryId}
-              onChange={(e) =>
-                setCategoryId(
-                  e.target.value === 'all' ? 'all' : Number(e.target.value),
-                )
-              }
-            >
-              <option value="all">{t('allCategories')}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {categoryLabel(c, t)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      )}
-
-      {list.length === 0 ? (
-        <section className="card">
-          <p className="sub empty">
-            {filtering ? t('noResults') : t('noTransactions')}
-          </p>
-        </section>
-      ) : (
-        <>
-          <section className="card">
-            {summaries.map((s, index) => (
-              <div className={index === 0 ? undefined : 'divider'} key={s.code}>
-                <p className="label">
-                  {t('balance')} · {t(s.labelKey)}
-                </p>
-                <p className="month-balance">{formatMoney(s.net, s.code)}</p>
-                <div className="stats-row">
-                  <div>
-                    <p className="label">{t('income')}</p>
-                    <p className="stat income">
-                      +{formatMoney(s.income, s.code)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="label">{t('spent')}</p>
-                    <p className="stat spending">
-                      −{formatMoney(s.spent, s.code)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </section>
-
-          <section className="card">
-            {days.map((day, index) => (
-              <div className={index === 0 ? undefined : 'divider'} key={day.date}>
-                <div className="row">
+      <div className="cols">
+        <div className="col">
+          {list.length > 0 && (
+            <section className="card">
+              {summaries.map((s, index) => (
+                <div className={index === 0 ? undefined : 'divider'} key={s.code}>
                   <p className="label">
-                    {parseDate(day.date).toLocaleDateString(locale, {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short',
-                      // results can span years
-                      ...(filtering && { year: 'numeric' }),
-                    })}
+                    {t('balance')} · {t(s.labelKey)}
                   </p>
-                  {/* net of the day per currency: + income color, − spending */}
-                  <p className="sub day-totals">
-                    {currencies
-                      .map((c) => ({ ...c, ...getTotals(day.items, c.code) }))
-                      .filter((c) => c.count > 0)
-                      .map((c) => (
-                        <span
-                          className={c.net < 0 ? 'spending' : 'income'}
-                          key={c.code}
-                        >
-                          {c.net < 0 ? '' : '+'}
-                          {formatMoney(c.net, c.code)}
-                        </span>
-                      ))}
-                  </p>
+                  <p className="month-balance">{formatMoney(s.net, s.code)}</p>
+                  <div className="stats-row">
+                    <div>
+                      <p className="label">{t('income')}</p>
+                      <p className="stat income">
+                        +{formatMoney(s.income, s.code)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="label">{t('spent')}</p>
+                      <p className="stat spending">
+                        −{formatMoney(s.spent, s.code)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <ul className="list">
-                  {day.items.map((tx) => (
-                    <TransactionItem key={tx.id} tx={tx} showDate={false} />
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        </>
-      )}
+              ))}
+            </section>
+          )}
 
-      <section className="card">
-        <p className="label">{t('data')}</p>
-        <div className="actions">
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={list.length === 0}
-            onClick={handleExport}
-          >
-            {filtering ? t('exportResults') : t('exportCsv')}
-          </button>
+          <section className="card">
+            <p className="label">{t('data')}</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={list.length === 0}
+                onClick={handleExport}
+              >
+                {filtering ? t('exportResults') : t('exportCsv')}
+              </button>
+            </div>
+          </section>
         </div>
-      </section>
+
+        <div className="col">
+          {list.length === 0 ? (
+            <section className="card">
+              <p className="sub empty">
+                {filtering ? t('noResults') : t('noTransactions')}
+              </p>
+            </section>
+          ) : (
+            <section className="card">
+              {days.map((day, index) => (
+                <div className={index === 0 ? undefined : 'divider'} key={day.date}>
+                  <div className="row">
+                    <p className="label">
+                      {parseDate(day.date).toLocaleDateString(locale, {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        // results can span years
+                        ...(filtering && { year: 'numeric' }),
+                      })}
+                    </p>
+                    {/* net of the day per currency: + income color, − spending */}
+                    <p className="sub day-totals">
+                      {currencies
+                        .map((c) => ({ ...c, ...getTotals(day.items, c.code) }))
+                        .filter((c) => c.count > 0)
+                        .map((c) => (
+                          <span
+                            className={c.net < 0 ? 'spending' : 'income'}
+                            key={c.code}
+                          >
+                            {c.net < 0 ? '' : '+'}
+                            {formatMoney(c.net, c.code)}
+                          </span>
+                        ))}
+                    </p>
+                  </div>
+                  <ul className="list">
+                    {day.items.map((tx) => (
+                      <TransactionItem key={tx.id} tx={tx} showDate={false} />
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
+      </div>
     </>
   )
 }

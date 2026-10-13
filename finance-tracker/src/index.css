@@ -130,16 +130,93 @@ main {
   gap: 16px; /* espacio entre las secciones de la pantalla */
 }
 
-/* Controles superiores: enlace a la pantalla de ajustes */
-.settings-bar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 20px 0;
+/* Barra superior en todo el ancho de la ventana: marca a la izquierda,
+   pestañas al centro y ajustes a la derecha. Queda pegada arriba al hacer
+   scroll. En celular son dos filas (marca y ajustes / pestañas) */
+.app-bar {
+  position: sticky;
+  /* Solo la fila de pestañas debe quedar visible al hacer scroll, así que la
+     barra sube lo que mide la fila 1: 8px de relleno superior + 44px del logo
+     y del engranaje + 8px de separación entre filas = 60px */
+  top: -60px;
+  z-index: 10; /* por encima del contenido que pasa por debajo */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'brand gear'
+    'tabs tabs';
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
-/* Botón redondo con el ícono de engranaje centrado */
-.settings-bar .icon-link {
+/* Marca: logo y nombre de la app, enlace al inicio (mín. 44px para tocar) */
+.brand {
+  grid-area: brand;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0; /* deja que el nombre se encoja en vez de empujar el engranaje */
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Nombre de la app junto al logo, en la fuente del título y en una sola línea */
+.brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+/* Tamaño del logo (no se encoge aunque falte espacio) */
+.logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* Barras del logo en el color de marca, más tenues las más bajas */
+.logo-bar {
+  fill: var(--accent);
+}
+
+.logo-bar-1 {
+  opacity: 0.45;
+}
+
+.logo-bar-2 {
+  opacity: 0.7;
+}
+
+.logo-bar-3 {
+  opacity: 1;
+}
+
+/* Anillo de la moneda en el color del texto */
+.logo-coin {
+  stroke: var(--text);
+}
+
+/* Flecha dentro de la moneda en el color de marca */
+.logo-arrow {
+  stroke: var(--accent);
+}
+
+/* Botón redondo con el ícono de engranaje, a la derecha de la barra */
+.app-bar .icon-link {
+  grid-area: gear;
+  justify-self: end;
   display: grid;
   width: 44px;
   height: 44px;
@@ -148,6 +225,7 @@ main {
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px; /* 999px = bordes totalmente redondos */
+  cursor: pointer;
 }
 
 /* Tamaño del ícono de engranaje */
@@ -157,7 +235,7 @@ main {
 }
 
 /* Enlace resaltado cuando estamos en ajustes */
-.settings-bar .icon-link.active {
+.app-bar .icon-link.active {
   color: var(--accent);
   border-color: var(--accent);
 }
@@ -183,19 +261,18 @@ main {
   color: var(--accent);
 }
 
-/* Navegación entre pantallas: se queda pegada arriba al hacer scroll */
+/* Pestañas dentro de la barra: segunda fila a todo el ancho, centradas.
+   El relleno de 4px (compensado con margen negativo) deja sitio al contorno
+   de foco, que el overflow recortaría */
 .top-nav {
-  position: sticky;
-  top: 0;
-  z-index: 10; /* por encima del contenido que pasa por debajo */
+  grid-area: tabs;
   display: flex;
+  justify-content: safe center; /* centradas, pero sin cortar la primera si no caben */
   gap: 8px;
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 16px 20px 8px;
+  margin: -4px;
+  padding: 4px;
   overflow-x: auto; /* scroll horizontal si los enlaces no caben */
   scrollbar-width: none; /* oculta la barra, pero se sigue pudiendo deslizar */
-  background: var(--bg);
 }
 
 /* Oculta la barra de scroll en Chrome/Safari (el deslizamiento sigue funcionando) */
@@ -217,6 +294,7 @@ main {
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 /* Pantalla actual (React Router agrega la clase "active") */
@@ -229,6 +307,7 @@ main {
 
 /* En celulares: menos relleno y las pestañas reparten el ancho para que quepan las cuatro */
 @media (max-width: 440px) {
+  /* Las pestañas se reparten el ancho */
   .top-nav a {
     flex: 1 0 auto;
     padding: 10px 8px;
@@ -238,24 +317,49 @@ main {
 
 /* En celulares muy angostos (320px) las pestañas en español necesitan aún menos espacio */
 @media (max-width: 360px) {
-  .top-nav {
-    gap: 6px;
+  /* La barra usa menos margen lateral para que quepan las pestañas */
+  .app-bar {
     padding-left: 12px;
     padding-right: 12px;
   }
 
+  /* Menos espacio entre pestañas */
+  .top-nav {
+    gap: 6px;
+  }
+
+  /* Pestañas más compactas */
   .top-nav a {
     padding: 10px 6px;
     font-size: 13px;
   }
 }
 
+/* Por debajo de 360px el nombre no cabe junto al engranaje: solo queda el logo */
+@media (max-width: 359px) {
+  /* Oculta el nombre */
+  .brand-name {
+    display: none;
+  }
+}
+
 /* Estilos de texto */
 
-/* Título de cada pantalla */
+/* Título de cada pantalla, centrado */
 .screen-title {
   font-size: 20px;
   font-weight: 500;
+  text-align: center;
+}
+
+/* Texto de introducción justo debajo del título: también centrado */
+.screen-title + .sub {
+  text-align: center;
+}
+
+/* Inicio: saludo y fecha de la quincena, centrados como un bloque */
+.greeting {
+  text-align: center;
 }
 
 /* Etiqueta pequeña en mayúsculas, encima de un dato */
@@ -594,8 +698,9 @@ main {
   margin-bottom: 0;
 }
 
-/* Filtros sueltos en la pantalla: el espacio ya lo da el gap de main */
-main > .field {
+/* Filtros sueltos en la pantalla: el espacio ya lo da el gap del contenedor */
+main > .field,
+.narrow > .field {
   margin-bottom: 0;
 }
 
@@ -877,4 +982,185 @@ main > .field {
 /* Botón "Ver todas" bajo la última categoría */
 .show-all {
   margin-top: 4px;
+}
+
+/* Diseño de página */
+
+/* Dos columnas de la pantalla: en celular son una sola columna, en el mismo orden */
+.cols {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Una columna de tarjetas apiladas; min-width 0 evita que el contenido la ensanche */
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Bloque angosto para formularios y listas cortas (en celular, una columna normal) */
+.narrow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Grupo de pills centrado (tipo de movimiento, período) */
+.pill-group.center,
+.center-pills .pill-group {
+  justify-content: center;
+}
+
+/* Estados de carga, bloqueo y error (solo una tarjeta o una línea dentro de main) */
+main > .card.empty-state,
+main > p.empty {
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Pantallas anchas (computadora): se ve como un sitio web */
+@media (min-width: 900px) {
+  /* Barra en una sola fila: marca a la izquierda, pestañas al centro de la ventana, ajustes a la derecha */
+  .app-bar {
+    top: 0; /* en pantallas anchas la barra es una sola fila y no hay nada que subir */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: 'brand tabs gear';
+    padding: 12px 24px;
+  }
+
+  /* Las pestañas quedan en el centro de la ventana */
+  .top-nav {
+    justify-self: center;
+  }
+
+  /* Logo y nombre más grandes */
+  .logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  /* La marca se ajusta al logo de 56px */
+  .brand {
+    min-height: 56px;
+    gap: 12px;
+  }
+
+  /* Nombre de la app de unos 20px */
+  .brand-name {
+    font-size: 20px;
+  }
+
+  /* Contenido más ancho, con más aire alrededor */
+  main {
+    max-width: 1120px;
+    padding: 24px 32px 64px;
+    gap: 20px;
+  }
+
+  /* Títulos de pantalla más grandes */
+  .screen-title {
+    font-size: 28px;
+  }
+
+  /* Dos columnas iguales, alineadas arriba */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Más espacio entre tarjetas de una columna */
+  .col {
+    gap: 20px;
+  }
+
+  /* Bloque angosto centrado, de hasta 640px */
+  .narrow {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    gap: 20px;
+  }
+
+  /* Teclado con teclas de tamaño razonable y el monto centrado encima */
+  /* Teclado de hasta 360px, centrado */
+  .keypad {
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  /* Monto centrado sobre el teclado */
+  .amount-display {
+    text-align: center;
+  }
+}
+
+/* Interacción con el ratón: solo donde hay hover real, así el celular no cambia */
+@media (hover: hover) {
+  /* Botones principales: un poco más claros al pasar el ratón (no si están desactivados) */
+  .btn:hover:not(:disabled):not(.disabled) {
+    filter: brightness(1.08);
+  }
+
+  /* Botones secundarios y pills: el borde se marca (la pill activa conserva el suyo) */
+  .btn.secondary:hover:not(:disabled):not(.disabled),
+  .pill:hover:not(:disabled):not(.active) {
+    border-color: var(--muted);
+  }
+
+  /* Pestañas y engranaje: el texto sube al color principal (la activa no cambia) */
+  .top-nav a:hover:not(.active),
+  .app-bar .icon-link:hover:not(.active) {
+    color: var(--text);
+  }
+
+  /* Filas que llevan a editar: el nombre se subraya */
+  .row-link:hover .row-name {
+    text-decoration: underline;
+  }
+
+  /* Tarjeta-enlace a Ahorros: borde de marca */
+  .link-card:hover {
+    border-color: var(--accent);
+  }
+
+  /* Teclas del teclado numérico */
+  .key:hover {
+    border-color: var(--muted);
+  }
+}
+
+/* Transición suave de borde, color y brillo (se quita si el usuario prefiere menos movimiento) */
+.btn,
+.pill,
+.key,
+.link-card,
+.top-nav a,
+.icon-link {
+  transition: border-color 0.15s, color 0.15s, filter 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .pill,
+  .key,
+  .link-card,
+  .top-nav a,
+  .icon-link {
+    transition: none;
+  }
+}
+
+/* Todo lo que se puede tocar muestra la manita (los enlaces con estilo de botón también) */
+.row-link,
+.link-card,
+.back-link,
+.text-link {
+  cursor: pointer;
 }

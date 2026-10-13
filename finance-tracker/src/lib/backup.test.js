@@ -118,7 +118,7 @@ describe('parseBackup', () => {
     expect(Object.keys(result.savings[0])).toHaveLength(6)
   })
 
-  it('returns null when the text is not a Quincena backup', () => {
+  it('returns null when the text is not an I AM POOR FOR NOW backup', () => {
     expect(parseBackup('not json', builtIn)).toBeNull()
     expect(parseBackup('', builtIn)).toBeNull()
     expect(parseBackup('null', builtIn)).toBeNull()

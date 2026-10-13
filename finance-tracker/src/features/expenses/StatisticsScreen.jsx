@@ -52,7 +52,9 @@ export default function StatisticsScreen() {
     return (
       <>
         <h1 className="screen-title">{t('statistics')}</h1>
-        <EmptyState />
+        <div className="narrow">
+          <EmptyState />
+        </div>
       </>
     )
   }
@@ -61,7 +63,7 @@ export default function StatisticsScreen() {
     <>
       <h1 className="screen-title">{t('statistics')}</h1>
 
-      <div className="pill-group">
+      <div className="pill-group center">
         {['week', 'month', 'year'].map((p) => (
           <button
             key={p}
@@ -74,69 +76,77 @@ export default function StatisticsScreen() {
         ))}
       </div>
 
-      <CurrencyPills value={currency} onChange={setCurrency} />
+      <div className="center-pills">
+        <CurrencyPills value={currency} onChange={setCurrency} />
+      </div>
 
-      <section className="card">
-        <p className="label">{t('spending')}</p>
-        <BarChart
-          bars={bars}
-          formatValue={(value) => formatMoney(value, currency)}
-        />
-      </section>
+      <div className="cols">
+        <div className="col">
+          <section className="card">
+            <p className="label">{t('spending')}</p>
+            <BarChart
+              bars={bars}
+              formatValue={(value) => formatMoney(value, currency)}
+            />
+          </section>
 
-      <section className="card">
-        <p className="label">{t('byCategory')}</p>
-        {byCategory.length === 0 ? (
-          <p className="sub empty">{t('noSpending')}</p>
-        ) : (
-          <CategoryBars totals={byCategory} currency={currency} />
-        )}
-      </section>
+          <section className="card">
+            <p className="label">{t('pastQuincenas')}</p>
+            {history.length === 0 ? (
+              <p className="sub empty">{t('noTransactionsCurrency')}</p>
+            ) : (
+              <ul className="list">
+                {history.map((q) => (
+                  <li className="row" key={q.start.getTime()}>
+                    <div>
+                      <p className="row-name">
+                        {shortDate(q.start)} – {shortDate(q.end)}
+                      </p>
+                      <p className="row-meta">
+                        {/* a zero keeps the muted color so color keeps its meaning */}
+                        <span className={q.income > 0 ? 'income' : undefined}>
+                          +{formatMoney(q.income, currency)}
+                        </span>
+                        {' · '}
+                        <span className={q.spent > 0 ? 'spending' : undefined}>
+                          −{formatMoney(q.spent, currency)}
+                        </span>
+                      </p>
+                    </div>
+                    <p className={q.net < 0 ? 'row-amount spending' : 'row-amount'}>
+                      {formatMoney(q.net, currency)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
 
-      <section className="card">
-        <p className="label">{t('pastQuincenas')}</p>
-        {history.length === 0 ? (
-          <p className="sub empty">{t('noTransactionsCurrency')}</p>
-        ) : (
-          <ul className="list">
-            {history.map((q) => (
-              <li className="row" key={q.start.getTime()}>
-                <div>
-                  <p className="row-name">
-                    {shortDate(q.start)} – {shortDate(q.end)}
-                  </p>
-                  <p className="row-meta">
-                    {/* a zero keeps the muted color so color keeps its meaning */}
-                    <span className={q.income > 0 ? 'income' : undefined}>
-                      +{formatMoney(q.income, currency)}
-                    </span>
-                    {' · '}
-                    <span className={q.spent > 0 ? 'spending' : undefined}>
-                      −{formatMoney(q.spent, currency)}
-                    </span>
-                  </p>
-                </div>
-                <p className={q.net < 0 ? 'row-amount spending' : 'row-amount'}>
-                  {formatMoney(q.net, currency)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <div className="col">
+          <section className="card">
+            <p className="label">{t('byCategory')}</p>
+            {byCategory.length === 0 ? (
+              <p className="sub empty">{t('noSpending')}</p>
+            ) : (
+              <CategoryBars totals={byCategory} currency={currency} />
+            )}
+          </section>
 
-      <section className="card">
-        <p className="label">{t('transactions')}</p>
-        {recent.length === 0 ? (
-          <p className="sub empty">{t('noTransactionsCurrency')}</p>
-        ) : (
-          <ul className="list">
-            {recent.map((tx) => (
-              <TransactionItem key={tx.id} tx={tx} />
-            ))}
-          </ul>
-        )}
-      </section>
+          <section className="card">
+            <p className="label">{t('transactions')}</p>
+            {recent.length === 0 ? (
+              <p className="sub empty">{t('noTransactionsCurrency')}</p>
+            ) : (
+              <ul className="list">
+                {recent.map((tx) => (
+                  <TransactionItem key={tx.id} tx={tx} />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
     </>
   )
 }

@@ -132,7 +132,7 @@ function clean(list, cleaner) {
 
 // Checks and cleans the text of a backup file.
 // Returns { transactions, categories, budgets, recurring, savings } ready to
-// restore, or null when the text is not a Quincena backup at all.
+// restore, or null when the text is not an I AM POOR FOR NOW backup at all.
 // Older backups have no savings: they read as an empty list.
 export function parseBackup(text, builtInCategories) {
   try {

@@ -254,7 +254,7 @@ export default function HomeScreen() {
 
   return (
     <>
-      <div>
+      <div className="greeting">
         <h1 className="screen-title">{t('welcome')}</h1>
         <p className="sub">
           {t('quincena')} · {start.toLocaleDateString(locale, format)} -{' '}
@@ -263,108 +263,116 @@ export default function HomeScreen() {
       </div>
 
       {offers.length > 0 && (
-        <section className="card">
-          <p className="label">{t('lastQuincenaLeft')}</p>
-          <ul className="list">
-            {offers.map(({ code, leftover }) => (
-              <li key={code}>
-                <div className="row">
-                  <span className="row-name">{t('moveItToSavings')}</span>
-                  <span className="row-amount">
-                    {formatMoney(leftover, code)}
-                  </span>
-                </div>
-                <div className="due-actions">
-                  <button
-                    type="button"
-                    className="pill active"
-                    disabled={busy}
-                    onClick={() => moveLeftover(code, leftover)}
-                  >
-                    {t('moveToSavings')}
-                  </button>
-                  <button
-                    type="button"
-                    className="pill"
-                    disabled={busy}
-                    onClick={() => skipLeftover(code)}
-                  >
-                    {t('skip')}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div className="narrow">
+          <section className="card">
+            <p className="label">{t('lastQuincenaLeft')}</p>
+            <ul className="list">
+              {offers.map(({ code, leftover }) => (
+                <li key={code}>
+                  <div className="row">
+                    <span className="row-name">{t('moveItToSavings')}</span>
+                    <span className="row-amount">
+                      {formatMoney(leftover, code)}
+                    </span>
+                  </div>
+                  <div className="due-actions">
+                    <button
+                      type="button"
+                      className="pill active"
+                      disabled={busy}
+                      onClick={() => moveLeftover(code, leftover)}
+                    >
+                      {t('moveToSavings')}
+                    </button>
+                    <button
+                      type="button"
+                      className="pill"
+                      disabled={busy}
+                      onClick={() => skipLeftover(code)}
+                    >
+                      {t('skip')}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
       )}
 
-      {shown.slice(0, 1).map((c) => renderCard(c, 0))}
+      <div className="cols">
+        <div className="col">
+          {shown.slice(0, 1).map((c) => renderCard(c, 0))}
 
-      {due.length > 0 && (
-        <section className="card">
-          <p className="label">{t('dueThisQuincena')}</p>
-          <ul className="list">
-            {due.map((item) => (
-              <li key={item.id}>
-                <RecurringRow item={item} />
-                <div className="due-actions">
-                  <button
-                    type="button"
-                    className="pill active"
-                    disabled={busy}
-                    onClick={() => run(() => confirmRecurring(item))}
-                  >
-                    {t('confirm')}
-                  </button>
-                  <button
-                    type="button"
-                    className="pill"
-                    disabled={busy}
-                    onClick={() => run(() => skipRecurring(item))}
-                  >
-                    {t('skip')}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+          {shown.slice(1).map((c, i) => renderCard(c, i + 1))}
 
-      {shown.slice(1).map((c, i) => renderCard(c, i + 1))}
+          <Link className="card link-card" to="/savings">
+            <span className="row-name">{t('savings')}</span>
+            <span className="row-amount">{balancesText}</span>
+          </Link>
+        </div>
 
-      <Link className="card link-card" to="/savings">
-        <span className="row-name">{t('savings')}</span>
-        <span className="row-amount">{balancesText}</span>
-      </Link>
+        <div className="col">
+          {due.length > 0 && (
+            <section className="card">
+              <p className="label">{t('dueThisQuincena')}</p>
+              <ul className="list">
+                {due.map((item) => (
+                  <li key={item.id}>
+                    <RecurringRow item={item} />
+                    <div className="due-actions">
+                      <button
+                        type="button"
+                        className="pill active"
+                        disabled={busy}
+                        onClick={() => run(() => confirmRecurring(item))}
+                      >
+                        {t('confirm')}
+                      </button>
+                      <button
+                        type="button"
+                        className="pill"
+                        disabled={busy}
+                        onClick={() => run(() => skipRecurring(item))}
+                      >
+                        {t('skip')}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-      {shown.length === 0 && (
-        <section className="card">
-          <p className="sub empty">
-            {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
-          </p>
-        </section>
-      )}
+          {shown.length === 0 && (
+            <section className="card">
+              <p className="sub empty">
+                {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
+              </p>
+            </section>
+          )}
 
-      <div className="btn-row">
-        <Link className="btn" to="/add?type=expense">
-          {t('addExpense')}
-        </Link>
-        <Link className="btn secondary" to="/add?type=income">
-          {t('addIncome')}
-        </Link>
+          <div className="btn-row">
+            <Link className="btn" to="/add?type=expense">
+              {t('addExpense')}
+            </Link>
+            <Link className="btn secondary" to="/add?type=income">
+              {t('addIncome')}
+            </Link>
+          </div>
+
+          {recent.length > 0 && (
+            <section className="card">
+              <p className="label">{t('recent')}</p>
+              <ul className="list">
+                {recent.map((tx) => (
+                  <TransactionItem key={tx.id} tx={tx} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       </div>
-
-      {recent.length > 0 && (
-        <section className="card">
-          <p className="label">{t('recent')}</p>
-          <ul className="list">
-            {recent.map((tx) => (
-              <TransactionItem key={tx.id} tx={tx} />
-            ))}
-          </ul>
-        </section>
-      )}
 
       {transactions.length > 0 && isBackupDue(readPref('lastBackup'), today) && (
         <p className="sub backup-line">

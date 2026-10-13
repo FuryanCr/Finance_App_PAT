@@ -1,32 +1,53 @@
-## What is this app?
-A personal finance tracker built with React. Quincena helps you follow your income and expenses through each pay period, in colones and dollars, in Spanish or English.
+# I AM POOR FOR NOW
 
-> **Status:** in development. All screens work and your data is saved in a SQLite database (in the browser it lives in IndexedDB), so it survives a refresh. The app starts empty; sample data is optional. The Android app is next.
+## What is this app?
+A personal finance tracker built with React. I AM POOR FOR NOW (shown as "POBRE, POR AHORA" in the Spanish interface) helps you follow your income and expenses through each quincena (pay period: days 1 to 15 and day 16 to the end of the month), in colones and dollars, in Spanish or English.
+
+> **Status:** in development. All screens work and your data is stored in a SQLite database in the browser (it lives in IndexedDB), so it survives a refresh. For now the app is used in the browser; the Android build has not been started. The app starts empty; sample data is optional.
 
 ## Features
 
-- Income, expenses and remaining balance for the current pay period
-- "Safe to spend per day": what is left this pay period, minus recurring bills that are still due, divided by the days remaining
-- Add expenses and income with a numeric keypad, in colones or dollars, with note suggestions from past entries
-- Edit or delete any transaction by tapping it, or repeat it as a new entry with today's date
-- Custom expense categories: name your own and reuse them
-- Spending statistics by time period and currency, plus a comparison of past quincenas
-- Monthly history: balance, income and spent per currency, with transactions grouped by day, plus search and filters by text, type and category
-- CSV export of the month shown in History
-- Settings screen: language, theme, export everything as CSV, download and restore a backup file, load sample data and clear all data
-- Manage custom categories: rename, recolor, or delete and move their transactions
-- Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
-- Recurring transactions: rent, salary or subscriptions show up as due each pay period, and you confirm or skip them; typing a due bill by hand offers to mark it as paid, so it is not counted twice
-- Savings: set money aside per currency, send part of an income straight to savings, take it back when needed, and the dashboard offers to move last pay period's leftover into savings
-- Spanish / English interface
-- Dark and light themes
-- Navigation between Home, Add, Statistics and History, with Settings behind the gear icon
+**Home**
+- Per currency: what is left this quincena, income and spent, and the percent of income spent
+- "Safe to spend per day": what is left, minus recurring expenses still due, divided by the days remaining (it shows what was set aside for those bills)
+- Category bars with budgets (amber from 80%, red when exceeded) and an "Uncategorized" row; on the cards after the first, the list is collapsed to a few rows with "Show all"
+- "Due this quincena" list for recurring items: Confirm or Skip
+- Last quincena's leftover can be moved to savings with one tap ("Move to savings") or skipped
+- Later-dated transactions are flagged, and the five most recent ones are listed
+- A backup reminder when the last backup is more than 14 days old
+
+**Adding and editing**
+- Add expenses and income with a numeric keypad, in colones or dollars
+- Remembers the last currency and category used, and suggests notes from past entries
+- Custom expense categories: type a new name while adding
+- Tap any transaction to edit or delete it, or use "Repeat today" to copy it as a new entry
+- Date guard: an invalid date cannot be saved, and a warning shows for dates more than 3 days ahead
+- A hand-typed bill that matches a due recurring item offers to mark it as paid, so it is not counted twice
+- When adding income, part of it can be sent straight to savings
+
+**Recurring, savings and budgets**
+- Recurring items (rent, salary, subscriptions): every quincena, monthly days 1 to 15, or monthly day 16 to month end. Nothing is ever added by itself
+- Savings: balance per currency, "Move to savings" and "Take from savings" with a list of movements; money sent to savings is not spending, but it is no longer counted as left
+- Budgets: a spending limit per category and currency for each quincena
+- Categories: rename, recolor, or delete custom categories and move their transactions
+
+**Statistics and history**
+- Statistics: spending bars by week, month or year (last 7 days, 6 months, 3 years), spending by category, past quincenas and recent transactions, per currency
+- History: one month at a time with balance, income and spent per currency, transactions grouped by day
+- Search by note or category; filters (type and category) are behind a "Filters" toggle and search every month
+- CSV export of what History shows (the month, or the search results)
+
+**Settings and safety**
+- Language (Spanish / English, English by default) and theme (dark / light)
+- Export everything as CSV, download a backup and restore from one, load sample data and clear all data
+- Only one tab can use the data at a time
+- Top bar with the logo and name at the left, the tabs in the middle and Settings at the right; two-column pages on computers, a single column on phones
 
 ## Getting started
 
 ### Before you begin
 
-You need **Node.js 22.12.0 or newer**. Check with:
+You need **Node.js 22.13.0 or newer**. Odd-numbered versions such as 23 are not supported (use 22.13+, 24 or 26+). Check with:
 
 ```bash
 node --version
@@ -85,11 +106,12 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 | Routing | React Router | In use |
 | App state | React Context | In use |
 | Styling | Plain CSS in `src/index.css` | In use |
-| Storage | SQLite via `@capacitor-community/sqlite` (WebAssembly + IndexedDB in the browser) | In use |
-| Android app | Capacitor | Installed, not built yet |
-| Cloud backups | To be decided | Later |
+| Font | Poppins, self-hosted with `@fontsource/poppins` | In use |
+| Storage | SQLite via `@capacitor-community/sqlite` (`jeep-sqlite` with WebAssembly + IndexedDB in the browser) | In use |
 | Tests | Vitest, plus sql.js to run the real SQL of the database layer against an in-memory SQLite | In use |
 | Linting | ESLint | In use |
+| Android app | Capacitor | Installed, not built yet |
+| Cloud backups | To be decided | Later |
 
 ### Why these choices
 
@@ -105,42 +127,59 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 
 ### Data and storage
 
-Data lives in a SQLite database named `quincena`, with a `categories` table, a `transactions` table, a `budgets` table and a `recurring` table and a `savings` table. Amounts are stored as whole cents to avoid rounding errors. A fresh install starts with no transactions and the four built-in categories. `src/db/database.js` opens the database and runs versioned migrations.
-
-Screens never touch storage directly: they read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL for reading and writing. On the first launch after upgrading, data saved by the older `localStorage` version is imported once, and the old copy is left untouched.
-
-In the browser, `public/assets/sql-wasm.wasm` is the SQLite WebAssembly binary. It must match the version `jeep-sqlite` expects (currently the one from sql.js 1.11.0). `src/db/mockData.js` still holds the built-in categories and the optional sample transactions. History exports the month on screen as CSV, and Settings has export everything, load sample data (when the app is empty) and clear all data. A backup is a JSON file with your custom categories, transactions, budgets, recurring items and savings; restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
-
-The app can only be open in one tab at a time: a second tab is blocked, because each tab saves the whole database and would overwrite the other. It also asks the browser to keep the data (persistent storage), which the browser may or may not grant. Home shows a reminder when the last backup is more than 14 days old.
+- **Where it lives:** a SQLite database. In the browser it is kept in memory and saved to IndexedDB. A fresh install starts with no transactions and the four built-in categories (Food, Transport, Bills, Fun).
+- **Schema (version 4):** `categories` (built-in and custom), `transactions`, `budgets` (a limit per category and currency), `recurring` (repeating items and the last quincena handled) and `savings` (money moved in or out of savings).
+- **Internal names kept for compatibility:** the database is named `quincena`, the tab lock is `quincena-db` and backup files carry the marker `app: 'quincena'`; these are internal names the user never sees, and they stay unchanged so existing data and old backups keep working.
+- **Amounts** are stored as whole cents to avoid rounding errors.
+- **Migrations** in `src/db/migrations.js` are versioned, one per schema version, and are never edited once shipped: a change is a new migration.
+- **Access:** screens never touch storage directly. They read and write through `TransactionsProvider`, and `src/db/storage.js` is the only file with SQL. Writes are queued and run one at a time.
+- **Old data:** on the first launch after upgrading, data saved by the older `localStorage` version is imported once. The old copy is left untouched.
+- **WebAssembly file:** `public/assets/sql-wasm.wasm` must be the one from sql.js 1.11.0, the version `jeep-sqlite` 2.8.0 is built with. It is not the same as the sql.js installed for the tests (1.14.x), so do not copy that one over it.
+- **One tab at a time:** each tab keeps its own copy of the database in memory and saves all of it, so a second tab would overwrite the first. A second tab is blocked with a message instead.
+- **Persistent storage:** the app asks the browser to keep the data safe from clean-up, which the browser may or may not grant.
+- **Backups:** the JSON backup holds your custom categories, transactions, budgets, recurring items and savings (the built-in categories are in every install). Restoring one replaces all current data. It is the way to move your data between browsers or to protect it if the browser's storage is cleared. Cloud backups come later.
+- **Preferences** are not in the backup. They stay in the browser's `localStorage`: language, theme, the last currency and category used, the date of the last backup, and which leftover offers were skipped.
+- **Sample data:** `src/db/mockData.js` holds the built-in categories and the optional sample transactions.
 
 ## Project structure
 
 ```text
+public/
+  assets/sql-wasm.wasm  SQLite WebAssembly file (see Data and storage)
+  favicon.svg           Browser tab icon
+  logo.svg              Standalone logo artwork
 src/
-  components/         Shared interface components
-  context/            App-wide settings (language, theme) and transactions
-  db/database.js      Opens SQLite and runs the migrations
-  db/migrations.js    Schema migrations
-  db/mockData.js      Built-in categories and optional sample transactions
-  db/storage.js       Reads and writes data (SQLite)
-  db/tabLock.js       Allows only one open tab at a time
-  db/testDb.js        In-memory SQLite used by the tests
-  features/expenses/  Expense screens (home, add and edit, statistics, history)
-  features/settings/  Settings, category, budget, recurring and savings screens
-  lib/                Date, money, category, CSV, backup, search, suggestion, statistics and translation helpers
-  App.jsx             Routes and page layout
-  Header.jsx          App title
-  index.css           All styles
-  main.jsx            App entry point
+  components/           Shared interface components (app bar and tabs, bar charts, keypad, rows and pills)
+  context/              Settings (language, theme) and transactions: contexts, providers and hooks
+  db/
+    database.js         Opens SQLite and runs the migrations
+    migrations.js       Schema migrations
+    migrations.test.js  Tests for the migrations
+    mockData.js         Built-in categories and optional sample transactions
+    storage.js          Reads and writes data (the only file with SQL)
+    storage.test.js     Tests for the storage layer
+    tabLock.js          Allows only one open tab at a time
+    testDb.js           In-memory SQLite (sql.js) used by the tests
+  features/
+    expenses/           Home, add and edit, statistics and history screens
+    settings/           Settings, categories, budgets, recurring and savings screens
+  lib/                  Helpers: backup, categories, csv, dates, money, prefs,
+                        recurring, savings, search, stats, suggest, translations
+                        and useToday. Tests sit next to the code as *.test.js
+  App.jsx               Routes and page layout
+  Header.jsx            App title
+  index.css             All styles
+  main.jsx              App entry point
 ```
 
 ## Troubleshooting
 
-- **`npm install` fails or shows engine warnings:** update Node.js to 22.12.0 or newer.
+- **`npm install` fails or shows engine warnings:** update Node.js to 22.13.0 or newer (see Getting started).
 - **Port 5173 is already in use:** Vite will pick the next free port and print it in the terminal.
-- **Blank page or stale content:** stop the server (`Ctrl + C`), run `npm run dev` again and refresh the browser.
-- **"Quincena is already open in another tab":** close the other tab and press Try again.
-- **Stuck on "Opening your data…":** the database only starts when the tab is visible; bring the tab to the front.
+- **Stale content after many quick edits:** stop the server (`Ctrl + C`), run `npm run dev` again and refresh the browser.
+- **"I AM POOR FOR NOW is already open in another tab":** close the other tab and press Try again.
+- **Stuck on "Opening your data…":** a tab opened in the background may not start the database; bring it to the front.
+- **A WebAssembly link error when the app starts:** `public/assets/sql-wasm.wasm` does not match `jeep-sqlite`. Use the file from sql.js 1.11.0 (see Data and storage).
 
 ## Roadmap
 
@@ -148,18 +187,20 @@ src/
 - [x] Dashboard and statistics screens
 - [x] Spanish / English and dark / light mode
 - [x] Colones and dollars
-- [x] Add-expense screen
-- [x] Custom categories
-- [x] History screen
-- [x] Data saved in the browser
+- [x] Add, edit and delete transactions
+- [x] Custom categories and category management
+- [x] History screen, with search and filters
 - [x] CSV export
 - [x] Start empty, with optional sample data
-- [x] Edit and delete transactions
 - [x] "Safe to spend per day" on the dashboard
 - [x] Settings screen
 - [x] SQLite storage
-- [ ] Android app with Capacitor
 - [x] Backup file and restore
+- [x] Budgets
+- [x] Recurring transactions
+- [x] Savings
+- [x] Automated tests
+- [ ] Android app with Capacitor
 - [ ] Cloud backups
 
 ## Progress log
@@ -167,35 +208,23 @@ src/
 Newest first.
 
 ### 2026-10-12
-- Project created and pushed to GitHub
-- Dashboard and statistics screens working with sample data
-- Language and theme switching in place
-- Add-expense screen with custom categories
-- History screen, one month at a time
-- Styles commented in Spanish
-- Cleanup: removed unused starter files and merged repeated code
-- Data saved in the browser, behind a small storage module
-- CSV export of the month shown in History
-- App starts empty; sample data and "clear all data" are optional actions
-- Edit and delete transactions from any list
-- "Safe to spend per day" on the dashboard
-- Storage moved from localStorage to SQLite, with a one-time import of existing data
-- English is now the default language
-- Settings screen with language, theme and data actions
-- Recurring transactions with a confirm list on the dashboard
-- Categories screen: rename, recolor and delete custom categories
-- Budgets per category, shown on the dashboard
-- Code review fixes: per-day rounding, date validation, write queue, shared helpers, self-hosted font
-- Automated tests for the money, date, statistics, category and CSV helpers
-- Past quincenas on Statistics; search and filters in History
-- Add screen remembers the last currency and category; pending bills counted in safe-to-spend; uncategorized spending shown
-- Backup file and restore in Settings
-- Visual polish: larger touch targets, readable disabled buttons and placeholders, consistent type sizes; highlighted balance card fixed for dollar-only periods
-- One tab at a time, persistent storage request, backup reminder and a loading message
-- Tests for migrations and the storage layer
-- Dashboard: the day count stays current overnight, a currency with only pending bills is shown, and later-dated expenses are flagged
-- Note suggestions and "Repeat today"
-- A hand-typed bill that matches a due recurring item can be marked as paid
-- Visual refinements (suggestion pills, primary backup button, disabled style, title on loading screens, light-theme contrast); History filters behind a toggle; past quincenas trimmed
-- Savings: balance per currency, moves in and out, and a share of an income sent to savings
-- Dashboard: savings in the numbers, leftover rollover offer, shorter layout
+- Website layout: full-width top bar, centered headings, two-column pages on wide screens
+- Logo: rising bars with a coin, shown at the top left and as the tab icon
+- 0.19: Dashboard shows savings in the numbers, offers to move last quincena's leftover to savings, shorter layout
+- 0.18: Savings: balance per currency, moves in and out, a share of an income sent to savings
+- 0.17: Visual refinements; History filters behind a toggle; past quincenas trimmed
+- 0.16: A hand-typed bill that matches a due recurring item can be marked as paid
+- 0.15: Note suggestions and "Repeat today"; amounts never wrap and the editor spacing is tidier
+- 0.14: Dashboard numbers: current day count overnight, a currency with only pending bills is shown, later-dated expenses are flagged
+- 0.13: Tests for migrations and the storage layer
+- 0.12: One tab at a time, persistent storage request, backup reminder and a loading message
+- 0.11: Review tidy-ups and visual polish
+- 0.10: Last currency and category remembered; pending bills counted in safe-to-spend; backup file and restore
+- 0.9: Recurring transactions, past quincenas on Statistics, search and filters in History, automated tests, self-hosted font and review fixes
+- 0.8: SQLite storage with a one-time import of existing data; Settings, Categories and Budgets screens; edit and delete transactions; CSV export; "Safe to spend per day"; sample data and clear all data
+- 0.7: Navigation moved to the top
+- 0.6: Custom categories on the Add screen; cleanup of unused starter files; styles commented in Spanish
+- 0.5: Add-expense screen with a numeric keypad; app title
+- 0.4: Visual update; Statistics screen
+- 0.3: Language and theme switching; Home, Add and History screens with sample data
+- 0.1 to 0.2: Project created and pushed to GitHub; React, Vite and ESLint set up

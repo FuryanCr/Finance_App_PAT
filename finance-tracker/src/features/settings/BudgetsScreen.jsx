@@ -104,9 +104,11 @@ export default function BudgetsScreen() {
       <h1 className="screen-title">{t('budgets')}</h1>
       <p className="sub">{t('budgetHint')}</p>
 
-      <CurrencyPills value={currency} onChange={setCurrency} />
+      <div className="narrow">
+        <CurrencyPills value={currency} onChange={setCurrency} />
 
-      <BudgetForm key={currency} currency={currency} />
+        <BudgetForm key={currency} currency={currency} />
+      </div>
     </>
   )
 }

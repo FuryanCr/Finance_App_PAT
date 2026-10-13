@@ -223,7 +223,7 @@ export default function AddExpenseScreen() {
     <>
       <h1 className="screen-title">{title}</h1>
 
-      <div className="pill-group">
+      <div className="pill-group center">
         {['expense', 'income'].map((tp) => (
           <button
             key={tp}
@@ -236,131 +236,137 @@ export default function AddExpenseScreen() {
         ))}
       </div>
 
-      <section className="card">
-        <CurrencyPills value={currency} onChange={setCurrency} />
-        <p className="label amount-label">{t('amount')}</p>
-        <p className="amount-display">
-          {symbol}
-          {amountText || '0'}
-        </p>
-        <Keypad onKey={handleKey} />
-      </section>
+      <div className="cols">
+        <div className="col">
+          <section className="card">
+            <CurrencyPills value={currency} onChange={setCurrency} />
+            <p className="label amount-label">{t('amount')}</p>
+            <p className="amount-display">
+              {symbol}
+              {amountText || '0'}
+            </p>
+            <Keypad onKey={handleKey} />
+          </section>
+        </div>
 
-      {type === 'expense' && (
-        <section className="card">
-          <p className="label">{t('category')}</p>
-          <div className="pill-group wrap">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={categoryId === c.id ? 'pill active' : 'pill'}
-                onClick={() => setCategoryId(c.id)}
-              >
-                {categoryLabel(c, t)}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={isCustom ? 'pill active' : 'pill'}
-              onClick={() => setCategoryId(null)}
-            >
-              + {t('customCategory')}
-            </button>
-          </div>
-          {isCustom && (
+        <div className="col">
+          {type === 'expense' && (
+            <section className="card">
+              <p className="label">{t('category')}</p>
+              <div className="pill-group wrap">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={categoryId === c.id ? 'pill active' : 'pill'}
+                    onClick={() => setCategoryId(c.id)}
+                  >
+                    {categoryLabel(c, t)}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={isCustom ? 'pill active' : 'pill'}
+                  onClick={() => setCategoryId(null)}
+                >
+                  + {t('customCategory')}
+                </button>
+              </div>
+              {isCustom && (
+                <label className="field">
+                  <span className="label">{t('categoryName')}</span>
+                  <input
+                    type="text"
+                    value={customName}
+                    maxLength={24}
+                    onChange={(e) => setCustomName(e.target.value)}
+                  />
+                </label>
+              )}
+            </section>
+          )}
+
+          <section className="card">
             <label className="field">
-              <span className="label">{t('categoryName')}</span>
+              <span className="label">{t('note')}</span>
               <input
                 type="text"
-                value={customName}
-                maxLength={24}
-                onChange={(e) => setCustomName(e.target.value)}
+                value={note}
+                maxLength={60}
+                onChange={(e) => setNote(e.target.value)}
               />
             </label>
+            {suggestions.length > 0 && (
+              <div className="pill-group wrap suggestions">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.note}
+                    type="button"
+                    className="pill"
+                    onClick={() => applySuggestion(s)}
+                  >
+                    {s.note}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label className="field">
+              <span className="label">{t('date')}</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
+            {!dateValid && <p className="field-note error">{t('invalidDate')}</p>}
+            {isFarFuture && (
+              <p className="field-note warning">{t('futureDateWarning')}</p>
+            )}
+            {showToSavings && (
+              <label className="field">
+                <span className="label">{t('toSavingsOptional')}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={toSavingsText}
+                  onChange={(e) => setToSavingsText(e.target.value)}
+                />
+              </label>
+            )}
+            {showToSavings && !toSavingsValid && (
+              <p className="field-note error">{t('toSavingsInvalid')}</p>
+            )}
+          </section>
+
+          {saveError && <p className="field-note error">{t('saveError')}</p>}
+
+          <button
+            type="button"
+            className="btn"
+            disabled={!canSave || saving}
+            onClick={handleSave}
+          >
+            {t('save')}
+          </button>
+
+          {editing && (
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={saving}
+              onClick={handleRepeat}
+            >
+              {t('repeatToday')}
+            </button>
           )}
-        </section>
-      )}
 
-      <section className="card">
-        <label className="field">
-          <span className="label">{t('note')}</span>
-          <input
-            type="text"
-            value={note}
-            maxLength={60}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
-        {suggestions.length > 0 && (
-          <div className="pill-group wrap suggestions">
-            {suggestions.map((s) => (
-              <button
-                key={s.note}
-                type="button"
-                className="pill"
-                onClick={() => applySuggestion(s)}
-              >
-                {s.note}
-              </button>
-            ))}
-          </div>
-        )}
-        <label className="field">
-          <span className="label">{t('date')}</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-        {!dateValid && <p className="field-note error">{t('invalidDate')}</p>}
-        {isFarFuture && (
-          <p className="field-note warning">{t('futureDateWarning')}</p>
-        )}
-        {showToSavings && (
-          <label className="field">
-            <span className="label">{t('toSavingsOptional')}</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={toSavingsText}
-              onChange={(e) => setToSavingsText(e.target.value)}
-            />
-          </label>
-        )}
-        {showToSavings && !toSavingsValid && (
-          <p className="field-note error">{t('toSavingsInvalid')}</p>
-        )}
-      </section>
-
-      {saveError && <p className="field-note error">{t('saveError')}</p>}
-
-      <button
-        type="button"
-        className="btn"
-        disabled={!canSave || saving}
-        onClick={handleSave}
-      >
-        {t('save')}
-      </button>
-
-      {editing && (
-        <button
-          type="button"
-          className="btn secondary"
-          disabled={saving}
-          onClick={handleRepeat}
-        >
-          {t('repeatToday')}
-        </button>
-      )}
-
-      {editing && (
-        <button type="button" className="btn danger" onClick={handleDelete}>
-          {t('delete')}
-        </button>
-      )}
+          {editing && (
+            <button type="button" className="btn danger" onClick={handleDelete}>
+              {t('delete')}
+            </button>
+          )}
+        </div>
+      </div>
     </>
   )
 }

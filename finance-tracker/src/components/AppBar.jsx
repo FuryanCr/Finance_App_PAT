@@ -1,11 +1,25 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useSettings } from '../context/useSettings'
+import Logo from './Logo'
+import TopNav from './TopNav'
 
-export default function SettingsBar() {
+export default function AppBar() {
   const { t } = useSettings()
 
   return (
-    <header className="settings-bar">
+    <header className="app-bar">
+      <Link
+        className="brand"
+        to="/"
+        aria-label={t('homeLink')}
+        title={t('homeLink')}
+      >
+        <Logo />
+        <span className="brand-name">
+          {t('titleMain')} <span className="title-accent">{t('titleAccent')}</span>
+        </span>
+      </Link>
+      <TopNav />
       <NavLink
         className="icon-link"
         to="/settings"

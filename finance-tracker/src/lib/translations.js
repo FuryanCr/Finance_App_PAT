@@ -24,7 +24,7 @@ export const translations = {
     retry: 'Reintentar',
     loading: 'Abriendo tus datos…',
     otherTab:
-      'Quincena ya está abierta en otra pestaña. Ciérrala y vuelve a intentarlo: usar dos a la vez podría borrar datos.',
+      'POBRE, POR AHORA ya está abierta en otra pestaña. Ciérrala y vuelve a intentarlo: usar dos a la vez podría borrar datos.',
     backupReminder:
       'Hace más de dos semanas que no descargas una copia de seguridad. Tus datos solo viven en este navegador.',
     goToBackup: 'Ir a la copia de seguridad',
@@ -37,6 +37,7 @@ export const translations = {
     saved: 'Guardado',
     ofBudget: 'del presupuesto',
     settings: 'Ajustes',
+    homeLink: 'Ir al inicio',
     language: 'Idioma',
     theme: 'Tema',
     data: 'Datos',
@@ -46,7 +47,7 @@ export const translations = {
     downloadBackup: 'Descargar copia',
     restoreBackup: 'Restaurar copia',
     confirmRestore: 'Esto reemplaza todos tus datos actuales por los de la copia. ¿Continuar?',
-    invalidBackup: 'Ese archivo no es una copia de seguridad de Quincena.',
+    invalidBackup: 'Ese archivo no es una copia de seguridad de POBRE, POR AHORA.',
     lastBackup: 'Última copia:',
     noBackupYet: 'Todavía no has hecho una copia de seguridad.',
     loadSample: 'Cargar datos de ejemplo',
@@ -183,7 +184,7 @@ export const translations = {
     retry: 'Try again',
     loading: 'Opening your data…',
     otherTab:
-      'Quincena is already open in another tab. Close it and try again: using two at once could erase data.',
+      'I AM POOR FOR NOW is already open in another tab. Close it and try again: using two at once could erase data.',
     backupReminder:
       'You have not downloaded a backup in over two weeks. Your data only lives in this browser.',
     goToBackup: 'Go to backup',
@@ -196,6 +197,7 @@ export const translations = {
     saved: 'Saved',
     ofBudget: 'of budget',
     settings: 'Settings',
+    homeLink: 'Go to Home',
     language: 'Language',
     theme: 'Theme',
     data: 'Data',
@@ -205,7 +207,7 @@ export const translations = {
     downloadBackup: 'Download backup',
     restoreBackup: 'Restore from backup',
     confirmRestore: 'This replaces all your current data with the backup. Continue?',
-    invalidBackup: 'That file is not a Quincena backup.',
+    invalidBackup: 'That file is not an I AM POOR FOR NOW backup.',
     lastBackup: 'Last backup:',
     noBackupYet: 'You have not made a backup yet.',
     loadSample: 'Load sample data',

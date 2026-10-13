@@ -139,45 +139,47 @@ export default function CategoriesScreen() {
       </Link>
       <h1 className="screen-title">{t('categories')}</h1>
 
-      <section className="card">
-        <ul className="list">
-          {categories.map((c) => (
-            <li key={c.id}>
-              <div className="row">
-                <span className="row-name">
-                  <span
-                    className="dot"
-                    style={{ background: categoryColor(c) }}
+      <div className="narrow">
+        <section className="card">
+          <ul className="list">
+            {categories.map((c) => (
+              <li key={c.id}>
+                <div className="row">
+                  <span className="row-name">
+                    <span
+                      className="dot"
+                      style={{ background: categoryColor(c) }}
+                    />
+                    {categoryLabel(c, t)}
+                  </span>
+                  {c.name ? (
+                    <button
+                      type="button"
+                      className="pill"
+                      onClick={() =>
+                        setEditingId(editingId === c.id ? null : c.id)
+                      }
+                    >
+                      {editingId === c.id ? t('cancel') : t('edit')}
+                    </button>
+                  ) : (
+                    <span className="row-meta">{t('builtIn')}</span>
+                  )}
+                </div>
+                {editingId === c.id && (
+                  <CategoryEditor
+                    key={c.id}
+                    category={c}
+                    onDone={() => setEditingId(null)}
                   />
-                  {categoryLabel(c, t)}
-                </span>
-                {c.name ? (
-                  <button
-                    type="button"
-                    className="pill"
-                    onClick={() =>
-                      setEditingId(editingId === c.id ? null : c.id)
-                    }
-                  >
-                    {editingId === c.id ? t('cancel') : t('edit')}
-                  </button>
-                ) : (
-                  <span className="row-meta">{t('builtIn')}</span>
                 )}
-              </div>
-              {editingId === c.id && (
-                <CategoryEditor
-                  key={c.id}
-                  category={c}
-                  onDone={() => setEditingId(null)}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      {!hasCustom && <p className="sub empty">{t('noCustomCategories')}</p>}
+        {!hasCustom && <p className="sub empty">{t('noCustomCategories')}</p>}
+      </div>
     </>
   )
 }
