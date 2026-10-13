@@ -78,21 +78,24 @@ export function parseAmount(text) {
   return value > 0 && rounded === 0 ? null : rounded
 }
 
-// CRC: ₡1.800.000 | USD: $1,234.50 | negative: −₡31.000
+// CRC: ₡1.800.000 (whole colones) | USD: $1,234.50 | negative: −₡31.000
+// Colones are shown without decimals; the cents (if a backup brought any)
+// stay in the data and in the CSV.
 export function formatMoney(amount, currency = 'CRC') {
-  const sign = amount < 0 ? '−' : ''
-  const value = Math.abs(amount)
   if (currency === 'USD') {
+    const sign = amount < 0 ? '−' : ''
     return (
       sign +
       '$' +
-      value.toLocaleString('en-US', {
+      Math.abs(amount).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })
     )
   }
-  return sign + '₡' + value.toLocaleString('de-DE', { maximumFractionDigits: 2 })
+  const whole = Math.round(Math.abs(amount))
+  const sign = amount < 0 && whole > 0 ? '−' : ''
+  return sign + '₡' + whole.toLocaleString('de-DE', { maximumFractionDigits: 0 })
 }
 
 // Total of the expenses (or of another `type`) in one currency dated after

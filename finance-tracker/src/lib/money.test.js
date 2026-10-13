@@ -103,6 +103,13 @@ describe('formatMoney', () => {
     expect(formatMoney(0, 'USD')).toBe('$0.00')
   })
 
+  it('shows colones without decimals and never a minus before zero', () => {
+    expect(formatMoney(8500.5, 'CRC')).toBe('₡8.501')
+    expect(formatMoney(10.4, 'CRC')).toBe('₡10')
+    expect(formatMoney(-0.4, 'CRC')).toBe('₡0')
+    expect(formatMoney(-1234.6, 'CRC')).toBe('−₡1.235')
+  })
+
   it('puts the minus sign before the symbol', () => {
     expect(formatMoney(-31000, 'CRC')).toBe('−₡31.000')
     expect(formatMoney(-9.99, 'USD')).toBe('−$9.99')

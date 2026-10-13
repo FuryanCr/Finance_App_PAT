@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toCsv, transactionRows } from './csv'
+import { csvSeparator, toCsv, transactionRows } from './csv'
 
 describe('toCsv', () => {
   it('starts with the BOM', () => {
@@ -42,6 +42,19 @@ describe('toCsv', () => {
     expect(toCsv([['+1']])).toBe("﻿'+1")
     expect(toCsv([['-1']])).toBe("﻿'-1")
     expect(toCsv([['@cmd']])).toBe("﻿'@cmd")
+  })
+
+  it('also guards text starting with a tab or a carriage return', () => {
+    expect(toCsv([['\t=1+1']])).toBe("\ufeff'\t=1+1")
+    expect(toCsv([['\r=1+1']])).toBe('\ufeff"\'\r=1+1"')
+  })
+
+  it('keeps the apostrophe of a note like -5 (documented cost)', () => {
+    expect(toCsv([['-5']])).toBe("\ufeff'-5")
+  })
+
+  it('uses a semicolon when asked and then quotes semicolons, not commas', () => {
+    expect(toCsv([['a', 'b,c', 'd;e']], ';')).toBe('\ufeffa;b,c;"d;e"')
   })
 
   it('leaves a negative number untouched', () => {
@@ -163,5 +176,47 @@ describe('transactionRows', () => {
     ]
     const rows = transactionRows(list, categories, t)
     expect(rows.slice(1).map((row) => row[5])).toEqual(['a', 'b'])
+  })
+})
+
+describe('Spanish CSV', () => {
+  const t = (key) => `T:${key}`
+  const categories = [{ id: 1, key: 'food', color: 'orange' }]
+  const list = [
+    { id: 1, amount: 8500.5, currency: 'CRC', type: 'expense', categoryId: 1, note: 'Almuerzo; con café', date: '2026-10-02' },
+    { id: 2, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: '', date: '2026-10-01' },
+    { id: 3, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 1, note: '=CMD()', date: '2026-10-06' },
+  ]
+
+  it('has Spanish headers and words for the type', () => {
+    const rows = transactionRows(list, categories, t, 'es')
+    expect(rows[0]).toEqual(['fecha', 'tipo', 'monto', 'moneda', 'categoría', 'nota'])
+    expect(rows.map((row) => row[1]).slice(1)).toEqual(['gasto', 'ingreso', 'gasto'])
+  })
+
+  it('writes the decimal mark as a comma', () => {
+    const rows = transactionRows(list, categories, t, 'es')
+    expect(rows.map((row) => row[2]).slice(1)).toEqual(['8500,5', '250000', '9,99'])
+  })
+
+  it('stays in English for en and for anything unknown', () => {
+    expect(transactionRows(list, categories, t, 'en')[0][0]).toBe('date')
+    expect(transactionRows(list, categories, t, 'fr')[0][0]).toBe('date')
+    expect(transactionRows(list, categories, t, 'en')[1][2]).toBe(8500.5)
+  })
+
+  it('builds a file Excel (es-CR) opens in columns: ; + BOM + UTF-8 text', () => {
+    const csv = toCsv(transactionRows(list, categories, t, 'es'), csvSeparator('es'))
+    expect(csv.startsWith('\ufeff')).toBe(true)
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines[0]).toBe('fecha;tipo;monto;moneda;categoría;nota')
+    expect(lines[1]).toBe('2026-10-02;gasto;8500,5;CRC;T:category.food;"Almuerzo; con café"')
+    expect(lines[3]).toBe("2026-10-06;gasto;9,99;USD;T:category.food;'=CMD()")
+  })
+
+  it('picks the separator by language', () => {
+    expect(csvSeparator('es')).toBe(';')
+    expect(csvSeparator('en')).toBe(',')
+    expect(csvSeparator()).toBe(',')
   })
 })

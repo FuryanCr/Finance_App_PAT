@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TransactionsContext } from './TransactionsContext'
-import {
-  categories as builtInCategories,
-  transactions as sampleTransactions,
-} from '../db/mockData'
+import { categories as builtInCategories } from '../db/mockData'
 import {
   clearAll,
   confirmRecurring as saveConfirmedRecurring,
@@ -28,6 +25,7 @@ import {
 import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
+import { sampleTransactions } from '../lib/sample'
 import Header from '../Header'
 import { useSettings } from './useSettings'
 
@@ -40,7 +38,7 @@ export default function TransactionsProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [blocked, setBlocked] = useState(false)
-  const { t } = useSettings()
+  const { lang, t } = useSettings()
 
   useEffect(() => {
     let ignore = false
@@ -211,7 +209,7 @@ export default function TransactionsProvider({ children }) {
   }
 
   const loadSampleData = async () => {
-    const saved = await insertTransactions(sampleTransactions)
+    const saved = await insertTransactions(sampleTransactions(new Date(), lang))
     setTransactions((current) => [...current, ...saved])
   }
 

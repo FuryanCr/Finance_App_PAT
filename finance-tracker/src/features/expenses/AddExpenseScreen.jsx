@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { applyKey, formatTyping } from '../../lib/keypad'
 import { MAX_AMOUNT, currencies, parseAmount } from '../../lib/money'
 import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
@@ -348,10 +349,7 @@ export default function AddExpenseScreen() {
                   onClick={() => setDate(nextStart)}
                 >
                   {t('dateItOn')}{' '}
-                  {parseDate(nextStart).toLocaleDateString(locale, {
-                    day: 'numeric',
-                    month: 'short',
-                  })}
+                  {formatDate(parseDate(nextStart), locale, { year: false })}
                 </button>
               </div>
             )}

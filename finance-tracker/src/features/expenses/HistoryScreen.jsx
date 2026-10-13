@@ -3,6 +3,7 @@ import { useTransactions } from '../../context/useTransactions'
 import { categoryLabel } from '../../lib/categories'
 import { downloadCsv, transactionRows } from '../../lib/csv'
 import { byNewest, isSameMonth, parseDate } from '../../lib/dates'
+import { formatDate, formatMonth } from '../../lib/format'
 import { currencies, formatMoney, getTotals } from '../../lib/money'
 import { filterTransactions, hasFilters } from '../../lib/search'
 import { useSettings } from '../../context/useSettings'
@@ -10,7 +11,7 @@ import EmptyState from '../../components/EmptyState'
 import TransactionItem from '../../components/TransactionItem'
 
 export default function HistoryScreen() {
-  const { locale, t } = useSettings()
+  const { lang, locale, t } = useSettings()
   const { transactions, categories } = useTransactions()
 
   const today = new Date()
@@ -69,7 +70,8 @@ export default function HistoryScreen() {
       filtering
         ? 'i-am-poor-for-now-search.csv'
         : `i-am-poor-for-now-${month.getFullYear()}-${monthNumber}.csv`,
-      transactionRows(list, categories, t),
+      transactionRows(list, categories, t, lang),
+      lang,
     )
   }
 
@@ -100,10 +102,7 @@ export default function HistoryScreen() {
               ‹
             </button>
             <p className="month-name">
-              {month.toLocaleDateString(locale, {
-                month: 'long',
-                year: 'numeric',
-              })}
+              {formatMonth(month, locale)}
             </p>
             <button
               type="button"
@@ -241,12 +240,10 @@ export default function HistoryScreen() {
                 <div className={index === 0 ? undefined : 'divider'} key={day.date}>
                   <div className="row">
                     <p className="label">
-                      {parseDate(day.date).toLocaleDateString(locale, {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
+                      {formatDate(parseDate(day.date), locale, {
+                        weekday: true,
                         // results can span years
-                        ...(filtering && { year: 'numeric' }),
+                        year: filtering,
                       })}
                     </p>
                     {/* net of the day per currency: + income color, − spending */}

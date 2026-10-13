@@ -6,6 +6,7 @@ import {
   getQuincenaHistory,
   getSpendingBars,
   pickCategoryRows,
+  startOfWeek,
   trimQuincenaHistory,
 } from './stats'
 
@@ -13,16 +14,35 @@ function ymd(date) {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
 }
 
+describe('startOfWeek', () => {
+  it('goes back to Monday, keeping a Monday as it is', () => {
+    expect(ymd(startOfWeek(new Date(2026, 9, 12, 18, 30)))).toEqual([2026, 10, 12])
+    expect(ymd(startOfWeek(new Date(2026, 9, 17)))).toEqual([2026, 10, 12])
+    expect(ymd(startOfWeek(new Date(2026, 9, 11)))).toEqual([2026, 10, 5])
+  })
+})
+
 describe('getPeriodStart', () => {
-  it('week starts 6 days before today', () => {
+  // the week is the current one, Monday to Sunday
+  it('week starts on the Monday of the current week', () => {
+    // Monday itself, a Wednesday and a Sunday
     expect(ymd(getPeriodStart('week', new Date(2026, 9, 12)))).toEqual([
-      2026, 10, 6,
+      2026, 10, 12,
+    ])
+    expect(ymd(getPeriodStart('week', new Date(2026, 9, 14)))).toEqual([
+      2026, 10, 12,
+    ])
+    expect(ymd(getPeriodStart('week', new Date(2026, 9, 18)))).toEqual([
+      2026, 10, 12,
     ])
   })
 
-  it('week can start in the previous month', () => {
+  it('week can start in the previous month or year', () => {
     expect(ymd(getPeriodStart('week', new Date(2026, 9, 3)))).toEqual([
-      2026, 9, 27,
+      2026, 9, 28,
+    ])
+    expect(ymd(getPeriodStart('week', new Date(2027, 0, 1)))).toEqual([
+      2026, 12, 28,
     ])
   })
 
@@ -142,29 +162,49 @@ describe('getSpendingBars', () => {
     expect(getSpendingBars(transactions, 'CRC', 'year', today)).toHaveLength(3)
   })
 
-  it('totals each day of the week, oldest first', () => {
+  it('totals each day of this week, Monday first', () => {
     const bars = getSpendingBars(transactions, 'CRC', 'week', today, 'en-US')
     expect(bars).toEqual([
-      { label: 'Thu', total: 70 },
-      { label: 'Fri', total: 0 },
-      { label: 'Sat', total: 0 },
-      { label: 'Sun', total: 0 },
       { label: 'Mon', total: 0 },
       { label: 'Tue', total: 0 },
       { label: 'Wed', total: 150 },
+      { label: 'Thu', total: 0 },
+      { label: 'Fri', total: 0 },
+      { label: 'Sat', total: 0 },
+      { label: 'Sun', total: 0 },
+    ])
+  })
+
+  it('labels the days in Spanish, Monday first', () => {
+    const bars = getSpendingBars(transactions, 'CRC', 'week', today, 'es-CR')
+    expect(bars.map((bar) => bar.label)).toEqual([
+      'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom',
     ])
   })
 
   it('does not count a transaction dated after today in the week chart', () => {
+    // 2026-10-15 (Thursday, 800) and anything of last week are left out
     const bars = getSpendingBars(transactions, 'CRC', 'week', today)
-    expect(bars.reduce((total, bar) => total + bar.total, 0)).toBe(220)
+    expect(bars.reduce((total, bar) => total + bar.total, 0)).toBe(150)
+    expect(bars[3].total).toBe(0)
+  })
+
+  it('on a Monday only the first bar can have an amount', () => {
+    const monday = new Date(2026, 9, 12)
+    const bars = getSpendingBars(
+      [{ id: 1, amount: 40, currency: 'CRC', type: 'expense', date: '2026-10-12' }],
+      'CRC',
+      'week',
+      monday,
+    )
+    expect(bars.map((bar) => bar.total)).toEqual([40, 0, 0, 0, 0, 0, 0])
   })
 
   it('does not count income or the other currency', () => {
     const crc = getSpendingBars(transactions, 'CRC', 'week', today)
     const usd = getSpendingBars(transactions, 'USD', 'week', today)
-    expect(crc[6].total).toBe(150)
-    expect(usd[6].total).toBe(25)
+    expect(crc[2].total).toBe(150)
+    expect(usd[2].total).toBe(25)
   })
 
   it('totals each of the last 6 months, oldest first', () => {

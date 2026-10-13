@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { byNewest, parseDate, todayString } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { currencies, formatMoney, parseAmount } from '../../lib/money'
 import { availableForSavings, quincenaFigures } from '../../lib/quincena'
 import { savingsBalance } from '../../lib/savings'
@@ -165,11 +166,7 @@ export default function SavingsScreen() {
                           : t('takeFromSavings'))}
                     </p>
                     <p className="row-meta">
-                      {parseDate(item.date).toLocaleDateString(locale, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {formatDate(parseDate(item.date), locale)}
                     </p>
                   </div>
                   <div className="row-side">

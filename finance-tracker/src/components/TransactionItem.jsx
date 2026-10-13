@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { categoryColor, categoryLabel } from '../lib/categories'
 import { parseDate } from '../lib/dates'
+import { formatDate } from '../lib/format'
 import { formatMoney } from '../lib/money'
 import { useSettings } from '../context/useSettings'
 import { useTransactions } from '../context/useTransactions'
@@ -13,10 +14,7 @@ export default function TransactionItem({ tx, showDate = true }) {
   const category = categories.find((c) => c.id === tx.categoryId)
   const fallback = isIncome ? t('income') : t('typeExpense')
   const label = category ? categoryLabel(category, t) : fallback
-  const date = parseDate(tx.date).toLocaleDateString(locale, {
-    month: 'short',
-    day: 'numeric',
-  })
+  const date = formatDate(parseDate(tx.date), locale, { year: false })
 
   const dot = category && (
     <span className="dot" style={{ background: categoryColor(category) }} />

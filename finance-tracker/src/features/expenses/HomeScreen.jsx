@@ -10,6 +10,7 @@ import {
   quincenaKey,
   todayString,
 } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { useToday } from '../../lib/useToday'
 import { currencies, formatMoney } from '../../lib/money'
 import { isBackupDue } from '../../lib/backup'
@@ -102,7 +103,7 @@ export default function HomeScreen() {
       setSkipped((prev) => ({ ...prev, [code]: previousKey }))
     })
 
-  const format = { month: 'short', day: 'numeric' }
+  const rangeText = `${formatDate(start, locale, { year: false })} – ${formatDate(end, locale, { year: false })}`
 
   // a currency gets a card when it has transactions, pending bills or savings
   // moves; the first one is highlighted
@@ -304,8 +305,7 @@ export default function HomeScreen() {
     <>
       <div className="greeting">
         <h1 className="screen-title">
-          {t('quincena')} · {start.toLocaleDateString(locale, format)} -{' '}
-          {end.toLocaleDateString(locale, format)}
+          {t('quincena')} · {rangeText}
         </h1>
         <p className="sub">
           {t('day')} {dayNumber} {t('dayOf')} {totalDays}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
 import { byNewest, parseDate } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import {
   getCategoryTotals,
   getPeriodStart,
@@ -41,8 +42,7 @@ export default function StatisticsScreen() {
     transactions,
     currency,
   )
-  const shortDate = (date) =>
-    date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
+  const shortDate = (date) => formatDate(date, locale, { year: false })
   const recent = transactions
     .filter((tx) => tx.currency === currency)
     .sort(byNewest)

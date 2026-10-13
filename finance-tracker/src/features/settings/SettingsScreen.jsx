@@ -10,6 +10,7 @@ import {
 } from '../../lib/backup'
 import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
 import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { readPref, writePref } from '../../lib/prefs'
 
 // The date of the last backup made on this device, or null
@@ -63,7 +64,11 @@ export default function SettingsScreen() {
 
   const handleExportAll = () => {
     const list = [...transactions].sort(byNewest)
-    downloadCsv('i-am-poor-for-now-all.csv', transactionRows(list, categories, t))
+    downloadCsv(
+      'i-am-poor-for-now-all.csv',
+      transactionRows(list, categories, t, lang),
+      lang,
+    )
   }
 
   const saveBackupFile = (name) => {
@@ -268,7 +273,7 @@ export default function SettingsScreen() {
             </div>
             <p className="sub backup-note">
               {lastBackup
-                ? `${t('lastBackup')} ${parseDate(lastBackup).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                ? `${t('lastBackup')} ${formatDate(parseDate(lastBackup), locale)}`
                 : t('noBackupYet')}
             </p>
           </section>
