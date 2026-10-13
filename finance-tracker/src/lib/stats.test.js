@@ -5,6 +5,7 @@ import {
   getPeriodStart,
   getQuincenaHistory,
   getSpendingBars,
+  pickCategoryRows,
   trimQuincenaHistory,
 } from './stats'
 
@@ -403,5 +404,57 @@ describe('trimQuincenaHistory', () => {
     expect(trimQuincenaHistory(history, [tx(1, '2026-10-14')], 'CRC')).toEqual(
       history.slice(0, 1),
     )
+  })
+})
+
+describe('pickCategoryRows', () => {
+  const row = (id, total) => ({ category: { id }, total })
+  const budget = (categoryId, amount) => ({ categoryId, amount })
+
+  it('returns the same list when it fits the limit', () => {
+    const totals = [row('a', 10), row('b', 20)]
+    expect(pickCategoryRows(totals, [], 3)).toBe(totals)
+    expect(pickCategoryRows(totals, [], 2)).toBe(totals)
+  })
+
+  it('keeps the largest rows in their original order without budgets', () => {
+    const totals = [row('a', 5), row('b', 50), row('c', 10), row('d', 30)]
+    expect(pickCategoryRows(totals, [], 2)).toEqual([row('b', 50), row('d', 30)])
+  })
+
+  it('always keeps flagged rows, even beyond the limit', () => {
+    const totals = [row('a', 90), row('b', 85), row('c', 500), row('d', 5)]
+    const budgets = [budget('a', 100), budget('b', 100)]
+    expect(pickCategoryRows(totals, budgets, 1)).toEqual([
+      row('a', 90),
+      row('b', 85),
+    ])
+  })
+
+  it('fills the free slots with the largest unflagged rows', () => {
+    const totals = [row('a', 5), row('b', 90), row('c', 40), row('d', 30)]
+    expect(pickCategoryRows(totals, [budget('b', 100)], 3)).toEqual([
+      row('b', 90),
+      row('c', 40),
+      row('d', 30),
+    ])
+  })
+
+  it('counts exactly 80% of the budget as flagged', () => {
+    const totals = [row('a', 80), row('b', 79), row('c', 100), row('d', 1)]
+    const budgets = [budget('a', 100), budget('b', 100)]
+    expect(pickCategoryRows(totals, budgets, 2)).toEqual([
+      row('a', 80),
+      row('c', 100),
+    ])
+  })
+
+  it('breaks ties in favour of the earlier row', () => {
+    const totals = [row('a', 10), row('b', 10), row('c', 10)]
+    expect(pickCategoryRows(totals, [], 2)).toEqual([row('a', 10), row('b', 10)])
+  })
+
+  it('returns an empty list for an empty list', () => {
+    expect(pickCategoryRows([], [], 3)).toEqual([])
   })
 })

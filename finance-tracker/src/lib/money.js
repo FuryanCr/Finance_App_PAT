@@ -58,14 +58,19 @@ export function formatMoney(amount, currency = 'CRC') {
   return sign + '₡' + value.toLocaleString('de-DE', { maximumFractionDigits: 2 })
 }
 
-// Total of the expenses in one currency dated after `today`
-// (transactions are expected to be already limited to a period)
-export function laterTotal(transactions, code, today = new Date()) {
+// Total of the expenses (or of another `type`) in one currency dated after
+// `today` (transactions are expected to be already limited to a period)
+export function laterTotal(
+  transactions,
+  code,
+  today = new Date(),
+  type = 'expense',
+) {
   const day = todayString(today)
   return sum(
     transactions
       .filter(
-        (tx) => tx.type === 'expense' && tx.currency === code && tx.date > day,
+        (tx) => tx.type === type && tx.currency === code && tx.date > day,
       )
       .map((tx) => tx.amount),
   )

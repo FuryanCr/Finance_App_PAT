@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { byNewest, parseDate, todayString } from '../../lib/dates'
 import { currencies, formatMoney, parseAmount } from '../../lib/money'
 import { savingsBalance } from '../../lib/savings'
@@ -65,21 +64,20 @@ export default function SavingsScreen() {
 
   return (
     <>
-      <Link className="back-link" to="/settings">
-        ‹ {t('settings')}
-      </Link>
       <h1 className="screen-title">{t('savings')}</h1>
       <p className="sub">{t('savingsHint')}</p>
 
       <section className="card">
-        {currencies.map(({ code, labelKey }) => (
-          <div key={code} className="row">
-            <span className="row-name">{t(labelKey)}</span>
-            <span className="row-amount">
-              {formatMoney(savingsBalance(savings, code), code)}
-            </span>
-          </div>
-        ))}
+        <ul className="list">
+          {currencies.map(({ code, labelKey }) => (
+            <li key={code} className="row">
+              <span className="row-name">{t(labelKey)}</span>
+              <span className="row-amount">
+                {formatMoney(savingsBalance(savings, code), code)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card">

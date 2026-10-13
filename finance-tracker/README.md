@@ -17,7 +17,7 @@ A personal finance tracker built with React. Quincena helps you follow your inco
 - Manage custom categories: rename, recolor, or delete and move their transactions
 - Budgets: a spending limit per category and currency for each pay period, with a warning at 80% and an alert when it is exceeded
 - Recurring transactions: rent, salary or subscriptions show up as due each pay period, and you confirm or skip them; typing a due bill by hand offers to mark it as paid, so it is not counted twice
-- Savings: set money aside per currency, send part of an income straight to savings, and take it back when needed
+- Savings: set money aside per currency, send part of an income straight to savings, take it back when needed, and the dashboard offers to move last pay period's leftover into savings
 - Spanish / English interface
 - Dark and light themes
 - Navigation between Home, Add, Statistics and History, with Settings behind the gear icon
@@ -198,3 +198,4 @@ Newest first.
 - A hand-typed bill that matches a due recurring item can be marked as paid
 - Visual refinements (suggestion pills, primary backup button, disabled style, title on loading screens, light-theme contrast); History filters behind a toggle; past quincenas trimmed
 - Savings: balance per currency, moves in and out, and a share of an income sent to savings
+- Dashboard: savings in the numbers, leftover rollover offer, shorter layout

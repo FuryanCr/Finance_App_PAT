@@ -194,4 +194,22 @@ describe('laterTotal', () => {
       laterTotal([tx('2026-10-13', 0.1), tx('2026-10-15', 0.2)], 'CRC', today),
     ).toBe(0.3)
   })
+
+  it('counts later income when asked for it', () => {
+    const list = [
+      tx('2026-10-13', 500, 'income'),
+      tx('2026-10-14', 300),
+      tx('2026-10-11', 900, 'income'),
+    ]
+    expect(laterTotal(list, 'CRC', today, 'income')).toBe(500)
+    expect(laterTotal(list, 'CRC', today)).toBe(300)
+  })
+
+  it('does not count income of another currency or from today', () => {
+    const list = [
+      tx('2026-10-14', 5, 'income', 'USD'),
+      tx('2026-10-12', 500, 'income'),
+    ]
+    expect(laterTotal(list, 'CRC', today, 'income')).toBe(0)
+  })
 })

@@ -853,3 +853,28 @@ main > .field {
   opacity: 1;
   cursor: not-allowed;
 }
+
+/* Inicio: tarjeta-enlace a Ahorros, nombre a la izquierda y saldos a la derecha */
+.link-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Enlace de texto dentro de una frase */
+.text-link {
+  color: var(--accent);
+}
+
+/* Inicio: aviso de copia de seguridad en una sola línea, centrado */
+.backup-line {
+  text-align: center;
+}
+
+/* Botón "Ver todas" bajo la última categoría */
+.show-all {
+  margin-top: 4px;
+}

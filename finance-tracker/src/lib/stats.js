@@ -137,6 +137,31 @@ export function getQuincenaHistory(
   return history
 }
 
+// The rows to show when a category list is collapsed: every row that is
+// near or over its budget, plus the largest of the rest, up to `limit`
+// rows in total (flagged rows are never dropped), in their original order
+export function pickCategoryRows(totals, budgets, limit) {
+  if (totals.length <= limit) return totals
+  const flagged = totals.map((item) => {
+    const budget = budgets.find((b) => b.categoryId === item.category.id)
+    return Boolean(budget) && item.total / budget.amount >= 0.8
+  })
+  const keep = new Set()
+  flagged.forEach((isFlagged, index) => {
+    if (isFlagged) keep.add(index)
+  })
+  const slots = limit - keep.size
+  if (slots > 0) {
+    totals
+      .map((item, index) => ({ index, total: item.total }))
+      .filter(({ index }) => !flagged[index])
+      .sort((a, b) => b.total - a.total || a.index - b.index)
+      .slice(0, slots)
+      .forEach(({ index }) => keep.add(index))
+  }
+  return totals.filter((_, index) => keep.has(index))
+}
+
 // Drops the quincenas that ended before the first transaction in that
 // currency: there is nothing to compare before the data starts
 export function trimQuincenaHistory(history, transactions, currency) {
