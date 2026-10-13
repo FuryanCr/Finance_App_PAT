@@ -1,7 +1,8 @@
-export default function Logo() {
+// className adds to the base "logo" class (the size is set in the CSS)
+export default function Logo({ className = '' }) {
   return (
     <svg
-      className="logo"
+      className={className ? `logo ${className}` : 'logo'}
       viewBox="10 7 124 124"
       aria-hidden="true"
       focusable="false"

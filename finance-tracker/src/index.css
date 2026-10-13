@@ -362,6 +362,30 @@ main {
   text-align: center;
 }
 
+/* Barra con un segmento por día de la quincena: los días que ya pasaron
+   en teal apagado, hoy en teal pleno y los que faltan en gris */
+.day-bar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.day-bar span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.day-bar .on {
+  background: var(--accent-dim);
+}
+
+.day-bar .now {
+  background: var(--accent);
+}
+
 /* Etiqueta pequeña en mayúsculas, encima de un dato */
 .label {
   font-size: 12px;
@@ -376,6 +400,42 @@ main {
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 6px 0 14px;
+}
+
+/* En la tarjeta principal el número protagonista es lo que se puede gastar
+   hoy: más grande que cualquier otra cifra de la pantalla */
+.card.hero .balance {
+  font-size: clamp(38px, 12vw, 54px);
+  overflow-wrap: anywhere; /* un monto larguísimo se parte en vez de salirse */
+}
+
+/* Cuando no hay nada que gastar hoy el número baja de peso y se explica
+   debajo con un mensaje (el color no es lo único que avisa) */
+.balance.has-message {
+  color: var(--muted);
+}
+
+/* Aviso corto debajo del número: ámbar, con texto que lo explica */
+.sub.warn {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* Lo que queda de toda la quincena: una cifra secundaria, más chica que
+   la de hoy */
+.left-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin: 12px 0 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.left-amount {
+  font-size: 20px;
+  font-weight: 600;
 }
 
 /* Texto secundario pequeño */
@@ -1039,6 +1099,16 @@ main > .field,
 .pill-group.center,
 .center-pills .pill-group {
   justify-content: center;
+}
+
+/* Logo en las tarjetas vacías: más grande que en la barra y sin llamar
+   demasiado la atención */
+.logo.empty-logo {
+  width: 72px;
+  height: 72px;
+  margin: 4px auto 8px;
+  display: block;
+  opacity: 0.85;
 }
 
 /* Estados de carga, bloqueo y error (solo una tarjeta o una línea dentro de main) */
