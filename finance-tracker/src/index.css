@@ -261,6 +261,43 @@ main {
   color: var(--accent);
 }
 
+/* Barra de las pantallas previas (abriendo, bloqueada, con error): solo
+   el logo y el nombre, centrados y sin subir al hacer scroll */
+.app-bar--lite {
+  top: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'brand';
+  justify-items: center;
+}
+
+.app-bar--lite .brand {
+  justify-self: center;
+}
+
+/* El nombre es el título de esas pantallas: sin el margen de un h1 */
+.app-bar--lite h1.brand-name {
+  margin: 0;
+}
+
+/* Enlace para saltar la barra: invisible hasta que recibe el foco con el
+   teclado */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -64px;
+  z-index: 30;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
 /* Pestañas dentro de la barra: segunda fila a todo el ancho, centradas.
    El relleno de 4px (compensado con margen negativo) deja sitio al contorno
    de foco, que el overflow recortaría */
@@ -1260,4 +1297,88 @@ main > p.empty {
 .back-link,
 .text-link {
   cursor: pointer;
+}
+
+/* Diálogo propio (reemplaza confirm y alert del navegador). Usa el
+   elemento <dialog> con showModal(): el navegador atrapa el foco y cierra
+   con Esc. */
+dialog.modal {
+  width: min(92vw, 420px);
+  margin: auto;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+dialog.modal::backdrop {
+  background: rgba(4, 10, 12, 0.66);
+}
+
+/* Los saltos de línea del mensaje se respetan (listas de lo que se borra) */
+.modal-message {
+  white-space: pre-line;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Opción extra del diálogo (por ejemplo, descargar un respaldo antes) */
+.modal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 44px;
+}
+
+.modal-check input {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+/* Botones del diálogo: uno al lado del otro, de 44px o más */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-actions .btn {
+  min-height: 44px;
+}
+
+/* Mayor gasto del gráfico, escrito debajo (el valor ya no vive solo en un
+   tooltip) */
+.bar-peak {
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Pantalla de abriendo, bloqueada o con error: el logo respira mientras
+   carga (solo si la persona no pidió menos movimiento) */
+.status-screen {
+  margin-top: 24px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .loading-logo {
+    animation: logo-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }

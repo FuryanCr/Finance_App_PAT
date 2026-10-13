@@ -5,12 +5,14 @@ import { currencies, formatMoney, parseAmount } from '../../lib/money'
 import { availableForSavings, quincenaFigures } from '../../lib/quincena'
 import { savingsBalance } from '../../lib/savings'
 import { useToday } from '../../lib/useToday'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
 
 export default function SavingsScreen() {
   const { locale, t } = useSettings()
+  const { confirm } = useDialog()
   const { transactions, savings, recurring, addSavingsMove, deleteSavingsMove } =
     useTransactions()
   const today = useToday()
@@ -59,7 +61,12 @@ export default function SavingsScreen() {
   // go below zero
   const handleDelete = async (id) => {
     if (saving) return
-    if (!window.confirm(t('confirmDeleteMove'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDeleteMove'),
+      confirmLabel: t('delete'),
+      danger: true,
+    })
+    if (!confirmed) return
     setSaving(true)
     setSaveError(false)
     try {
@@ -105,7 +112,7 @@ export default function SavingsScreen() {
             />
           </label>
           {amountText.trim() !== '' && !amountValid && (
-            <p className="field-note error">{t('invalidAmount')}</p>
+            <p className="field-note error" role="alert">{t('invalidAmount')}</p>
           )}
           {tooMuchToSave && (
             <p className="field-note warning" role="status">
@@ -128,7 +135,7 @@ export default function SavingsScreen() {
             />
           </label>
 
-          {saveError && <p className="field-note error">{t('saveError')}</p>}
+          {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
           <div className="actions">
             <button

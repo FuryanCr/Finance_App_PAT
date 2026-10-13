@@ -19,6 +19,7 @@ import { quincenaFigures, rolloverLeftover } from '../../lib/quincena'
 import { isDue } from '../../lib/recurring'
 import { previousQuincenaRange, savingsBalance } from '../../lib/savings'
 import { getCategoryTotals } from '../../lib/stats'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import CategoryBars from '../../components/CategoryBars'
 import EmptyState from '../../components/EmptyState'
@@ -29,6 +30,7 @@ const skipKey = (code) => `rolloverSkipped.${code}`
 
 export default function HomeScreen() {
   const { locale, t } = useSettings()
+  const { alert } = useDialog()
 
   const today = useToday()
   const { start, end } = getQuincenaRange(today)
@@ -78,7 +80,7 @@ export default function HomeScreen() {
       await action()
     } catch (error) {
       console.error(error)
-      window.alert(t('saveError'))
+      await alert(t('saveError'))
     } finally {
       setBusy(false)
     }

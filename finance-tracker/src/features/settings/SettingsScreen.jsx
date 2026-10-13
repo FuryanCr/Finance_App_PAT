@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import {
   MAX_BACKUP_BYTES,
@@ -21,6 +22,7 @@ function readLastBackup() {
 
 export default function SettingsScreen() {
   const { lang, setLang, theme, setTheme, locale, t } = useSettings()
+  const { alert, confirm } = useDialog()
   const {
     transactions,
     categories,
@@ -56,7 +58,7 @@ export default function SettingsScreen() {
       await action()
     } catch (error) {
       console.error(error)
-      window.alert(t('saveError'))
+      await alert(t('saveError'))
     } finally {
       setBusy(false)
     }
@@ -101,7 +103,7 @@ export default function SettingsScreen() {
     if (!file) return
     if (file.size > MAX_BACKUP_BYTES) {
       input.value = ''
-      window.alert(t('backupTooBig'))
+      await alert(t('backupTooBig'))
       return
     }
     let text
@@ -109,7 +111,7 @@ export default function SettingsScreen() {
       text = await file.text()
     } catch (error) {
       console.error(error)
-      window.alert(t('invalidBackup'))
+      await alert(t('invalidBackup'))
       return
     } finally {
       // so the same file can be picked again
@@ -120,7 +122,7 @@ export default function SettingsScreen() {
       categories.filter((c) => c.key),
     )
     if (!result.ok) {
-      window.alert(backupError(result.reason))
+      await alert(backupError(result.reason))
       return
     }
     const lines = [
@@ -132,19 +134,25 @@ export default function SettingsScreen() {
     if (result.droppedTotal > 0) {
       lines.push('', `${t('restoreDropped')}: ${result.droppedTotal}`)
     }
-    if (hasAnyData) lines.push('', t('restoreAutoBackup'))
-    lines.push('', t('askContinue'))
-    if (!window.confirm(lines.join('\n'))) return
+    const answer = await confirm({
+      message: lines.join('\n'),
+      confirmLabel: t('restoreConfirm'),
+      danger: true,
+      // the data about to be replaced can be saved to a file first
+      checkbox: hasAnyData
+        ? { label: t('restoreMakeBackup'), defaultChecked: true }
+        : undefined,
+    })
+    if (!answer.confirmed) return
     run(async () => {
-      // the data about to be replaced is saved to a file first
-      if (hasAnyData) {
+      if (hasAnyData && answer.checked) {
         saveBackupFile(`i-am-poor-for-now-before-restore-${todayString()}.json`)
       }
       await restoreData(result.data)
     })
   }
 
-  const handleClear = () => {
+  const handleClear = async () => {
     const message = [
       t('clearIntro'),
       '',
@@ -152,7 +160,12 @@ export default function SettingsScreen() {
       '',
       t('cannotUndo'),
     ].join('\n')
-    if (window.confirm(message)) run(clearAllData)
+    const { confirmed } = await confirm({
+      message,
+      confirmLabel: t('clearConfirm'),
+      danger: true,
+    })
+    if (confirmed) run(clearAllData)
   }
 
   return (
@@ -167,6 +180,7 @@ export default function SettingsScreen() {
               <button
                 type="button"
                 className={lang === 'es' ? 'pill active' : 'pill'}
+                aria-pressed={lang === 'es'}
                 onClick={() => setLang('es')}
               >
                 Español
@@ -174,6 +188,7 @@ export default function SettingsScreen() {
               <button
                 type="button"
                 className={lang === 'en' ? 'pill active' : 'pill'}
+                aria-pressed={lang === 'en'}
                 onClick={() => setLang('en')}
               >
                 English
@@ -187,6 +202,7 @@ export default function SettingsScreen() {
               <button
                 type="button"
                 className={theme === 'dark' ? 'pill active' : 'pill'}
+                aria-pressed={theme === 'dark'}
                 onClick={() => setTheme('dark')}
               >
                 {t('dark')}
@@ -194,6 +210,7 @@ export default function SettingsScreen() {
               <button
                 type="button"
                 className={theme === 'light' ? 'pill active' : 'pill'}
+                aria-pressed={theme === 'light'}
                 onClick={() => setTheme('light')}
               >
                 {t('light')}

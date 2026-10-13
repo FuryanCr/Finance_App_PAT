@@ -154,6 +154,7 @@ export default function HistoryScreen() {
                   key={value}
                   type="button"
                   className={type === value ? 'pill active' : 'pill'}
+                  aria-pressed={type === value}
                   onClick={() => setType(value)}
                 >
                   {label}

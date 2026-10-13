@@ -15,6 +15,7 @@ import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
 import { readPref, writePref } from '../../lib/prefs'
 import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
@@ -46,6 +47,7 @@ function validRepeat(value) {
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
   const { locale, t } = useSettings()
+  const { confirm } = useDialog()
   const {
     transactions,
     addTransaction,
@@ -190,7 +192,16 @@ export default function AddExpenseScreen() {
                 date,
               }
             : null
-        if (match && window.confirm(matchQuestion(match))) {
+        const matched =
+          match &&
+          (
+            await confirm({
+              message: matchQuestion(match),
+              confirmLabel: t('markPaidYes'),
+              cancelLabel: t('markPaidNo'),
+            })
+          ).confirmed
+        if (matched) {
           await confirmRecurring(match, tx)
           if (move) await addSavingsMove(move)
         } else if (move) {
@@ -224,7 +235,12 @@ export default function AddExpenseScreen() {
   const handleDelete = async () => {
     if (saving) return
     // once deleted, the check above sends the screen back
-    if (!window.confirm(t('confirmDelete'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDelete'),
+      confirmLabel: t('delete'),
+      danger: true,
+    })
+    if (!confirmed) return
     setSaveError(false)
     try {
       await deleteTransaction(editing.id)
@@ -247,6 +263,7 @@ export default function AddExpenseScreen() {
             key={tp}
             type="button"
             className={type === tp ? 'pill active' : 'pill'}
+            aria-pressed={type === tp}
             onClick={() => setType(tp)}
           >
             {tp === 'expense' ? t('typeExpense') : t('typeIncome')}
@@ -259,7 +276,12 @@ export default function AddExpenseScreen() {
           <section className="card">
             <CurrencyPills value={currency} onChange={setCurrency} />
             <p className="label amount-label">{t('amount')}</p>
-            <p className="amount-display">
+            <p
+              className="amount-display"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {symbol}
               {formatTyping(amountText, currency) || '0'}
             </p>
@@ -277,6 +299,7 @@ export default function AddExpenseScreen() {
                     key={c.id}
                     type="button"
                     className={categoryId === c.id ? 'pill active' : 'pill'}
+                    aria-pressed={categoryId === c.id}
                     onClick={() => setCategoryId(c.id)}
                   >
                     {categoryLabel(c, t)}
@@ -285,6 +308,7 @@ export default function AddExpenseScreen() {
                 <button
                   type="button"
                   className={isCustom ? 'pill active' : 'pill'}
+                  aria-pressed={isCustom}
                   onClick={() => setCategoryId(null)}
                 >
                   + {t('customCategory')}
@@ -336,9 +360,9 @@ export default function AddExpenseScreen() {
                 onChange={(e) => setDate(e.target.value)}
               />
             </label>
-            {!dateValid && <p className="field-note error">{t('invalidDate')}</p>}
+            {!dateValid && <p className="field-note error" role="alert">{t('invalidDate')}</p>}
             {isFarFuture && (
-              <p className="field-note warning">{t('futureDateWarning')}</p>
+              <p className="field-note warning" role="status">{t('futureDateWarning')}</p>
             )}
             {closingDayIncome && (
               <div className="field-note warning">
@@ -365,7 +389,7 @@ export default function AddExpenseScreen() {
               </label>
             )}
             {showToSavings && !toSavingsValid && (
-              <p className="field-note error">{t('toSavingsInvalid')}</p>
+              <p className="field-note error" role="alert">{t('toSavingsInvalid')}</p>
             )}
           </section>
 
@@ -374,7 +398,7 @@ export default function AddExpenseScreen() {
               {t('amountTooBig')}
             </p>
           )}
-          {saveError && <p className="field-note error">{t('saveError')}</p>}
+          {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
           {/* always visible at the bottom of the screen, even with the
               keypad and the category list above it */}

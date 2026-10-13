@@ -23,6 +23,7 @@ export default function RecurringRow({ item, children }) {
           {category && (
             <span
               className="dot"
+              aria-hidden="true"
               style={{ background: categoryColor(category) }}
             />
           )}

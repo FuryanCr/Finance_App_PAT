@@ -11,7 +11,7 @@ export default function AppBar() {
       <Link
         className="brand"
         to="/"
-        aria-label={t('homeLink')}
+        aria-label={`${t('titleMain')} ${t('titleAccent')} – ${t('homeLink')}`}
         title={t('homeLink')}
       >
         <Logo />

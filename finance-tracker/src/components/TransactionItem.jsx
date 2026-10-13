@@ -17,7 +17,11 @@ export default function TransactionItem({ tx, showDate = true }) {
   const date = formatDate(parseDate(tx.date), locale, { year: false })
 
   const dot = category && (
-    <span className="dot" style={{ background: categoryColor(category) }} />
+    <span
+      className="dot"
+      aria-hidden="true"
+      style={{ background: categoryColor(category) }}
+    />
   )
 
   return (

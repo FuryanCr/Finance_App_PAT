@@ -69,6 +69,7 @@ export default function StatisticsScreen() {
             key={p}
             type="button"
             className={period === p ? 'pill active' : 'pill'}
+            aria-pressed={period === p}
             onClick={() => setPeriod(p)}
           >
             {t(p)}

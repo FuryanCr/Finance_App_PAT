@@ -124,4 +124,12 @@ describe('translation keys in the source', () => {
     const allowed = ['Español', 'English']
     expect(found.filter((line) => !allowed.some((w) => line.endsWith(w)))).toEqual([])
   })
+
+  it('has no native confirm() or alert() left (the app has its own dialog)', () => {
+    const found = []
+    for (const [path, text] of sources) {
+      if (/window\.(confirm|alert)\(/.test(text)) found.push(path)
+    }
+    expect(found).toEqual([])
+  })
 })
