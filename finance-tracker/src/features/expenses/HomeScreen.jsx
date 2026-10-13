@@ -18,10 +18,11 @@ import {
   safePerDay,
   sum,
 } from '../../lib/money'
-import { isBackupDue } from '../../lib/backup'
+import { isBackupReminderDue } from '../../lib/backup'
 import { readPref, writePref } from '../../lib/prefs'
-import { isDue, pendingTotal } from '../../lib/recurring'
+import { isDue, isHandled, pendingTotal } from '../../lib/recurring'
 import {
+  ROLLOVER_NOTE,
   leftInRange,
   previousQuincenaRange,
   savingsBalance,
@@ -65,6 +66,7 @@ export default function HomeScreen() {
     .slice(0, 5)
 
   const due = recurring.filter((item) => isDue(item, today))
+  const handled = recurring.filter((item) => isHandled(item, today))
 
   // last quincena's leftover is offered once per currency
   const previous = previousQuincenaRange(today)
@@ -104,7 +106,7 @@ export default function HomeScreen() {
         amount: leftover,
         currency: code,
         direction: 'in',
-        note: t('rolloverNote'),
+        note: ROLLOVER_NOTE,
         date: todayString(previous.end),
       }),
     )
@@ -313,7 +315,7 @@ export default function HomeScreen() {
         </div>
 
         <div className="col">
-          {due.length > 0 && (
+          {(due.length > 0 || handled.length > 0) && (
             <section className="card">
               <p className="label">{t('dueThisQuincena')}</p>
               <ul className="list">
@@ -338,6 +340,12 @@ export default function HomeScreen() {
                         {t('skip')}
                       </button>
                     </div>
+                  </li>
+                ))}
+                {handled.map((item) => (
+                  <li key={item.id}>
+                    <RecurringRow item={item} />
+                    <p className="due-done">✓ {t('done')}</p>
                   </li>
                 ))}
               </ul>
@@ -374,7 +382,7 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {transactions.length > 0 && isBackupDue(readPref('lastBackup'), today) && (
+      {isBackupReminderDue(readPref('lastBackup'), transactions, today) && (
         <p className="sub backup-line">
           {t('backupReminder')}{' '}
           <Link className="text-link" to="/settings">

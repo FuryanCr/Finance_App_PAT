@@ -11,10 +11,10 @@ A personal finance tracker built with React. I AM POOR FOR NOW (shown as "POBRE,
 - Per currency: what is left this quincena, income and spent, and the percent of income spent
 - "Safe to spend per day": what is left, minus recurring expenses still due, divided by the days remaining (it shows what was set aside for those bills)
 - Category bars with budgets (amber from 80%, red when exceeded) and an "Uncategorized" row; on the cards after the first, the list is collapsed to a few rows with "Show all"
-- "Due this quincena" list for recurring items: Confirm or Skip
+- "Due this quincena" list for recurring items: Confirm or Skip; handled items stay listed with a check mark
 - Last quincena's leftover can be moved to savings with one tap ("Move to savings") or skipped
 - Later-dated transactions are flagged, and the five most recent ones are listed
-- A backup reminder when the last backup is more than 14 days old
+- A backup reminder when the last backup is more than 14 days old; with no backup yet, the 14 days count from the oldest transaction
 
 **Adding and editing**
 - Add expenses and income with a numeric keypad, in colones or dollars

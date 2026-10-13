@@ -191,3 +191,19 @@ export function isBackupDue(lastBackup, today = new Date(), days = 14) {
   if (typeof lastBackup !== 'string' || !isValidDate(lastBackup)) return true
   return daysBetween(parseDate(lastBackup), today) > days
 }
+
+// The backup reminder: counts from the last backup; with none ever made,
+// from the oldest transaction, so a fresh install is not nagged at once
+export function isBackupReminderDue(lastBackup, transactions, today = new Date()) {
+  // nothing to back up yet
+  if (transactions.length === 0) return false
+  if (typeof lastBackup === 'string' && isValidDate(lastBackup)) {
+    return isBackupDue(lastBackup, today)
+  }
+  // dates are zero-padded YYYY-MM-DD, so they compare as strings
+  const dates = transactions
+    .map((tx) => tx.date)
+    .filter((date) => typeof date === 'string' && isValidDate(date))
+  if (dates.length === 0) return false
+  return isBackupDue(dates.reduce((a, b) => (b < a ? b : a)), today)
+}

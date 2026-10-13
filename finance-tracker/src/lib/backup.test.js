@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildBackup, isBackupDue, parseBackup } from './backup'
+import {
+  buildBackup,
+  isBackupDue,
+  isBackupReminderDue,
+  parseBackup,
+} from './backup'
 
 const builtIn = [
   { id: 1, key: 'food', color: 'orange' },
@@ -304,5 +309,31 @@ describe('isBackupDue', () => {
   it('accepts a custom number of days', () => {
     expect(isBackupDue('2026-10-21', today, 7)).toBe(false)
     expect(isBackupDue('2026-10-20', today, 7)).toBe(true)
+  })
+})
+
+describe('isBackupReminderDue', () => {
+  const today = new Date(2026, 9, 28)
+  const tx = (date) => ({ date })
+
+  it('follows the last backup when there is one', () => {
+    expect(isBackupReminderDue('2026-10-20', [tx('2026-01-01')], today)).toBe(false)
+    expect(isBackupReminderDue('2026-10-13', [tx('2026-10-20')], today)).toBe(true)
+  })
+
+  it('is not due with no transactions, whatever the last backup', () => {
+    expect(isBackupReminderDue(null, [], today)).toBe(false)
+    expect(isBackupReminderDue('2026-01-01', [], today)).toBe(false)
+  })
+
+  it('counts from the oldest transaction when there is no backup', () => {
+    expect(isBackupReminderDue(null, [tx('2026-10-25')], today)).toBe(false)
+    expect(isBackupReminderDue(null, [tx('2026-10-14')], today)).toBe(false)
+    expect(isBackupReminderDue(null, [tx('2026-10-13')], today)).toBe(true)
+  })
+
+  it('uses the oldest of several transactions out of order', () => {
+    const list = [tx('2026-10-27'), tx('2026-10-01'), tx('2026-10-20')]
+    expect(isBackupReminderDue('garbage', list, today)).toBe(true)
   })
 })

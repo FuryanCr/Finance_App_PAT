@@ -5,12 +5,22 @@ import { sum } from './money'
 // days 16 to month end
 export const schedules = ['every', 'first', 'second']
 
+// True when the item's schedule includes the current quincena
+function isScheduled(item, today) {
+  const half = today.getDate() <= 15 ? 'first' : 'second'
+  return item.schedule === 'every' || item.schedule === half
+}
+
 // Due when its schedule includes the current quincena and it has not been
 // confirmed or skipped in it yet
 export function isDue(item, today = new Date()) {
-  const half = today.getDate() <= 15 ? 'first' : 'second'
-  const scheduled = item.schedule === 'every' || item.schedule === half
-  return scheduled && item.lastPeriod !== quincenaKey(today)
+  return isScheduled(item, today) && item.lastPeriod !== quincenaKey(today)
+}
+
+// Handled when its schedule includes the current quincena and it was already
+// confirmed or skipped in it
+export function isHandled(item, today = new Date()) {
+  return isScheduled(item, today) && item.lastPeriod === quincenaKey(today)
 }
 
 // The due item that a new transaction most likely pays: same type, same

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { findMatchingDue, isDue, pendingTotal, schedules } from './recurring'
+import {
+  findMatchingDue,
+  isDue,
+  isHandled,
+  pendingTotal,
+  schedules,
+} from './recurring'
 
 // 2026-10-05 is in the first quincena, 2026-10-20 in the second
 const first = new Date(2026, 9, 5)
@@ -49,6 +55,25 @@ describe('isDue', () => {
 
   it('is due in the same quincena of the next month', () => {
     expect(isDue(item('first', '2026-10-1'), new Date(2026, 10, 5))).toBe(true)
+  })
+})
+
+describe('isHandled', () => {
+  it('is handled when confirmed or skipped in the current quincena', () => {
+    expect(isHandled(item('first', '2026-10-1'), first)).toBe(true)
+    expect(isHandled(item('every', '2026-10-2'), second)).toBe(true)
+  })
+
+  it('is not handled while it is still due', () => {
+    expect(isHandled(item('every'), first)).toBe(false)
+  })
+
+  it('is not handled when the last period is a previous quincena', () => {
+    expect(isHandled(item('every', '2026-09-2'), first)).toBe(false)
+  })
+
+  it('is not handled when the schedule skips the current quincena', () => {
+    expect(isHandled(item('first', '2026-10-2'), second)).toBe(false)
   })
 })
 

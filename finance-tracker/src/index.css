@@ -934,6 +934,13 @@ main > .field,
   margin-top: 10px;
 }
 
+/* Marca "Listo" de un pendiente ya confirmado u omitido */
+.due-done {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 /* Lado derecho de la fila: monto y botón Editar, uno al lado del otro */
 .row-side {
   display: flex;

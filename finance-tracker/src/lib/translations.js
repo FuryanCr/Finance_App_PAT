@@ -136,6 +136,7 @@ export const translations = {
     dueThisQuincena: 'Pendientes de esta quincena',
     confirm: 'Confirmar',
     skip: 'Omitir',
+    done: 'Listo',
     confirmDeleteRecurring: '¿Eliminar esta transacción recurrente?',
     matchesRecurring: 'Esto parece ser el pago recurrente',
     markPaidQuestion: '¿Marcarlo como pagado en esta quincena?',
@@ -154,7 +155,6 @@ export const translations = {
     fromSavings: 'De ahorros',
     lastQuincenaLeft: 'Sobró de la quincena anterior',
     moveItToSavings: '¿Pasarlo a ahorros?',
-    rolloverNote: 'Sobrante de la quincena',
     showAll: 'Ver todas',
   },
   en: {
@@ -294,6 +294,7 @@ export const translations = {
     dueThisQuincena: 'Due this quincena',
     confirm: 'Confirm',
     skip: 'Skip',
+    done: 'Done',
     confirmDeleteRecurring: 'Delete this recurring transaction?',
     matchesRecurring: 'This looks like the recurring item',
     markPaidQuestion: 'Mark it as paid for this quincena?',
@@ -312,7 +313,6 @@ export const translations = {
     fromSavings: 'From savings',
     lastQuincenaLeft: 'Left over from last quincena',
     moveItToSavings: 'Move it to savings?',
-    rolloverNote: 'Quincena leftover',
     showAll: 'Show all',
   },
 }
