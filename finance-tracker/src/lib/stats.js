@@ -3,16 +3,11 @@ import { uncategorized } from './categories'
 import { getQuincenaRange, isSameMonth, parseDate } from './dates'
 import { savingsInRange } from './savings'
 
-// Monday of the week that contains the date (weeks start on Monday)
-export function startOfWeek(date) {
-  const sinceMonday = (date.getDay() + 6) % 7
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - sinceMonday)
-}
-
-// First day covered by the chart of each period. The week is the current one,
-// Monday to Sunday.
+// First day covered by the chart of each period
 export function getPeriodStart(period, today = new Date()) {
-  if (period === 'week') return startOfWeek(today)
+  if (period === 'week') {
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)
+  }
   if (period === 'month') {
     return new Date(today.getFullYear(), today.getMonth() - 5, 1)
   }
@@ -55,27 +50,18 @@ export function getSpendingBars(
   const bars = []
 
   if (period === 'week') {
-    // this week, Monday to Sunday, one bar per day; days still to come are 0
-    const monday = startOfWeek(today)
-    const todayTime = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-    ).getTime()
-    for (let i = 0; i < 7; i++) {
+    // last 7 days, one bar per day
+    for (let i = 6; i >= 0; i--) {
       const day = new Date(
-        monday.getFullYear(),
-        monday.getMonth(),
-        monday.getDate() + i,
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - i,
       )
-      const total =
-        day.getTime() > todayTime
-          ? 0
-          : sum(
-              expenses
-                .filter((t) => parseDate(t.date).getTime() === day.getTime())
-                .map((t) => t.amount),
-            )
+      const total = sum(
+        expenses
+          .filter((t) => parseDate(t.date).getTime() === day.getTime())
+          .map((t) => t.amount),
+      )
       bars.push({
         label: day.toLocaleDateString(locale, { weekday: 'short' }),
         total,
