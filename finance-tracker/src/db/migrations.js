@@ -74,6 +74,15 @@ export const migrations = [
       false,
     )
   },
+  // v5: how a transaction was paid. Rows saved before this version do not say,
+  // so they read as cash, the default (the person can change them one by one).
+  async (db) => {
+    await db.execute(
+      `ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL
+        DEFAULT 'cash' CHECK (payment_method IN ('cash', 'card', 'sinpe'));`,
+      false,
+    )
+  },
 ]
 
 export async function runMigrations(db, list = migrations) {
