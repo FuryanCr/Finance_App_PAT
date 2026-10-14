@@ -1,5 +1,6 @@
 import { getTotals, sum } from './money'
 import { getQuincenaRange, parseDate } from './dates'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 
 // What is in savings in one currency: everything moved in minus everything
 // taken out
@@ -43,10 +44,11 @@ export function leftInRange(transactions, moves, code, start, end) {
 }
 
 // The quincena before the one containing `today`
-export function previousQuincenaRange(today = new Date()) {
-  const { start } = getQuincenaRange(today)
+export function previousQuincenaRange(today = new Date(), schedule = DEFAULT_SCHEDULE) {
+  const { start } = getQuincenaRange(today, schedule)
   // the day before this start belongs to the previous quincena
   return getQuincenaRange(
     new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1),
+    schedule,
   )
 }

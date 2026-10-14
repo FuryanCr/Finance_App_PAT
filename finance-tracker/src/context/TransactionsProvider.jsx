@@ -230,7 +230,7 @@ export default function TransactionsProvider({ children }) {
   }
 
   const loadSampleData = async () => {
-    const saved = await insertTransactions(sampleTransactions(new Date(), lang))
+    const saved = await insertTransactions(sampleTransactions(new Date(), lang, quincenaSchedule))
     setTransactions((current) => [...current, ...saved])
   }
 

@@ -1,4 +1,5 @@
 import { getQuincenaRange, todayString } from './dates'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 import { previousQuincenaRange } from './savings'
 
 // Notes of the sample data, in the language of the interface
@@ -41,14 +42,21 @@ const NOTES = {
 // show up on Home whatever day it is: the current quincena (never later than
 // today), the previous one, and a few older months. Categories are the
 // built-in ones (1 food, 2 transport, 3 bills, 4 fun).
-export function sampleTransactions(today = new Date(), lang = 'es') {
+export function sampleTransactions(
+  today = new Date(),
+  lang = 'es',
+  schedule = DEFAULT_SCHEDULE,
+) {
   const notes = NOTES[lang] ?? NOTES.es
-  const dayOf = (start, offset) => {
+  // never later than today, and never past the end of that quincena (a quincena
+  // with other pay days can be shorter than 15 days)
+  const dayOf = ({ start, end }, offset) => {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset)
-    return date > today ? today : date
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    return date > today ? today : date > last ? last : date
   }
-  const current = getQuincenaRange(today).start
-  const previous = previousQuincenaRange(today).start
+  const current = getQuincenaRange(today, schedule)
+  const previous = previousQuincenaRange(today, schedule)
   const monthsAgo = (count, day) =>
     new Date(today.getFullYear(), today.getMonth() - count, day)
 

@@ -13,8 +13,14 @@ import CurrencyPills from '../../components/CurrencyPills'
 export default function SavingsScreen() {
   const { locale, t } = useSettings()
   const { confirm } = useDialog()
-  const { transactions, savings, recurring, addSavingsMove, deleteSavingsMove } =
-    useTransactions()
+  const {
+    transactions,
+    savings,
+    recurring,
+    quincenaSchedule,
+    addSavingsMove,
+    deleteSavingsMove,
+  } = useTransactions()
   const today = useToday()
 
   const [currency, setCurrency] = useState('CRC')
@@ -30,7 +36,11 @@ export default function SavingsScreen() {
   // in hand this quincena (income dated after today is not yet money)
   const tooMuch = amountValid && amount > balance
   const available = availableForSavings(
-    quincenaFigures({ transactions, savings, recurring }, currency, today),
+    quincenaFigures(
+      { transactions, savings, recurring, quincenaSchedule },
+      currency,
+      today,
+    ),
   )
   const tooMuchToSave = amountValid && amount > available
   const canMove = amountValid && !saving

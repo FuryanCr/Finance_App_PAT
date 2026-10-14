@@ -63,6 +63,7 @@ export default function AddExpenseScreen() {
     categories,
     addCategory,
     recurring,
+    quincenaSchedule,
     confirmRecurring,
     addSavingsMove,
     addIncomeWithSavings,
@@ -152,8 +153,8 @@ export default function AddExpenseScreen() {
   const toSavings = showToSavings && toSavingsValid ? toSavingsParsed : 0
   const amountTooBig = amount > MAX_AMOUNT
   // case L1: pay dated on the 15th / the last day of the month
-  const closingDayIncome = type === 'income' && dateValid && isClosingDay(date)
-  const nextStart = closingDayIncome ? nextQuincenaStart(date) : null
+  const closingDayIncome = type === 'income' && dateValid && isClosingDay(date, quincenaSchedule)
+  const nextStart = closingDayIncome ? nextQuincenaStart(date, quincenaSchedule) : null
   const canSave =
     amount > 0 &&
     !amountTooBig &&
@@ -195,7 +196,7 @@ export default function AddExpenseScreen() {
         navigate(backTo)
       } else {
         // a due recurring item with the same amount may be this very bill
-        const match = findMatchingDue(recurring, tx)
+        const match = findMatchingDue(recurring, tx, new Date(), quincenaSchedule)
         const move =
           toSavings > 0
             ? {

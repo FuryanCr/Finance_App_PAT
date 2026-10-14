@@ -1,17 +1,9 @@
-// Quincena = 1st-15th, or 16th-end of month
-export function getQuincenaRange(date = new Date()) {
-  const year = date.getFullYear()
-  const month = date.getMonth()
-  if (date.getDate() <= 15) {
-    return {
-      start: new Date(year, month, 1),
-      end: new Date(year, month, 15, 23, 59, 59),
-    }
-  }
-  return {
-    start: new Date(year, month, 16),
-    end: new Date(year, month + 1, 0, 23, 59, 59),
-  }
+import { DEFAULT_SCHEDULE, keyFor, rangeFor } from './quincenaSchedule'
+
+// The quincena that contains a date. By default 1st-15th or 16th-end of month;
+// the schedule (see quincenaSchedule.js) says if the person chose other days.
+export function getQuincenaRange(date = new Date(), schedule = DEFAULT_SCHEDULE) {
+  return rangeFor(date, schedule)
 }
 
 // Whole days from a to b, ignoring the time of day
@@ -22,8 +14,8 @@ export function daysBetween(a, b) {
 }
 
 // Days remaining in the quincena, counting today (the last day gives 1)
-export function daysLeftInQuincena(date = new Date()) {
-  return daysBetween(date, getQuincenaRange(date).end) + 1
+export function daysLeftInQuincena(date = new Date(), schedule = DEFAULT_SCHEDULE) {
+  return daysBetween(date, getQuincenaRange(date, schedule).end) + 1
 }
 
 // Dates outside these years are almost surely typos or a damaged file
@@ -67,10 +59,10 @@ export function todayString(date = new Date()) {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
-// 'YYYY-MM-1' for days 1-15, 'YYYY-MM-2' for the rest of the month
-export function quincenaKey(date = new Date()) {
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${date.getDate() <= 15 ? 1 : 2}`
+// Names a quincena. In 15/30: 'YYYY-MM-1' for days 1-15, 'YYYY-MM-2' for the
+// rest of the month; with other pay days, the date it started.
+export function quincenaKey(date = new Date(), schedule = DEFAULT_SCHEDULE) {
+  return keyFor(date, schedule)
 }
 
 // True when the two dates fall on different calendar days

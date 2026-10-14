@@ -1,28 +1,38 @@
 import { parseDate, quincenaKey } from './dates'
+import { DEFAULT_SCHEDULE, halfOf } from './quincenaSchedule'
 import { sum } from './money'
 
-// 'every' = every quincena; 'first' = monthly, days 1-15; 'second' = monthly,
-// days 16 to month end
+// 'every' = every quincena; 'first' = monthly, first quincena of the month
+// (days 1-15 in 15/30); 'second' = monthly, second quincena (days 16 to month
+// end in 15/30). With a single pay day a month, a monthly item is due in each.
 export const schedules = ['every', 'first', 'second']
 
 // Due when its schedule includes the current quincena and it has not been
 // confirmed or skipped in it yet
-export function isDue(item, today = new Date()) {
-  const half = today.getDate() <= 15 ? 'first' : 'second'
-  const scheduled = item.schedule === 'every' || item.schedule === half
-  return scheduled && item.lastPeriod !== quincenaKey(today)
+export function isDue(item, today = new Date(), schedule = DEFAULT_SCHEDULE) {
+  const half = halfOf(today, schedule)
+  const scheduled =
+    item.schedule === 'every' || half === 'both' || item.schedule === half
+  return scheduled && item.lastPeriod !== quincenaKey(today, schedule)
 }
 
 // The due item that a new transaction most likely pays: same type, same
 // currency, same amount to the cent, and the transaction is dated inside
 // the current quincena. Returns the item or null.
-export function findMatchingDue(recurring, tx, today = new Date()) {
-  if (quincenaKey(parseDate(tx.date)) !== quincenaKey(today)) return null
+export function findMatchingDue(
+  recurring,
+  tx,
+  today = new Date(),
+  schedule = DEFAULT_SCHEDULE,
+) {
+  if (quincenaKey(parseDate(tx.date), schedule) !== quincenaKey(today, schedule)) {
+    return null
+  }
   const cents = Math.round(tx.amount * 100)
   return (
     recurring.find(
       (item) =>
-        isDue(item, today) &&
+        isDue(item, today, schedule) &&
         item.type === tx.type &&
         item.currency === tx.currency &&
         Math.round(item.amount * 100) === cents,
@@ -32,12 +42,17 @@ export function findMatchingDue(recurring, tx, today = new Date()) {
 
 // Total of the due EXPENSES in one currency: money already spoken for
 // this quincena that is not a transaction yet. Due income is not counted.
-export function pendingTotal(recurring, currency, today = new Date()) {
+export function pendingTotal(
+  recurring,
+  currency,
+  today = new Date(),
+  schedule = DEFAULT_SCHEDULE,
+) {
   return sum(
     recurring
       .filter(
         (item) =>
-          isDue(item, today) &&
+          isDue(item, today, schedule) &&
           item.type === 'expense' &&
           item.currency === currency,
       )

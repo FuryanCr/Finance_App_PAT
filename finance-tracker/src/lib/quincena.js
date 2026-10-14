@@ -1,6 +1,7 @@
 import { daysLeftInQuincena, getQuincenaRange, parseDate, todayString } from './dates'
 import { getTotals, laterTotal, safePerDay, sum } from './money'
 import { pendingTotal } from './recurring'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 import { leftInRange, previousQuincenaRange, savingsInRange } from './savings'
 
 // Everything Home needs to know about one currency in the current quincena.
@@ -13,11 +14,11 @@ import { leftInRange, previousQuincenaRange, savingsInRange } from './savings'
 // status says what to show instead of a number when there is nothing to
 // spend: 'ok' | 'pendingExceeds' | 'waitingIncome' | 'over'.
 export function quincenaFigures(
-  { transactions, savings, recurring },
+  { transactions, savings, recurring, quincenaSchedule = DEFAULT_SCHEDULE },
   code,
   today = new Date(),
 ) {
-  const { start, end } = getQuincenaRange(today)
+  const { start, end } = getQuincenaRange(today, quincenaSchedule)
   const inRange = transactions.filter((tx) => {
     const date = parseDate(tx.date)
     return date >= start && date <= end
@@ -25,13 +26,13 @@ export function quincenaFigures(
   const totals = getTotals(inRange, code)
   const { toSavings, fromSavings } = savingsInRange(savings, code, start, end)
   const left = sum([totals.net, -toSavings, fromSavings])
-  const pending = pendingTotal(recurring, code, today)
+  const pending = pendingTotal(recurring, code, today, quincenaSchedule)
   const later = laterTotal(inRange, code, today)
   const laterIncome = laterTotal(inRange, code, today, 'income')
   // what is really in hand today, before the bills that are still due
   const inHand = sum([left, -laterIncome])
   const available = sum([inHand, -pending])
-  const days = daysLeftInQuincena(today)
+  const days = daysLeftInQuincena(today, quincenaSchedule)
 
   let status = 'ok'
   if (available <= 0) {
@@ -59,19 +60,19 @@ export function quincenaFigures(
 // What the previous quincena left over in one currency, to offer it for
 // savings (case L1).
 //
-// Rule: an income dated on the LAST DAY of the closing quincena (the 15th or
-// the last day of the month) is not counted. In Costa Rica the pay of the
-// 15th and of the 30th is usually meant to cover the quincena that is
+// Rule: an income dated on the LAST DAY of the closing quincena (in 15/30, the
+// 15th or the last day of the month) is not counted. In Costa Rica the pay of
+// the 15th and of the 30th is usually meant to cover the quincena that is
 // starting, so counting it would offer the new quincena's money as a leftover
 // of the old one. The offer can therefore be smaller than the "real"
 // leftover, but it never promises money that is still needed. The person can
 // date that income on the 16th (or the 1st) so it counts in the new quincena.
 export function rolloverLeftover(
-  { transactions, savings },
+  { transactions, savings, quincenaSchedule = DEFAULT_SCHEDULE },
   code,
   today = new Date(),
 ) {
-  const previous = previousQuincenaRange(today)
+  const previous = previousQuincenaRange(today, quincenaSchedule)
   const closingDay = todayString(previous.end)
   const leftover = leftInRange(
     transactions,
@@ -91,17 +92,18 @@ export function rolloverLeftover(
   return sum([leftover, -closingIncome])
 }
 
-// True when a date is the last day of its quincena (the 15th or month end)
-export function isClosingDay(dateText) {
+// True when a date is the last day of its quincena (in 15/30, the 15th or
+// month end)
+export function isClosingDay(dateText, schedule = DEFAULT_SCHEDULE) {
   if (typeof dateText !== 'string') return false
   const date = parseDate(dateText)
   if (Number.isNaN(date.getTime())) return false
-  return todayString(getQuincenaRange(date).end) === dateText
+  return todayString(getQuincenaRange(date, schedule).end) === dateText
 }
 
-// The first day of the next quincena after a date (the 16th or the 1st)
-export function nextQuincenaStart(dateText) {
-  const end = getQuincenaRange(parseDate(dateText)).end
+// The first day of the next quincena after a date (in 15/30, the 16th or the 1st)
+export function nextQuincenaStart(dateText, schedule = DEFAULT_SCHEDULE) {
+  const end = getQuincenaRange(parseDate(dateText), schedule).end
   return todayString(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1))
 }
 

@@ -33,9 +33,8 @@ export default function HomeScreen() {
   const { alert } = useDialog()
 
   const today = useToday()
-  const { start, end } = getQuincenaRange(today)
-  const daysLeft = daysLeftInQuincena(today)
   const {
+    quincenaSchedule,
     transactions,
     categories,
     budgets,
@@ -45,6 +44,8 @@ export default function HomeScreen() {
     skipRecurring,
     addSavingsMove,
   } = useTransactions()
+  const { start, end } = getQuincenaRange(today, quincenaSchedule)
+  const daysLeft = daysLeftInQuincena(today, quincenaSchedule)
   const [busy, setBusy] = useState(false)
   // the quincena each currency's rollover offer was skipped for
   const [skipped, setSkipped] = useState(() =>
@@ -58,17 +59,21 @@ export default function HomeScreen() {
     .sort(byNewest)
     .slice(0, 5)
 
-  const due = recurring.filter((item) => isDue(item, today))
+  const due = recurring.filter((item) => isDue(item, today, quincenaSchedule))
 
   // last quincena's leftover is offered once per currency
-  const previous = previousQuincenaRange(today)
-  const previousKey = quincenaKey(previous.start)
+  const previous = previousQuincenaRange(today, quincenaSchedule)
+  const previousKey = quincenaKey(previous.start, quincenaSchedule)
   const offers = currencies
     .map(({ code, labelKey }) => ({
       code,
       labelKey,
       // an income dated on the closing day is not a leftover (see lib/quincena)
-      leftover: rolloverLeftover({ transactions, savings }, code, today),
+      leftover: rolloverLeftover(
+        { transactions, savings, quincenaSchedule },
+        code,
+        today,
+      ),
     }))
     .filter(({ code, leftover }) => leftover > 0 && skipped[code] !== previousKey)
 
@@ -113,7 +118,11 @@ export default function HomeScreen() {
     .map((c) => ({
       ...c,
       // due bills are not transactions yet, but the money is spoken for
-      ...quincenaFigures({ transactions, savings, recurring }, c.code, today),
+      ...quincenaFigures(
+        { transactions, savings, recurring, quincenaSchedule },
+        c.code,
+        today,
+      ),
     }))
     .filter(
       (c) =>
