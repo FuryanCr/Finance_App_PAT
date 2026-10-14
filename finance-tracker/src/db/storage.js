@@ -2,6 +2,7 @@ import { categories as builtInCategories } from './mockData'
 import { getDb, persist } from './database'
 import { customColorAt, customColors } from '../lib/categories'
 import { isValidDate } from '../lib/dates'
+import { normalizePaymentMethod } from '../lib/payment'
 import { MAX_CENTS, isValidAmount } from '../lib/money'
 
 // Same bound as the backup ids: above it new ids could repeat
@@ -30,6 +31,7 @@ function toTransaction(row) {
     categoryId: row.category_id,
     note: row.note,
     date: row.date,
+    paymentMethod: normalizePaymentMethod(row.payment_method),
   }
 }
 
@@ -98,8 +100,8 @@ async function persistOrUndo(undo) {
 }
 
 const INSERT_TRANSACTION = `INSERT INTO transactions
-  (amount_cents, currency, type, category_id, note, date)
-  VALUES (?, ?, ?, ?, ?, ?)`
+  (amount_cents, currency, type, category_id, note, date, payment_method)
+  VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 function transactionParams(tx) {
   return [
@@ -109,6 +111,7 @@ function transactionParams(tx) {
     tx.categoryId,
     tx.note ?? '',
     tx.date,
+    normalizePaymentMethod(tx.paymentMethod),
   ]
 }
 
@@ -257,8 +260,9 @@ async function importLegacyData(db) {
       const categoryId = knownIds.has(tx.categoryId) ? tx.categoryId : null
       await db.run(
         `INSERT INTO transactions
-          (id, amount_cents, currency, type, category_id, note, date)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (id, amount_cents, currency, type, category_id, note, date,
+            payment_method)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [tx.id, ...transactionParams({ ...tx, categoryId })],
         false,
       )
@@ -329,8 +333,9 @@ export function restoreAll(data) {
       for (const tx of data.transactions) {
         await db.run(
           `INSERT INTO transactions
-            (id, amount_cents, currency, type, category_id, note, date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            (id, amount_cents, currency, type, category_id, note, date,
+              payment_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [tx.id, ...transactionParams(tx)],
           false,
         )
@@ -376,7 +381,12 @@ export function insertTransaction(tx) {
     await persistOrUndo(() =>
       db.run('DELETE FROM transactions WHERE id = ?', [id]),
     )
-    return { ...tx, note: tx.note ?? '', id }
+    return {
+      ...tx,
+      note: tx.note ?? '',
+      paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+      id,
+    }
   })
 }
 
@@ -391,7 +401,12 @@ export function insertTransactions(list) {
           transactionParams(tx),
           false,
         )
-        items.push({ ...tx, note: tx.note ?? '', id: result.changes.lastId })
+        items.push({
+          ...tx,
+          note: tx.note ?? '',
+          paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+          id: result.changes.lastId,
+        })
       }
       return items
     })
@@ -410,12 +425,17 @@ export function updateTransaction(id, tx) {
     await db.run(
       `UPDATE transactions SET
         amount_cents = ?, currency = ?, type = ?, category_id = ?, note = ?,
-        date = ?
+        date = ?, payment_method = ?
         WHERE id = ?`,
       [...transactionParams(tx), id],
     )
     await persist()
-    return { ...tx, note: tx.note ?? '', id }
+    return {
+      ...tx,
+      note: tx.note ?? '',
+      paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+      id,
+    }
   })
 }
 
@@ -603,7 +623,12 @@ export function confirmRecurring(id, period, tx) {
         [period, id],
         false,
       )
-      return { ...tx, note: tx.note ?? '', id: result.changes.lastId }
+      return {
+        ...tx,
+        note: tx.note ?? '',
+        paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+        id: result.changes.lastId,
+      }
     })
     await persistOrUndo(async () => {
       await db.run('DELETE FROM transactions WHERE id = ?', [saved.id])
@@ -650,7 +675,12 @@ export function insertIncomeWithSavings(tx, move) {
         false,
       )
       return {
-        transaction: { ...tx, note: tx.note ?? '', id: txResult.changes.lastId },
+        transaction: {
+          ...tx,
+          note: tx.note ?? '',
+          paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+          id: txResult.changes.lastId,
+        },
         move: { ...move, note: move.note ?? '', id: moveResult.changes.lastId },
       }
     })

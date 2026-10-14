@@ -38,6 +38,7 @@ const tx = (changes = {}) => ({
   categoryId: 1,
   note: 'n',
   date: '2026-10-01',
+  paymentMethod: 'cash',
   ...changes,
 })
 
@@ -77,6 +78,86 @@ describe('loadAll', () => {
     expect(state.budgets).toEqual([])
     expect(state.recurring).toEqual([])
     expect(state.savings).toEqual([])
+  })
+})
+
+describe('payment method', () => {
+  it('is saved on insert and read back', async () => {
+    const saved = await storage.insertTransaction(tx({ paymentMethod: 'sinpe' }))
+
+    expect(saved.paymentMethod).toBe('sinpe')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'sinpe' },
+    ])
+    const { transactions } = await storage.loadAll()
+    expect(transactions[0].paymentMethod).toBe('sinpe')
+  })
+
+  it('is cash when the caller does not say it', async () => {
+    const { paymentMethod, ...without } = tx()
+    expect(paymentMethod).toBe('cash')
+    const saved = await storage.insertTransaction(without)
+
+    expect(saved.paymentMethod).toBe('cash')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'cash' },
+    ])
+  })
+
+  it('never writes a value outside the three methods', async () => {
+    const saved = await storage.insertTransaction(tx({ paymentMethod: 'bitcoin' }))
+    expect(saved.paymentMethod).toBe('cash')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'cash' },
+    ])
+  })
+
+  it('changes on update', async () => {
+    const { id } = await storage.insertTransaction(tx())
+    const saved = await storage.updateTransaction(id, tx({ paymentMethod: 'card' }))
+
+    expect(saved.paymentMethod).toBe('card')
+    const { transactions } = await storage.loadAll()
+    expect(transactions[0].paymentMethod).toBe('card')
+  })
+
+  it('is kept by insertTransactions and by an income saved with its move', async () => {
+    const list = await storage.insertTransactions([
+      tx({ paymentMethod: 'card' }),
+      tx({ note: 'b' }),
+    ])
+    expect(list.map((item) => item.paymentMethod)).toEqual(['card', 'cash'])
+
+    const income = tx({ type: 'income', categoryId: null, paymentMethod: 'sinpe' })
+    const saved = await storage.insertIncomeWithSavings(income, move())
+    expect(saved.transaction.paymentMethod).toBe('sinpe')
+  })
+
+  it('survives a restore', async () => {
+    const result = await storage.restoreAll({
+      categories: [],
+      transactions: [{ ...tx({ paymentMethod: 'card' }), id: 4 }],
+      budgets: [],
+      recurring: [],
+      savings: [],
+    })
+    expect(result.transactions[0].paymentMethod).toBe('card')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'card' },
+    ])
+  })
+
+  it('reads a restored transaction without a method as cash', async () => {
+    const { paymentMethod, ...old } = tx()
+    expect(paymentMethod).toBe('cash')
+    const result = await storage.restoreAll({
+      categories: [],
+      transactions: [{ ...old, id: 4 }],
+      budgets: [],
+      recurring: [],
+      savings: [],
+    })
+    expect(result.transactions[0].paymentMethod).toBe('cash')
   })
 })
 
@@ -178,6 +259,7 @@ describe('transactions', () => {
         categoryId: 2,
         note: 'changed',
         date: '2026-10-01',
+        paymentMethod: 'cash',
       },
       { ...tx({ note: 'other' }), id: 2 },
     ])
@@ -761,10 +843,10 @@ describe('legacy import from localStorage', () => {
         { id: 8, name: 'Gifts', color: 'slate' },
       ])
       expect(first.transactions).toEqual([
-        { id: 5, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: 'Cat', date: '2026-10-06' },
-        { id: 9, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01' },
+        { id: 5, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: 'Cat', date: '2026-10-06', paymentMethod: 'cash' },
+        { id: 9, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01', paymentMethod: 'cash' },
         // an unknown category becomes none; the invalid row is dropped
-        { id: 12, amount: 500, currency: 'CRC', type: 'expense', categoryId: null, note: 'Lost', date: '2026-10-02' },
+        { id: 12, amount: 500, currency: 'CRC', type: 'expense', categoryId: null, note: 'Lost', date: '2026-10-02', paymentMethod: 'cash' },
       ])
       expect(store.get('finance-data-imported')).toBe('1')
       expect(store.get('finance-data')).toBe(blob)
