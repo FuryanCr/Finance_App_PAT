@@ -9,6 +9,7 @@ import {
   inspectBackup,
   summarizeCounts,
 } from '../../lib/backup'
+import QuincenaSetting from '../../components/QuincenaSetting'
 import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
 import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { formatDate } from '../../lib/format'
@@ -222,6 +223,8 @@ export default function SettingsScreen() {
               </button>
             </div>
           </section>
+
+          <QuincenaSetting />
 
           <section className="card">
             <p className="label">{t('manage')}</p>

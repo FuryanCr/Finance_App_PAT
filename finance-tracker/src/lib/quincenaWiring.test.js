@@ -185,3 +185,17 @@ describe('sample data', () => {
     expect(current.length).toBeGreaterThan(0)
   })
 })
+
+describe('recurring schedule labels', () => {
+  it('say days 1-15 / 16-end in 15/30 and first/second quincena otherwise', async () => {
+    const { scheduleKey } = await import('./recurring')
+    const today = at(2026, 10, 22)
+    expect(scheduleKey('first')).toBe('schedule.first')
+    expect(scheduleKey('every', payDays, today)).toBe('schedule.every')
+    expect(scheduleKey('first', payDays, today)).toBe('schedule.firstPay')
+    expect(scheduleKey('second', payDays, today)).toBe('schedule.secondPay')
+    // before the change takes effect the old wording still holds
+    expect(scheduleKey('second', changed, at(2026, 10, 7))).toBe('schedule.second')
+    expect(scheduleKey('second', changed, today)).toBe('schedule.secondPay')
+  })
+})

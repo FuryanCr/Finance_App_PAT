@@ -1,11 +1,26 @@
 import { parseDate, quincenaKey } from './dates'
-import { DEFAULT_SCHEDULE, halfOf } from './quincenaSchedule'
+import { DEFAULT_SCHEDULE, describeSchedule, halfOf } from './quincenaSchedule'
 import { sum } from './money'
 
 // 'every' = every quincena; 'first' = monthly, first quincena of the month
 // (days 1-15 in 15/30); 'second' = monthly, second quincena (days 16 to month
 // end in 15/30). With a single pay day a month, a monthly item is due in each.
 export const schedules = ['every', 'first', 'second']
+
+// The translation key that names a schedule. With 15/30 a monthly item says
+// "days 1 to 15" or "16 to month end"; with other pay days it says "first" or
+// "second quincena", because those days no longer mean anything.
+export function scheduleKey(
+  schedule,
+  quincenaSchedule = DEFAULT_SCHEDULE,
+  today = new Date(),
+) {
+  const { current } = describeSchedule(quincenaSchedule, today)
+  if (schedule === 'every' || current.mode === 'fixed') {
+    return `schedule.${schedule}`
+  }
+  return `schedule.${schedule}Pay`
+}
 
 // Due when its schedule includes the current quincena and it has not been
 // confirmed or skipped in it yet

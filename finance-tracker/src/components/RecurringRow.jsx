@@ -1,5 +1,6 @@
 import { categoryColor, categoryLabel } from '../lib/categories'
 import { formatMoney } from '../lib/money'
+import { scheduleKey } from '../lib/recurring'
 import { useSettings } from '../context/useSettings'
 import { useTransactions } from '../context/useTransactions'
 
@@ -7,7 +8,7 @@ import { useTransactions } from '../context/useTransactions'
 // The children go after the amount (the Edit pill on the settings screen).
 export default function RecurringRow({ item, children }) {
   const { t } = useSettings()
-  const { categories } = useTransactions()
+  const { categories, quincenaSchedule } = useTransactions()
   const isIncome = item.type === 'income'
   const category = isIncome
     ? undefined
@@ -27,7 +28,7 @@ export default function RecurringRow({ item, children }) {
               style={{ background: categoryColor(category) }}
             />
           )}
-          {label} · {t(`schedule.${item.schedule}`)}
+          {label} · {t(scheduleKey(item.schedule, quincenaSchedule))}
         </p>
       </div>
       <div className="row-side">

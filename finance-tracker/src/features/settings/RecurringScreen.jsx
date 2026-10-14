@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { parseAmount } from '../../lib/money'
-import { schedules } from '../../lib/recurring'
+import { scheduleKey, schedules } from '../../lib/recurring'
 import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
@@ -13,8 +13,13 @@ import RecurringRow from '../../components/RecurringRow'
 function RecurringEditor({ item, onDone }) {
   const { t } = useSettings()
   const { confirm } = useDialog()
-  const { categories, addRecurring, updateRecurring, deleteRecurring } =
-    useTransactions()
+  const {
+    categories,
+    quincenaSchedule,
+    addRecurring,
+    updateRecurring,
+    deleteRecurring,
+  } = useTransactions()
 
   const [type, setType] = useState(item?.type ?? 'expense')
   const [currency, setCurrency] = useState(item?.currency ?? 'CRC')
@@ -144,7 +149,7 @@ function RecurringEditor({ item, onDone }) {
             aria-pressed={schedule === s}
             onClick={() => setSchedule(s)}
           >
-            {t(`schedule.${s}`)}
+            {t(scheduleKey(s, quincenaSchedule))}
           </button>
         ))}
       </div>

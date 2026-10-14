@@ -132,6 +132,21 @@ export const translations = {
     'schedule.every': 'Cada quincena',
     'schedule.first': 'Una vez al mes, del 1 al 15',
     'schedule.second': 'Una vez al mes, del 16 a fin de mes',
+    'schedule.firstPay': 'Una vez al mes, en la primera quincena',
+    'schedule.secondPay': 'Una vez al mes, en la segunda quincena',
+    quincenaSetting: 'Cómo se corta la quincena',
+    quincenaMode15: '15 y 30 (días 1 y 16)',
+    quincenaModePaydays: 'Mis días de pago',
+    quincenaPayDays: 'Días de pago',
+    quincenaDay1: 'Primer día de pago (1 a 31)',
+    quincenaDay2: 'Segundo día de pago (opcional)',
+    quincenaDaysInvalid:
+      'Escribe un día del 1 al 31. Si pones dos, deben ser distintos.',
+    quincenaMonthEnd:
+      'Si el mes no tiene ese día (por ejemplo el 31 en abril), se usa el último día del mes.',
+    quincenaForward:
+      'El cambio empieza cuando termine la quincena actual. Lo que ya registraste no se mueve.',
+    quincenaPending: 'Cambio programado desde el',
     dueThisQuincena: 'Pendientes de esta quincena',
     confirm: 'Confirmar',
     skip: 'Omitir',
@@ -330,6 +345,21 @@ export const translations = {
     'schedule.every': 'Every quincena',
     'schedule.first': 'Monthly, days 1 to 15',
     'schedule.second': 'Monthly, day 16 to month end',
+    'schedule.firstPay': 'Monthly, in the first quincena',
+    'schedule.secondPay': 'Monthly, in the second quincena',
+    quincenaSetting: 'How the quincena is cut',
+    quincenaMode15: '15/30 (days 1 and 16)',
+    quincenaModePaydays: 'My pay days',
+    quincenaPayDays: 'Pay days',
+    quincenaDay1: 'First pay day (1 to 31)',
+    quincenaDay2: 'Second pay day (optional)',
+    quincenaDaysInvalid:
+      'Enter a day from 1 to 31. If you enter two, they must be different.',
+    quincenaMonthEnd:
+      'If the month does not have that day (for example the 31st in April), the last day of the month is used.',
+    quincenaForward:
+      'The change starts when the current quincena ends. Anything you already registered stays where it is.',
+    quincenaPending: 'Change scheduled from',
     dueThisQuincena: 'Due this quincena',
     confirm: 'Confirm',
     skip: 'Skip',
