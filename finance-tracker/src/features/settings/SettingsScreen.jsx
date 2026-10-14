@@ -172,12 +172,18 @@ export default function SettingsScreen() {
       '',
       t('cannotUndo'),
     ].join('\n')
-    const { confirmed } = await confirm({
+    const { confirmed, checked } = await confirm({
       message,
       confirmLabel: t('clearConfirm'),
       danger: true,
+      // what is about to be erased can be saved to a file first
+      checkbox: { label: t('restoreMakeBackup'), defaultChecked: true },
     })
-    if (confirmed) run(clearAllData)
+    if (!confirmed) return
+    run(async () => {
+      if (checked) saveBackupFile(`i-am-poor-for-now-before-clear-${todayString()}.json`)
+      await clearAllData()
+    })
   }
 
   return (
@@ -324,7 +330,13 @@ export default function SettingsScreen() {
                   type="button"
                   className="btn secondary"
                   disabled={busy}
-                  onClick={() => run(loadSampleData)}
+                  onClick={async () => {
+                    const { confirmed } = await confirm({
+                      message: t('loadSampleConfirm'),
+                      confirmLabel: t('loadSample'),
+                    })
+                    if (confirmed) run(loadSampleData)
+                  }}
                 >
                   {t('loadSample')}
                 </button>

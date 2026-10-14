@@ -35,7 +35,7 @@ const skipKey = (code) => `rolloverSkipped.${code}`
 
 export default function HomeScreen() {
   const { locale, t } = useSettings()
-  const { alert } = useDialog()
+  const { alert, confirm } = useDialog()
 
   const today = useToday()
   const {
@@ -127,7 +127,7 @@ export default function HomeScreen() {
 
   // "I was paid": a new quincena starts on that day (today unless another
   // date was typed); a date that would move the past is explained, not saved
-  const registerPaid = (dateText) => {
+  const registerPaid = async (dateText) => {
     // here the person says they WERE paid: a day that has not come is an error
     // (in Settings and the welcome a future day is the next payment)
     const result =
@@ -137,6 +137,21 @@ export default function HomeScreen() {
     if (!result.ok) {
       setPaidError(result.reason)
       return
+    }
+    // two payments a few days apart are usually a double tap
+    if (
+      manual.active &&
+      manual.since !== dateText &&
+      daysBetween(parseDate(manual.since), parseDate(dateText)) < 3
+    ) {
+      const { confirmed } = await confirm({
+        message: t('manualPaidAgain').replace(
+          '{date}',
+          formatDate(parseDate(manual.since), locale),
+        ),
+        confirmLabel: t('manualPaidRegister'),
+      })
+      if (!confirmed) return
     }
     setPaidError(null)
     setOtherDate(null)
@@ -185,8 +200,11 @@ export default function HomeScreen() {
     const pct =
       income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
     const categoryTotals = getCategoryTotals(expenses, categories)
-    const daysText =
-      daysLeft === 1 ? t('lastDay') : `${daysLeft} ${t('daysLeft')}`
+    const daysText = manual.overdue
+      ? t('waitingPay')
+      : daysLeft === 1
+        ? t('lastDay')
+        : `${daysLeft} ${t('daysLeft')}`
 
     // the headline is what can be spent today; without income (or money from
     // savings) there is no daily amount, so it shows what is left instead
@@ -306,7 +324,8 @@ export default function HomeScreen() {
       .join(' · ') || formatMoney(0, 'CRC')
 
   const totalDays = daysBetween(start, end) + 1
-  const dayNumber = totalDays - daysLeft + 1
+  // a late manual quincena has no known end: show it as its last day
+  const dayNumber = manual.overdue ? totalDays : totalDays - daysLeft + 1
 
   // the leftover of the quincena that closed: shown right after the main card
   const offersCard = offers.length > 0 && (
@@ -375,11 +394,20 @@ export default function HomeScreen() {
         </div>
       </div>
 
+      {isBackupReminderDue(readPref('lastBackup'), transactions, today) && (
+        <p className="sub backup-line">
+          {t('backupReminder')}{' '}
+          <Link className="text-link" to="/settings">
+            {t('goToBackup')}
+          </Link>
+        </p>
+      )}
+
       <div className="cols">
         <div className="col">
           {manual.active && (
-            <section className="card manual-card">
-              <p className="label">{t('quincenaModeManual')}</p>
+            <section className="card manual-card" aria-busy={busy}>
+              <p className="label">{t('manualCardTitle')}</p>
               <p className="sub">
                 {t('manualSince')} {formatDate(parseDate(manual.since), locale)}
               </p>
@@ -537,14 +565,6 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {isBackupReminderDue(readPref('lastBackup'), transactions, today) && (
-        <p className="sub backup-line">
-          {t('backupReminder')}{' '}
-          <Link className="text-link" to="/settings">
-            {t('goToBackup')}
-          </Link>
-        </p>
-      )}
     </>
   )
 }

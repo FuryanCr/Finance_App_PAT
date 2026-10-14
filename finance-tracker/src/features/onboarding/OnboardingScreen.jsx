@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
@@ -56,6 +57,7 @@ function FreeSummary({ figures, hasIncome, currency }) {
 // Settings > "Repeat initial setup" opens, over the data already there.
 export default function OnboardingScreen() {
   const { t } = useSettings()
+  const { confirm } = useDialog()
   const navigate = useNavigate()
   const today = useToday()
   const {
@@ -92,6 +94,8 @@ export default function OnboardingScreen() {
   const [goalText, setGoalText] = useState(startGoal)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  // read out by screen readers when an expense is added or removed
+  const [announce, setAnnounce] = useState('')
 
   const stepText = t('obStepOf')
     .replace('{n}', step + 1)
@@ -169,6 +173,7 @@ export default function OnboardingScreen() {
       return false
     }
     setExpenses((list) => [...list, { ...built.item, id: nextId.current++ }])
+    setAnnounce(`${t('obAdded')}: ${built.item.note}`)
     setDraftName('')
     setDraftAmount('')
     setDraftNewCategory('')
@@ -271,6 +276,22 @@ export default function OnboardingScreen() {
 
   const skipAll = async () => {
     if (busy) return
+    // something typed would be lost: ask first
+    const typed =
+      name !== startName ||
+      currency !== startCurrency ||
+      choice !== undefined ||
+      incomeText !== startIncome ||
+      goalText !== startGoal ||
+      expenses.length > 0
+    if (typed) {
+      const { confirmed } = await confirm({
+        message: t('obSkipAllConfirm'),
+        confirmLabel: repeatingOnboarding ? t('cancel') : t('obSkipAll'),
+        danger: true,
+      })
+      if (!confirmed) return
+    }
     setBusy(true)
     setFailed(false)
     try {
@@ -346,6 +367,7 @@ export default function OnboardingScreen() {
               </p>
               <CurrencyPills value={currency} onChange={changeCurrency} />
             </div>
+            <p className="field-note">{t('obCurrencyWarn')}</p>
           </>
         )}
 
@@ -425,6 +447,7 @@ export default function OnboardingScreen() {
                           setExpenses((list) =>
                             list.filter((other) => other.id !== item.id),
                           )
+                          setAnnounce(`${t('obRemoved')}: ${item.note}`)
                           draftNameInput.current?.focus()
                         }}
                       >
@@ -541,6 +564,9 @@ export default function OnboardingScreen() {
               </button>
             </div>
 
+            <p className="sr-only" role="status">
+              {announce}
+            </p>
             <FreeSummary
               figures={figuresFor(false)}
               hasIncome={income !== null && income !== undefined}

@@ -146,7 +146,7 @@ export default function QuincenaSetting({ embedded = false, initial, onChange })
         </p>
       )}
 
-      <div className="pill-group wrap">
+      <div className="pill-group wrap" role="group" aria-label={t('quincenaSetting')}>
         <button
           type="button"
           className={mode === 'fixed' ? 'pill active' : 'pill'}
@@ -182,6 +182,8 @@ export default function QuincenaSetting({ embedded = false, initial, onChange })
               inputMode="numeric"
               maxLength={2}
               value={day1}
+              aria-invalid={!daysValid}
+              aria-describedby={!daysValid ? 'quincena-days-error' : undefined}
               onChange={digits(setDay1, 1)}
             />
           </label>
@@ -192,11 +194,13 @@ export default function QuincenaSetting({ embedded = false, initial, onChange })
               inputMode="numeric"
               maxLength={2}
               value={day2}
+              aria-invalid={!daysValid}
+              aria-describedby={!daysValid ? 'quincena-days-error' : undefined}
               onChange={digits(setDay2, 2)}
             />
           </label>
           {!daysValid && (
-            <p className="field-note error" role="alert">
+            <p className="field-note error" role="alert" id="quincena-days-error">
               {t('quincenaDaysInvalid')}
             </p>
           )}

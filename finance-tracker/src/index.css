@@ -1526,3 +1526,91 @@ dialog.modal::backdrop {
   color: var(--muted);
   font-size: 15px;
 }
+
+/* Accesibilidad y uso real en el celular (revisión previa a entregar) */
+
+/* Borde de los controles (campos, listas, pills) con contraste suficiente
+   para verse como un límite: 3:1 contra su fondo */
+:root {
+  --control-border: #4b6169;
+}
+
+:root[data-theme='light'] {
+  --control-border: #8a8378;
+}
+
+.field input,
+.field select,
+.pill:not(.active) {
+  border-color: var(--control-border);
+}
+
+/* Las pills miden al menos 44 px de alto para poder tocarlas */
+.pill {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Campo de fecha: cabe en 320 px y no colapsa en iOS cuando está vacío */
+.field input[type='date'] {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+}
+
+.field input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+}
+
+.field select {
+  min-width: 0;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Tarjeta de inicio "Tu pago llega en días distintos" */
+.manual-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.due-actions {
+  flex-wrap: wrap;
+}
+
+.due-actions .pill {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+/* Nombres largos no se salen de la fila */
+.row-name,
+.row-meta {
+  overflow-wrap: anywhere;
+}
+
+/* Enlace deshabilitado */
+.text-link:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Texto solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
