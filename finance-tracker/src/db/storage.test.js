@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runMigrations } from './migrations'
 import { createTestDb } from './testDb'
 import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
+import { EMPTY_PROFILE } from '../lib/onboarding'
 
 // storage.js gets its connection from ./database, which needs the browser.
 // The mock hands out whatever database the current test put in `current`.
@@ -640,10 +641,10 @@ describe('quincena schedule', () => {
     expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
   })
 
-  it('stays when everything is cleared', async () => {
+  it('goes back to 15/30 when everything is cleared', async () => {
     await storage.saveQuincenaSchedule(custom)
     await storage.clearAll()
-    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
   })
 
   it('is replaced by the one in a backup, and is 15/30 when the backup has none', async () => {
@@ -671,6 +672,7 @@ describe('clearAll', () => {
     await storage.clearAll()
 
     expect(await storage.loadAll()).toEqual({
+      profile: EMPTY_PROFILE,
       transactions: [],
       categories: builtIn,
       budgets: [],
@@ -718,6 +720,8 @@ describe('restoreAll', () => {
 
     const expected = data()
     expect(result).toEqual({
+      // restoring means there is data: the welcome is done
+      profile: { ...EMPTY_PROFILE, onboardedAt: expect.any(String) },
       categories: [...builtIn, expected.categories[0]],
       transactions: expected.transactions,
       budgets: [

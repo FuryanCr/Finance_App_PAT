@@ -1,7 +1,8 @@
 import { categories as builtInCategories } from './mockData'
 import { getDb, persist } from './database'
 import { customColorAt, customColors } from '../lib/categories'
-import { isValidDate } from '../lib/dates'
+import { isValidDate, todayString } from '../lib/dates'
+import { EMPTY_PROFILE, cleanCurrency, cleanName } from '../lib/onboarding'
 import { normalizePaymentMethod } from '../lib/payment'
 import { DEFAULT_SCHEDULE, normalizeSchedule } from '../lib/quincenaSchedule'
 import { MAX_CENTS, isValidAmount } from '../lib/money'
@@ -74,6 +75,17 @@ function toScheduleEntry(row) {
     mode: row.mode,
     day1: row.day1,
     day2: row.day2,
+  }
+}
+
+function toProfile(row) {
+  if (!row) return EMPTY_PROFILE
+  return {
+    name: row.name,
+    income: row.income_cents ? row.income_cents / 100 : null,
+    currency: cleanCurrency(row.currency),
+    savingsGoal: row.savings_goal_cents ? row.savings_goal_cents / 100 : null,
+    onboardedAt: row.onboarded_at ?? null,
   }
 }
 
@@ -277,6 +289,12 @@ async function importLegacyData(db) {
         false,
       )
     }
+    // someone who had data before the welcome existed never sees it
+    const profile = await readProfile(db)
+    await writeProfile(db, {
+      ...profile,
+      onboardedAt: profile.onboardedAt ?? todayString(),
+    })
   })
   await persist()
   markImported()
@@ -309,7 +327,9 @@ async function readAll(db) {
   const schedule = await db.query(
     'SELECT * FROM quincena_config ORDER BY effective_from',
   )
+  const profile = await db.query('SELECT * FROM profile WHERE id = 1')
   return {
+    profile: toProfile(profile.values[0]),
     transactions: transactions.values.map(toTransaction),
     categories: categories.values.map(toCategory),
     budgets: budgets.values.map(toBudget),
@@ -330,6 +350,36 @@ async function writeSchedule(db, schedule) {
       false,
     )
   }
+}
+
+// Saves the one profile row (it is created if it is somehow missing); the
+// caller runs this inside a transaction
+async function writeProfile(db, profile) {
+  const cents = (amount) => (amount > 0 ? toCents(amount) : null)
+  await db.run(
+    `INSERT INTO profile
+      (id, name, income_cents, currency, savings_goal_cents, onboarded_at)
+      VALUES (1, ?, ?, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET
+        name = excluded.name,
+        income_cents = excluded.income_cents,
+        currency = excluded.currency,
+        savings_goal_cents = excluded.savings_goal_cents,
+        onboarded_at = excluded.onboarded_at`,
+    [
+      cleanName(profile.name),
+      cents(profile.income),
+      cleanCurrency(profile.currency),
+      cents(profile.savingsGoal),
+      profile.onboardedAt ?? null,
+    ],
+    false,
+  )
+}
+
+async function readProfile(db) {
+  const result = await db.query('SELECT * FROM profile WHERE id = 1')
+  return toProfile(result.values[0])
 }
 
 export function loadAll() {
@@ -396,6 +446,14 @@ export function restoreAll(data) {
       }
       // a backup without the setting is 15/30
       await writeSchedule(db, data.quincenaSchedule ?? DEFAULT_SCHEDULE)
+      // a backup without a profile (an older one) keeps the current one; in
+      // any case the person has data now, so the welcome is done
+      const profile = await readProfile(db)
+      await writeProfile(db, {
+        ...profile,
+        ...data.profile,
+        onboardedAt: profile.onboardedAt ?? todayString(),
+      })
     })
     await persist()
     return readAll(db)
@@ -543,6 +601,9 @@ export function clearAll() {
       await db.run('DELETE FROM savings', [], false)
       await db.run('DELETE FROM transactions', [], false)
       await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
+      // back to 15/30 and to a person who has not seen the welcome
+      await writeSchedule(db, DEFAULT_SCHEDULE)
+      await writeProfile(db, EMPTY_PROFILE)
     })
     await persist()
   })
@@ -733,5 +794,108 @@ export function saveQuincenaSchedule(schedule) {
     await inTransaction(db, () => writeSchedule(db, schedule))
     await persistOrUndo(() => inTransaction(db, () => writeSchedule(db, before)))
     return normalizeSchedule(schedule)
+  })
+}
+
+// Finishes the welcome in one transaction: all of it is saved or none of it.
+//   profile: { name, currency, income, savingsGoal }
+//   schedule: the new quincena schedule, or null to leave it as it is
+//   add: recurring items to create; update: { id, item } to change one
+// Returns the whole state, like loadAll.
+export function completeOnboarding({
+  profile,
+  schedule = null,
+  add = [],
+  update = null,
+}) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const before = {
+      profile: await readProfile(db),
+      schedule: (
+        await db.query('SELECT * FROM quincena_config ORDER BY effective_from')
+      ).values.map(toScheduleEntry),
+      recurring: update
+        ? (await db.query('SELECT * FROM recurring WHERE id = ?', [update.id]))
+            .values[0]
+        : null,
+    }
+    const ids = await inTransaction(db, async () => {
+      if (schedule) await writeSchedule(db, schedule)
+      const created = []
+      for (const item of add) {
+        const result = await db.run(
+          `INSERT INTO recurring
+            (amount_cents, currency, type, category_id, note, schedule)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+          recurringParams(item),
+          false,
+        )
+        created.push(result.changes.lastId)
+      }
+      if (update) {
+        await db.run(
+          `UPDATE recurring SET
+            amount_cents = ?, currency = ?, type = ?, category_id = ?,
+            note = ?, schedule = ?
+            WHERE id = ?`,
+          [...recurringParams(update.item), update.id],
+          false,
+        )
+      }
+      await writeProfile(db, { ...profile, onboardedAt: todayString() })
+      return created
+    })
+    await persistOrUndo(() =>
+      inTransaction(db, async () => {
+        for (const id of ids) {
+          await db.run('DELETE FROM recurring WHERE id = ?', [id], false)
+        }
+        if (before.recurring) {
+          await db.run(
+            `UPDATE recurring SET amount_cents = ?, currency = ?, type = ?,
+              category_id = ?, note = ?, schedule = ? WHERE id = ?`,
+            [
+              before.recurring.amount_cents,
+              before.recurring.currency,
+              before.recurring.type,
+              before.recurring.category_id,
+              before.recurring.note,
+              before.recurring.schedule,
+              before.recurring.id,
+            ],
+            false,
+          )
+        }
+        await writeSchedule(db, before.schedule)
+        await writeProfile(db, before.profile)
+      }),
+    )
+    return readAll(db)
+  })
+}
+
+// Skips the welcome (or changes nothing in a repeat): only the date is saved
+export function skipOnboarding() {
+  return enqueue(async () => {
+    const db = await getDb()
+    const before = await readProfile(db)
+    await inTransaction(db, () =>
+      writeProfile(db, { ...before, onboardedAt: todayString() }),
+    )
+    await persistOrUndo(() => inTransaction(db, () => writeProfile(db, before)))
+    return readProfile(db)
+  })
+}
+
+// Settings: the name shown on Home ('' removes it)
+export function saveProfileName(name) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const before = await readProfile(db)
+    const after = { ...before, name: cleanName(name) }
+    await inTransaction(db, () => writeProfile(db, after))
+    await persistOrUndo(() => inTransaction(db, () => writeProfile(db, before)))
+    return readProfile(db)
   })
 }
