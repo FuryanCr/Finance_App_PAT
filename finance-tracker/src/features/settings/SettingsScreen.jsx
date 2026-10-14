@@ -13,6 +13,7 @@ import QuincenaSetting from '../../components/QuincenaSetting'
 import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
 import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { formatDate } from '../../lib/format'
+import { MAX_NAME_LENGTH, cleanName } from '../../lib/onboarding'
 import { readPref, writePref } from '../../lib/prefs'
 
 // The date of the last backup made on this device, or null
@@ -31,13 +32,17 @@ export default function SettingsScreen() {
     recurring,
     savings,
     quincenaSchedule,
+    profile,
     loadSampleData,
     clearAllData,
     restoreData,
+    saveProfileName,
+    startOnboarding,
   } = useTransactions()
 
   const [busy, setBusy] = useState(false)
   const [lastBackup, setLastBackup] = useState(readLastBackup)
+  const [nameText, setNameText] = useState(profile.name)
 
   const hasTransactions = transactions.length > 0
   const customCount = categories.filter((c) => c.name).length
@@ -83,6 +88,7 @@ export default function SettingsScreen() {
       recurring,
       savings,
       quincenaSchedule,
+      profile,
     })
     downloadFile(name, JSON.stringify(backup, null, 2), 'application/json')
   }
@@ -168,12 +174,18 @@ export default function SettingsScreen() {
       '',
       t('cannotUndo'),
     ].join('\n')
-    const { confirmed } = await confirm({
+    const { confirmed, checked } = await confirm({
       message,
       confirmLabel: t('clearConfirm'),
       danger: true,
+      // what is about to be erased can be saved to a file first
+      checkbox: { label: t('restoreMakeBackup'), defaultChecked: true },
     })
-    if (confirmed) run(clearAllData)
+    if (!confirmed) return
+    run(async () => {
+      if (checked) saveBackupFile(`i-am-poor-for-now-before-clear-${todayString()}.json`)
+      await clearAllData()
+    })
   }
 
   return (
@@ -226,7 +238,45 @@ export default function SettingsScreen() {
             </div>
           </section>
 
+          <section className="card" key={profile.name}>
+            <label className="field">
+              <span className="label">{t('profileName')}</span>
+              <input
+                type="text"
+                autoComplete="given-name"
+                maxLength={MAX_NAME_LENGTH}
+                value={nameText}
+                onChange={(e) => setNameText(e.target.value)}
+              />
+            </label>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || cleanName(nameText) === profile.name}
+                onClick={() => run(() => saveProfileName(nameText))}
+              >
+                {t('save')}
+              </button>
+            </div>
+          </section>
+
           <QuincenaSetting />
+
+          <section className="card">
+            <p className="label">{t('setupSection')}</p>
+            <p className="sub">{t('redoSetupHint')}</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={busy}
+                onClick={startOnboarding}
+              >
+                {t('redoSetup')}
+              </button>
+            </div>
+          </section>
 
           <section className="card">
             <p className="label">{t('manage')}</p>
@@ -282,7 +332,13 @@ export default function SettingsScreen() {
                   type="button"
                   className="btn secondary"
                   disabled={busy}
-                  onClick={() => run(loadSampleData)}
+                  onClick={async () => {
+                    const { confirmed } = await confirm({
+                      message: t('loadSampleConfirm'),
+                      confirmLabel: t('loadSample'),
+                    })
+                    if (confirmed) run(loadSampleData)
+                  }}
                 >
                   {t('loadSample')}
                 </button>

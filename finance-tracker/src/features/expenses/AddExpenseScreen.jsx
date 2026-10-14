@@ -27,9 +27,9 @@ import PaymentPills from '../../components/PaymentPills'
 const FUTURE_DAYS_LIMIT = 3
 
 // The currency of the last transaction added, if it is still a known one
-function lastCurrency() {
+function lastCurrency(fallback) {
   const saved = readPref('lastCurrency')
-  return currencies.some((c) => c.code === saved) ? saved : 'CRC'
+  return currencies.some((c) => c.code === saved) ? saved : fallback
 }
 
 // The payment method of the last transaction added (cash if none saved)
@@ -64,6 +64,7 @@ export default function AddExpenseScreen() {
     addCategory,
     recurring,
     quincenaSchedule,
+    profile,
     confirmRecurring,
     addSavingsMove,
     addIncomeWithSavings,
@@ -83,7 +84,7 @@ export default function AddExpenseScreen() {
     source?.type ?? (params.get('type') === 'income' ? 'income' : 'expense'),
   )
   const [currency, setCurrency] = useState(() =>
-    source ? source.currency : lastCurrency(),
+    source ? source.currency : lastCurrency(profile.currency),
   )
   // an edit or a repeat keeps its method; a new entry starts with the last used
   const [paymentMethod, setPaymentMethod] = useState(() =>

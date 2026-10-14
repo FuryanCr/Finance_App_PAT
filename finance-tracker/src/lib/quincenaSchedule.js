@@ -5,6 +5,10 @@
 //   { from, mode: 'fixed',   day1: 1, day2: 16 }  15/30: days 1 and 16
 //   { from, mode: 'paydays', day1: 5, day2: 20 }  the person's pay days;
 //                                                 day2 may be null (one a month)
+//   { from, mode: 'manual' }                       pay days that move: a
+//                                                 quincena starts on `from`,
+//                                                 the day the person says they
+//                                                 were paid (day1/day2 unused)
 // A quincena STARTS on a pay day and lasts until the day before the next one.
 // If the month is too short for a day (31 in April, 30 in February) the last
 // day of the month is used. Changing the schedule adds an entry that takes
@@ -13,6 +17,10 @@
 export const DEFAULT_SCHEDULE = [
   { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
 ]
+
+// A manual quincena has no known end until the next payment is registered:
+// it is counted as this many days (and stays open if the payment is late)
+export const MANUAL_QUINCENA_DAYS = 15
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -33,9 +41,13 @@ function cleanEntry(entry) {
   if (!entry || typeof entry.from !== 'string' || !DAY.test(entry.from)) {
     return null
   }
-  if (Number.isNaN(fromText(entry.from).getTime())) return null
+  // a date that does not exist (2026-02-31, 2026-13-45) would roll over
+  if (ymd(fromText(entry.from)) !== entry.from) return null
   if (entry.mode === 'fixed') {
     return { from: entry.from, mode: 'fixed', day1: 1, day2: 16 }
+  }
+  if (entry.mode === 'manual') {
+    return { from: entry.from, mode: 'manual', day1: 1, day2: null }
   }
   if (entry.mode !== 'paydays' || !isDay(entry.day1)) return null
   const day2 = isDay(entry.day2) ? entry.day2 : null
@@ -52,7 +64,10 @@ export function normalizeSchedule(list) {
     if (entry) byDate.set(entry.from, entry)
   }
   const entries = [...byDate.values()].sort((a, b) => a.from.localeCompare(b.from))
-  return entries.length > 0 ? entries : DEFAULT_SCHEDULE
+  if (entries.length === 0) return DEFAULT_SCHEDULE
+  // a manual start needs the old way of cutting before it: without it the
+  // days before that start would fall in a quincena that begins in the future
+  return entries[0].mode === 'manual' ? [DEFAULT_SCHEDULE[0], ...entries] : entries
 }
 
 // The entry in force on a date; before the first one, the first one
@@ -90,6 +105,30 @@ export function rangeFor(date = new Date(), schedule = DEFAULT_SCHEDULE) {
   const index = entryIndexAt(schedule, date)
   const entry = schedule[index]
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+  // manual: it starts on the day the person was paid and ends the day before
+  // the next registered payment; the last one is open (see MANUAL_QUINCENA_DAYS)
+  if (entry.mode === 'manual') {
+    const first = fromText(entry.from)
+    const next = schedule[index + 1]
+    let last
+    if (next) {
+      const limit = fromText(next.from)
+      last = new Date(limit.getFullYear(), limit.getMonth(), limit.getDate() - 1)
+    } else {
+      last = new Date(
+        first.getFullYear(),
+        first.getMonth(),
+        first.getDate() + MANUAL_QUINCENA_DAYS - 1,
+      )
+      if (last < day) last = day
+    }
+    return {
+      start: first,
+      end: new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59),
+    }
+  }
+
   const paydays = paydayDates(entry, day)
 
   let start = paydays[0]
@@ -118,12 +157,39 @@ export function rangeFor(date = new Date(), schedule = DEFAULT_SCHEDULE) {
   }
 }
 
+// How many quincenas started earlier in the same month as `start`
+function startedBefore(start, schedule) {
+  let count = 0
+  let cursor = start
+  for (let i = 0; i < 5; i++) {
+    const day = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 1)
+    const previous = rangeFor(day, schedule).start
+    if (
+      previous.getFullYear() !== start.getFullYear() ||
+      previous.getMonth() !== start.getMonth() ||
+      previous >= cursor
+    ) {
+      break
+    }
+    count++
+    cursor = previous
+  }
+  return count
+}
+
 // The kind of month position of the quincena of a date, for monthly items:
 // 'first' or 'second' of the month, or 'both' when there is one pay day a
 // month (a monthly item is then due every time)
 export function halfOf(date = new Date(), schedule = DEFAULT_SCHEDULE) {
   const entry = schedule[entryIndexAt(schedule, date)]
   const { start } = rangeFor(date, schedule)
+  // manual: by its place among the quincenas that started in the same month
+  // (the first is 'first', the next 'second'; a third has no monthly items,
+  // 'extra'), so a monthly item is never due twice in a month
+  if (entry.mode === 'manual') {
+    const before = startedBefore(start, schedule)
+    return before === 0 ? 'first' : before === 1 ? 'second' : 'extra'
+  }
   const days = paydaysOf(entry, start.getFullYear(), start.getMonth())
   if (days.length < 2) return 'both'
   return start.getDate() >= days[1] ? 'second' : 'first'
@@ -168,4 +234,62 @@ export function describeSchedule(schedule, today = new Date()) {
   const index = entryIndexAt(list, today)
   const pending = list.find((entry) => entry.from > ymd(today)) ?? null
   return { current: list[index], pending }
+}
+
+// True when the quincena of a date is a manual one with no payment
+// registered after it: its end is not known
+export function isOpenManual(schedule, date = new Date()) {
+  const list = normalizeSchedule(schedule)
+  const index = entryIndexAt(list, date)
+  return list[index].mode === 'manual' && !list[index + 1]
+}
+
+// Whether the quincena in force is manual, since when, and whether the next
+// payment is late (the open quincena already lasts more than
+// MANUAL_QUINCENA_DAYS). overdue is false when the schedule is not manual.
+export function manualState(schedule, today = new Date()) {
+  const list = normalizeSchedule(schedule)
+  const entry = list[entryIndexAt(list, today)]
+  if (entry.mode !== 'manual') return { active: false, since: null, overdue: false }
+  const { end } = rangeFor(today, list)
+  const open = !list[entryIndexAt(list, today) + 1]
+  const lastExpected = fromText(entry.from)
+  lastExpected.setDate(lastExpected.getDate() + MANUAL_QUINCENA_DAYS - 1)
+  return {
+    active: true,
+    since: entry.from,
+    overdue: open && ymd(end) > ymd(lastExpected),
+  }
+}
+
+// "I was paid": a new quincena starts on `dateText` (YYYY-MM-DD). Returns
+//   { ok: true, schedule }  the new schedule (the same one if that date is
+//                           already the start of the manual quincena)
+//   { ok: false, reason }   'invalid' (not a date) or 'early' (before the
+//                           quincena in progress began: that would move
+//                           quincenas already lived)
+// A date after today is allowed: it is the next payment, and the new quincena
+// starts that day (until then the one in progress goes on).
+// The quincena before ends the day before. A change that was waiting to take
+// effect is dropped. Works from any mode: the first time it switches to manual.
+export function registerPayday(schedule, dateText, today = new Date()) {
+  if (typeof dateText !== 'string' || !DAY.test(dateText)) {
+    return { ok: false, reason: 'invalid' }
+  }
+  if (Number.isNaN(fromText(dateText).getTime()) || ymd(fromText(dateText)) !== dateText) {
+    return { ok: false, reason: 'invalid' }
+  }
+  const todayText = ymd(today)
+
+  const current = normalizeSchedule(schedule)
+  const kept = current.filter((entry, index) => index === 0 || entry.from <= todayText)
+  const { start } = rangeFor(today, kept)
+  if (dateText < ymd(start)) return { ok: false, reason: 'early' }
+
+  const inForce = kept[kept.length - 1]
+  if (inForce.mode === 'manual' && inForce.from === dateText) {
+    return { ok: true, schedule: kept }
+  }
+  const next = normalizeSchedule([...kept, { from: dateText, mode: 'manual' }])
+  return { ok: true, schedule: next }
 }
