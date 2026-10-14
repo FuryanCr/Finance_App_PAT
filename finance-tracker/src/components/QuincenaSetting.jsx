@@ -16,7 +16,6 @@ const isDay = (day) => day !== null && day >= 1 && day <= 31
 
 const PAID_ERRORS = {
   invalid: 'quincenaPaidInvalid',
-  future: 'quincenaPaidFuture',
   early: 'quincenaPaidEarly',
 }
 
@@ -211,7 +210,6 @@ export default function QuincenaSetting({ embedded = false, initial, onChange })
             <span className="label">{t('quincenaPaidOn')}</span>
             <input
               type="date"
-              max={todayString(today)}
               value={paidOn}
               aria-invalid={paidError !== null}
               aria-describedby={paidError ? 'quincena-paid-error' : undefined}

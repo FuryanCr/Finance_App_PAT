@@ -228,9 +228,11 @@ export function manualState(schedule, today = new Date()) {
 // "I was paid": a new quincena starts on `dateText` (YYYY-MM-DD). Returns
 //   { ok: true, schedule }  the new schedule (the same one if that date is
 //                           already the start of the manual quincena)
-//   { ok: false, reason }   'invalid' (not a date), 'future' (after today) or
-//                           'early' (before the quincena in progress began:
-//                           that would move quincenas already lived)
+//   { ok: false, reason }   'invalid' (not a date) or 'early' (before the
+//                           quincena in progress began: that would move
+//                           quincenas already lived)
+// A date after today is allowed: it is the next payment, and the new quincena
+// starts that day (until then the one in progress goes on).
 // The quincena before ends the day before. A change that was waiting to take
 // effect is dropped. Works from any mode: the first time it switches to manual.
 export function registerPayday(schedule, dateText, today = new Date()) {
@@ -241,7 +243,6 @@ export function registerPayday(schedule, dateText, today = new Date()) {
     return { ok: false, reason: 'invalid' }
   }
   const todayText = ymd(today)
-  if (dateText > todayText) return { ok: false, reason: 'future' }
 
   const current = normalizeSchedule(schedule)
   const kept = current.filter((entry, index) => index === 0 || entry.from <= todayText)

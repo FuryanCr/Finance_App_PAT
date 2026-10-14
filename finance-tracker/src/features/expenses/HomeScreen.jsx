@@ -128,7 +128,12 @@ export default function HomeScreen() {
   // "I was paid": a new quincena starts on that day (today unless another
   // date was typed); a date that would move the past is explained, not saved
   const registerPaid = (dateText) => {
-    const result = registerPayday(quincenaSchedule, dateText, today)
+    // here the person says they WERE paid: a day that has not come is an error
+    // (in Settings and the welcome a future day is the next payment)
+    const result =
+      dateText > todayString(today)
+        ? { ok: false, reason: 'future' }
+        : registerPayday(quincenaSchedule, dateText, today)
     if (!result.ok) {
       setPaidError(result.reason)
       return

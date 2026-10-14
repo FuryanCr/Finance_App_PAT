@@ -198,13 +198,13 @@ export const translations = {
     quincenaModePaydays: 'Mis días de pago',
     quincenaPayDays: 'Días de pago',
     quincenaModeManual: 'Sin día fijo',
-    quincenaPaidOn: 'Día en que te pagaron',
+    quincenaPaidOn: 'Día de pago (el último o el próximo)',
     quincenaPaidInvalid: 'Escribe una fecha válida.',
-    quincenaPaidFuture: 'Esa fecha todavía no llega.',
+    quincenaPaidFuture: 'Aquí marca un pago que ya recibiste. Para uno futuro usa Ajustes.',
     quincenaPaidEarly:
       'Esa fecha es anterior a esta quincena: movería quincenas que ya viviste. Elige un día de la quincena en curso.',
     quincenaManualNote:
-      'La quincena empieza el día que te pagan y termina el día antes del siguiente pago. Mientras no registres el próximo, se cuenta de 15 días.',
+      'La quincena empieza el día de pago y termina el día antes del siguiente. Si pones una fecha futura (por ejemplo, mañana), la quincena actual sigue hasta ese día. Mientras no registres el próximo pago, se cuenta de 15 días.',
     manualPaidToday: 'Me pagaron hoy',
     manualPaidOther: 'Otra fecha',
     manualPaidRegister: 'Registrar pago',
@@ -485,13 +485,13 @@ export const translations = {
     quincenaModePaydays: 'My pay days',
     quincenaPayDays: 'Pay days',
     quincenaModeManual: 'No fixed day',
-    quincenaPaidOn: 'Day you were paid',
+    quincenaPaidOn: 'Pay day (the last or the next one)',
     quincenaPaidInvalid: 'Type a valid date.',
-    quincenaPaidFuture: 'That date has not come yet.',
+    quincenaPaidFuture: 'Mark a payment you already received here. For a future one use Settings.',
     quincenaPaidEarly:
       'That date is before this quincena: it would move quincenas you already lived. Pick a day of the quincena in progress.',
     quincenaManualNote:
-      'The quincena starts the day you are paid and ends the day before the next payment. Until you register the next one, it counts as 15 days.',
+      'The quincena starts on the pay day and ends the day before the next one. If you pick a future date (for example, tomorrow), the current quincena goes on until then. Until you register the next payment, it counts as 15 days.',
     manualPaidToday: 'I was paid today',
     manualPaidOther: 'Another date',
     manualPaidRegister: 'Register payment',

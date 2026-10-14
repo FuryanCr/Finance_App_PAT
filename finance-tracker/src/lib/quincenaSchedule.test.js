@@ -385,10 +385,11 @@ describe('registerPayday', () => {
     expect(registerPayday(first, '2026-10-11', today)).toEqual({ ok: true, schedule: first })
   })
 
-  it('rejects bad, future and too early dates', () => {
+  it('rejects bad and too early dates, and accepts a future one', () => {
     expect(registerPayday(DEFAULT_SCHEDULE, 'ayer', today)).toEqual({ ok: false, reason: 'invalid' })
     expect(registerPayday(DEFAULT_SCHEDULE, '2026-02-30', today)).toEqual({ ok: false, reason: 'invalid' })
-    expect(registerPayday(DEFAULT_SCHEDULE, '2026-10-14', today)).toEqual({ ok: false, reason: 'future' })
+    // tomorrow is allowed: it is the next payment
+    expect(registerPayday(DEFAULT_SCHEDULE, '2026-10-14', today).ok).toBe(true)
     // before the quincena in progress began (Oct 1): would move the past
     expect(registerPayday(DEFAULT_SCHEDULE, '2026-09-28', today)).toEqual({ ok: false, reason: 'early' })
     const first = registerPayday(DEFAULT_SCHEDULE, '2026-10-11', today).schedule
@@ -399,5 +400,17 @@ describe('registerPayday', () => {
     const waiting = [...DEFAULT_SCHEDULE, { from: '2026-11-01', mode: 'paydays', day1: 5, day2: 20 }]
     const result = registerPayday(waiting, '2026-10-12', today)
     expect(result.schedule.map((e) => e.from)).toEqual(['2000-01-01', '2026-10-12'])
+  })
+})
+
+describe('registerPayday with a future payment', () => {
+  const today = at(2026, 10, 13)
+
+  it('keeps the quincena in progress until the paid day, then starts the new one', () => {
+    const result = registerPayday(DEFAULT_SCHEDULE, '2026-10-14', today)
+    expect(result.ok).toBe(true)
+    expect(span(today, result.schedule)).toEqual(['2026-10-01', '2026-10-13'])
+    expect(span(at(2026, 10, 14), result.schedule)[0]).toBe('2026-10-14')
+    expect(describeSchedule(result.schedule, today).pending.from).toBe('2026-10-14')
   })
 })
