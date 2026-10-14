@@ -320,6 +320,17 @@ function importLegacyDataOnce(db) {
 }
 // --- End of legacy import --------------------------------------------------
 
+// The whole schedule: the 15/30 and pay-day rows plus the days marked as paid
+async function readSchedule(db) {
+  const rows = (
+    await db.query('SELECT * FROM quincena_config ORDER BY effective_from')
+  ).values.map(toScheduleEntry)
+  const manual = (await db.query('SELECT start_date FROM quincena_manual')).values.map(
+    (row) => ({ from: row.start_date, mode: 'manual', day1: 1, day2: null }),
+  )
+  return normalizeSchedule([...rows, ...manual])
+}
+
 async function readAll(db) {
   const categories = await db.query('SELECT * FROM categories ORDER BY id')
   const transactions = await db.query('SELECT * FROM transactions ORDER BY id')
@@ -328,9 +339,6 @@ async function readAll(db) {
   )
   const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
   const savings = await db.query('SELECT * FROM savings ORDER BY id')
-  const schedule = await db.query(
-    'SELECT * FROM quincena_config ORDER BY effective_from',
-  )
   const profile = await db.query('SELECT * FROM profile WHERE id = 1')
   return {
     profile: toProfile(profile.values[0]),
@@ -339,14 +347,23 @@ async function readAll(db) {
     budgets: budgets.values.map(toBudget),
     recurring: recurring.values.map(toRecurring),
     savings: savings.values.map(toSavingsMove),
-    quincenaSchedule: normalizeSchedule(schedule.values.map(toScheduleEntry)),
+    quincenaSchedule: await readSchedule(db),
   }
 }
 
 // Replaces the schedule rows; the caller runs this inside a transaction
 async function writeSchedule(db, schedule) {
   await db.run('DELETE FROM quincena_config', [], false)
+  await db.run('DELETE FROM quincena_manual', [], false)
   for (const entry of normalizeSchedule(schedule)) {
+    if (entry.mode === 'manual') {
+      await db.run(
+        'INSERT INTO quincena_manual (start_date) VALUES (?)',
+        [entry.from],
+        false,
+      )
+      continue
+    }
     await db.run(
       `INSERT INTO quincena_config (effective_from, mode, day1, day2)
         VALUES (?, ?, ?, ?)`,
@@ -792,9 +809,7 @@ export function insertIncomeWithSavings(tx, move) {
 export function saveQuincenaSchedule(schedule) {
   return enqueue(async () => {
     const db = await getDb()
-    const before = (
-      await db.query('SELECT * FROM quincena_config ORDER BY effective_from')
-    ).values.map(toScheduleEntry)
+    const before = await readSchedule(db)
     await inTransaction(db, () => writeSchedule(db, schedule))
     await persistOrUndo(() => inTransaction(db, () => writeSchedule(db, before)))
     return normalizeSchedule(schedule)
@@ -816,9 +831,7 @@ export function completeOnboarding({
     const db = await getDb()
     const before = {
       profile: await readProfile(db),
-      schedule: (
-        await db.query('SELECT * FROM quincena_config ORDER BY effective_from')
-      ).values.map(toScheduleEntry),
+      schedule: await readSchedule(db),
       recurring: update
         ? (await db.query('SELECT * FROM recurring WHERE id = ?', [update.id]))
             .values[0]

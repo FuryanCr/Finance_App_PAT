@@ -31,8 +31,8 @@ describe('runMigrations on a new database', () => {
   it('ends at the latest version with every table and the date index', async () => {
     await runMigrations(db)
 
-    expect(migrations).toHaveLength(7)
-    expect(await version()).toBe(7)
+    expect(migrations).toHaveLength(8)
+    expect(await version()).toBe(8)
     const tables = await tableNames()
     for (const table of ['categories', 'transactions', 'budgets', 'recurring', 'savings']) {
       expect(tables).toContain(table)
@@ -69,7 +69,7 @@ describe('runMigrations on a new database', () => {
 
     await expect(runMigrations(db)).resolves.toBeUndefined()
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     expect(await rows('SELECT * FROM categories ORDER BY id')).toEqual(before)
   })
 })
@@ -85,7 +85,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['budgets', 'recurring', 'savings']),
     )
@@ -111,7 +111,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['recurring', 'savings']),
     )
@@ -135,7 +135,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     expect(await tableNames()).toContain('savings')
     expect(await rows('SELECT * FROM savings')).toEqual([])
     expect(await rows('SELECT amount_cents FROM transactions')).toEqual([
@@ -192,7 +192,7 @@ describe('upgrading from version 4 (payment method, v5)', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     const transactions = await rows(
       'SELECT id, amount_cents, currency, type, category_id, note, date, payment_method FROM transactions ORDER BY id',
     )
@@ -258,7 +258,7 @@ describe('upgrading from version 4 (payment method, v5)', () => {
     await runMigrations(db)
     await db.run("UPDATE transactions SET payment_method = 'card' WHERE id = 1")
     await runMigrations(db)
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     expect(await rows('SELECT payment_method FROM transactions WHERE id = 1')).toEqual([
       { payment_method: 'card' },
     ])
@@ -284,7 +284,7 @@ describe('upgrading from version 5 (configurable quincena, v6)', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     for (const table of tables) {
       expect(await rows(`SELECT * FROM ${table} ORDER BY 1`)).toEqual(before[table])
     }
@@ -346,7 +346,7 @@ describe('upgrading from version 6 (profile and first-use screen, v7)', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(7)
+    expect(await version()).toBe(8)
     const [profile] = await profileRows()
     expect(profile.id).toBe(1)
     expect(profile.onboarded_at).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -580,5 +580,55 @@ describe('a migration that fails part-way', () => {
 
     expect(await version()).toBe(1)
     expect(await tableNames()).not.toContain('budgets')
+  })
+})
+
+describe('upgrading from version 7 (manual pay days, v8)', () => {
+  const config = () => rows('SELECT * FROM quincena_config ORDER BY effective_from')
+
+  it('adds an empty table and leaves every other row untouched', async () => {
+    await fillVersion6()
+    await runMigrations(db, migrations.slice(0, 7))
+    await db.run(
+      `INSERT INTO quincena_config (effective_from, mode, day1, day2)
+        VALUES ('2026-06-01', 'paydays', 5, 20), ('2026-09-01', 'paydays', 30, NULL)`,
+    )
+    const tables = [
+      'categories', 'transactions', 'budgets', 'recurring', 'savings', 'quincena_config', 'profile',
+    ]
+    const before = {}
+    for (const table of tables) {
+      before[table] = await rows(`SELECT * FROM ${table} ORDER BY 1`)
+    }
+    expect(await version()).toBe(7)
+
+    await runMigrations(db)
+
+    expect(await version()).toBe(8)
+    for (const table of tables) {
+      expect(await rows(`SELECT * FROM ${table} ORDER BY 1`)).toEqual(before[table])
+    }
+    expect(await config()).toHaveLength(3)
+    expect(await rows('SELECT * FROM quincena_manual')).toEqual([])
+  })
+
+  it('stores start dates, once each, and rejects things that are not dates', async () => {
+    await runMigrations(db)
+    const add = (date) => db.run('INSERT INTO quincena_manual (start_date) VALUES (?)', [date])
+    await expect(add('2026-10-11')).resolves.toBeDefined()
+    await expect(add('2026-10-26')).resolves.toBeDefined()
+    await expect(add('2026-10-11')).rejects.toThrow()
+    await expect(add('ayer')).rejects.toThrow()
+    await expect(add(null)).rejects.toThrow()
+    expect(
+      (await rows('SELECT start_date FROM quincena_manual ORDER BY 1')).map((r) => r.start_date),
+    ).toEqual(['2026-10-11', '2026-10-26'])
+  })
+
+  it('does not run again on a database that is already at version 8', async () => {
+    await runMigrations(db)
+    await db.run("INSERT INTO quincena_manual VALUES ('2026-10-11')")
+    await runMigrations(db)
+    expect(await rows('SELECT * FROM quincena_manual')).toHaveLength(1)
   })
 })

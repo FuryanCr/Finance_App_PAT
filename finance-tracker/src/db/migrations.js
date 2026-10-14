@@ -137,6 +137,17 @@ export const migrations = [
       false,
     )
   },
+  // v8: the days a manual quincena started (the person marked "I was paid"
+  // that day). They live in their own table, not in quincena_config, whose
+  // CHECK only allows 'fixed' and 'paydays' and cannot be changed in place.
+  async (db) => {
+    await db.execute(
+      `CREATE TABLE quincena_manual (
+        start_date TEXT PRIMARY KEY NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
+      );`,
+      false,
+    )
+  },
 ]
 
 export async function runMigrations(db, list = migrations) {

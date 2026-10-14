@@ -299,3 +299,24 @@ describe('completeOnboarding with new categories', () => {
     expect((await storage.loadAll()).categories.filter((c) => c.name)).toEqual([])
   })
 })
+
+describe('manual quincena schedule', () => {
+  const manual = [
+    DEFAULT_SCHEDULE[0],
+    { from: '2026-10-11', mode: 'manual', day1: 1, day2: null },
+    { from: '2026-10-26', mode: 'manual', day1: 1, day2: null },
+  ]
+
+  it('is saved, read back and restored from a backup', async () => {
+    expect(await storage.saveQuincenaSchedule(manual)).toEqual(manual)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(manual)
+    const state = await storage.restoreAll({ ...base, quincenaSchedule: manual })
+    expect(state.quincenaSchedule).toEqual(manual)
+  })
+
+  it('goes back to 15/30 when everything is cleared', async () => {
+    await storage.saveQuincenaSchedule(manual)
+    await storage.clearAll()
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+})
