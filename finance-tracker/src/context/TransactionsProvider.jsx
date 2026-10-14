@@ -16,6 +16,7 @@ import {
   insertTransactions,
   loadAll,
   restoreAll,
+  saveQuincenaSchedule as storeQuincenaSchedule,
   setBudget as saveBudget,
   skipRecurring as saveSkippedRecurring,
   updateCategory as replaceCategory,
@@ -25,6 +26,7 @@ import {
 import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
+import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
 import { sampleTransactions } from '../lib/sample'
 import StatusScreen from '../components/StatusScreen'
 import { useSettings } from './useSettings'
@@ -39,6 +41,7 @@ export default function TransactionsProvider({ children }) {
   const [budgets, setBudgets] = useState([])
   const [recurring, setRecurring] = useState([])
   const [savings, setSavings] = useState([])
+  const [quincenaSchedule, setQuincenaSchedule] = useState(DEFAULT_SCHEDULE)
   const [loading, setLoading] = useState(true)
   // false, 'failed' (the database could not be opened) or 'timeout'
   const [error, setError] = useState(false)
@@ -73,6 +76,7 @@ export default function TransactionsProvider({ children }) {
         setBudgets(data.budgets)
         setRecurring(data.recurring)
         setSavings(data.savings)
+        setQuincenaSchedule(data.quincenaSchedule)
         setLoading(false)
       })
       .catch((err) => {
@@ -174,7 +178,7 @@ export default function TransactionsProvider({ children }) {
 
   // handled for this quincena, without adding anything
   const skipRecurring = async (item) => {
-    const period = quincenaKey()
+    const period = quincenaKey(new Date(), quincenaSchedule)
     await saveSkippedRecurring(item.id, period)
     setRecurring((current) =>
       current.map((existing) =>
@@ -187,7 +191,7 @@ export default function TransactionsProvider({ children }) {
   // Without tx it is built from the item and dated today; with tx (what the
   // user typed) that is saved instead. Returns the saved transaction.
   const confirmRecurring = async (item, tx) => {
-    const period = quincenaKey()
+    const period = quincenaKey(new Date(), quincenaSchedule)
     const toSave = tx ?? {
       amount: item.amount,
       currency: item.currency,
@@ -247,6 +251,13 @@ export default function TransactionsProvider({ children }) {
     setBudgets(state.budgets)
     setRecurring(state.recurring)
     setSavings(state.savings)
+    setQuincenaSchedule(state.quincenaSchedule)
+  }
+
+  // the new way to cut the quincena (see lib/quincenaSchedule changeSchedule)
+  const saveQuincenaSchedule = async (schedule) => {
+    const saved = await storeQuincenaSchedule(schedule)
+    setQuincenaSchedule(saved)
   }
 
   // screens never see a half-loaded state
@@ -298,6 +309,8 @@ export default function TransactionsProvider({ children }) {
         savings,
         addSavingsMove,
         deleteSavingsMove,
+        quincenaSchedule,
+        saveQuincenaSchedule,
         addIncomeWithSavings,
         loadSampleData,
         clearAllData,

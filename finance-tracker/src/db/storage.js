@@ -3,6 +3,7 @@ import { getDb, persist } from './database'
 import { customColorAt, customColors } from '../lib/categories'
 import { isValidDate } from '../lib/dates'
 import { normalizePaymentMethod } from '../lib/payment'
+import { DEFAULT_SCHEDULE, normalizeSchedule } from '../lib/quincenaSchedule'
 import { MAX_CENTS, isValidAmount } from '../lib/money'
 
 // Same bound as the backup ids: above it new ids could repeat
@@ -64,6 +65,15 @@ function toSavingsMove(row) {
     direction: row.direction,
     note: row.note,
     date: row.date,
+  }
+}
+
+function toScheduleEntry(row) {
+  return {
+    from: row.effective_from,
+    mode: row.mode,
+    day1: row.day1,
+    day2: row.day2,
   }
 }
 
@@ -296,12 +306,29 @@ async function readAll(db) {
   )
   const recurring = await db.query('SELECT * FROM recurring ORDER BY id')
   const savings = await db.query('SELECT * FROM savings ORDER BY id')
+  const schedule = await db.query(
+    'SELECT * FROM quincena_config ORDER BY effective_from',
+  )
   return {
     transactions: transactions.values.map(toTransaction),
     categories: categories.values.map(toCategory),
     budgets: budgets.values.map(toBudget),
     recurring: recurring.values.map(toRecurring),
     savings: savings.values.map(toSavingsMove),
+    quincenaSchedule: normalizeSchedule(schedule.values.map(toScheduleEntry)),
+  }
+}
+
+// Replaces the schedule rows; the caller runs this inside a transaction
+async function writeSchedule(db, schedule) {
+  await db.run('DELETE FROM quincena_config', [], false)
+  for (const entry of normalizeSchedule(schedule)) {
+    await db.run(
+      `INSERT INTO quincena_config (effective_from, mode, day1, day2)
+        VALUES (?, ?, ?, ?)`,
+      [entry.from, entry.mode, entry.day1, entry.day2],
+      false,
+    )
   }
 }
 
@@ -367,6 +394,8 @@ export function restoreAll(data) {
           false,
         )
       }
+      // a backup without the setting is 15/30
+      await writeSchedule(db, data.quincenaSchedule ?? DEFAULT_SCHEDULE)
     })
     await persist()
     return readAll(db)
@@ -691,5 +720,18 @@ export function insertIncomeWithSavings(tx, move) {
       await db.run('DELETE FROM savings WHERE id = ?', [saved.move.id])
     })
     return saved
+  })
+}
+
+// Saves the whole schedule (the list is short: one entry per change)
+export function saveQuincenaSchedule(schedule) {
+  return enqueue(async () => {
+    const db = await getDb()
+    const before = (
+      await db.query('SELECT * FROM quincena_config ORDER BY effective_from')
+    ).values.map(toScheduleEntry)
+    await inTransaction(db, () => writeSchedule(db, schedule))
+    await persistOrUndo(() => inTransaction(db, () => writeSchedule(db, before)))
+    return normalizeSchedule(schedule)
   })
 }

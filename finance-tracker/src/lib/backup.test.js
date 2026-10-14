@@ -9,6 +9,7 @@ import {
   parseBackup,
   summarizeCounts,
 } from './backup'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 
 const builtIn = [
   { id: 1, key: 'food', color: 'orange' },
@@ -77,6 +78,52 @@ describe('parseBackup', () => {
       budgets: state.budgets,
       recurring: state.recurring,
       savings: state.savings,
+      quincenaSchedule: DEFAULT_SCHEDULE,
+    })
+  })
+
+  describe('quincena schedule', () => {
+    const custom = [
+      { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+      { from: '2026-10-16', mode: 'paydays', day1: 5, day2: 20 },
+    ]
+
+    it('is written to the backup and read back', () => {
+      const backup = buildBackup({ ...state, quincenaSchedule: custom }, now)
+      expect(backup.quincenaSchedule).toEqual(custom)
+      expect(backup.version).toBe(1)
+      const result = parseBackup(JSON.stringify(backup), builtIn)
+      expect(result.quincenaSchedule).toEqual(custom)
+    })
+
+    it('reads an old backup without it as 15/30', () => {
+      const old = JSON.parse(file())
+      delete old.quincenaSchedule
+      const result = parseBackup(JSON.stringify(old), builtIn)
+      expect(result).not.toBeNull()
+      expect(result.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+      expect(result.transactions).toEqual(state.transactions)
+    })
+
+    it('reads a damaged one as 15/30 and does not count it in the lists', () => {
+      for (const bad of [null, 'x', 5, [], [{ mode: 'weekly' }], {}]) {
+        const inspected = inspectBackup(file({ quincenaSchedule: bad }), builtIn)
+        expect(inspected.ok).toBe(true)
+        expect(inspected.data.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+        expect(Object.keys(inspected.counts)).toEqual([
+          'categories',
+          'transactions',
+          'budgets',
+          'recurring',
+          'savings',
+        ])
+      }
+    })
+
+    it('keeps the "handled in" mark of a recurring item made with pay days', () => {
+      const item = { ...validRecurring, lastPeriod: '2026-10-05' }
+      const result = parse({ recurring: [item] })
+      expect(result.recurring[0].lastPeriod).toBe('2026-10-05')
     })
   })
 
@@ -188,6 +235,7 @@ describe('parseBackup', () => {
       budgets: [],
       recurring: [],
       savings: [],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
   })
 

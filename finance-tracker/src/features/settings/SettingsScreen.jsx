@@ -29,6 +29,7 @@ export default function SettingsScreen() {
     budgets,
     recurring,
     savings,
+    quincenaSchedule,
     loadSampleData,
     clearAllData,
     restoreData,
@@ -80,6 +81,7 @@ export default function SettingsScreen() {
       budgets,
       recurring,
       savings,
+      quincenaSchedule,
     })
     downloadFile(name, JSON.stringify(backup, null, 2), 'application/json')
   }

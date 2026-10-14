@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runMigrations } from './migrations'
 import { createTestDb } from './testDb'
+import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
 
 // storage.js gets its connection from ./database, which needs the browser.
 // The mock hands out whatever database the current test put in `current`.
@@ -592,6 +593,72 @@ describe('savings', () => {
   })
 })
 
+describe('quincena schedule', () => {
+  const custom = [
+    { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+    { from: '2026-10-16', mode: 'paydays', day1: 5, day2: 20 },
+  ]
+
+  it('is 15/30 on a database that was just migrated', async () => {
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+
+  it('is saved and read back, and persisted', async () => {
+    const saved = await storage.saveQuincenaSchedule(custom)
+    expect(saved).toEqual(custom)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    expect(current.persist).toHaveBeenCalledTimes(1)
+    await noPending()
+  })
+
+  it('does not touch transactions, savings or recurring items', async () => {
+    await storage.insertTransaction(tx({ date: '2026-10-03' }))
+    await storage.insertRecurring(recurringItem({ schedule: 'second' }))
+    await storage.insertSavingsMove(move())
+    const before = await storage.loadAll()
+
+    await storage.saveQuincenaSchedule(custom)
+
+    const after = await storage.loadAll()
+    expect(after.transactions).toEqual(before.transactions)
+    expect(after.recurring).toEqual(before.recurring)
+    expect(after.savings).toEqual(before.savings)
+  })
+
+  it('restores the previous schedule when the copy to disk fails', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    current.persist.mockRejectedValueOnce(new Error('disk'))
+    await expect(
+      storage.saveQuincenaSchedule(DEFAULT_SCHEDULE),
+    ).rejects.toThrow('disk')
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    await noPending()
+  })
+
+  it('reads damaged rows as 15/30', async () => {
+    await current.db.run('DELETE FROM quincena_config')
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+
+  it('stays when everything is cleared', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    await storage.clearAll()
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+  })
+
+  it('is replaced by the one in a backup, and is 15/30 when the backup has none', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    const base = { categories: [], transactions: [], budgets: [], recurring: [] }
+
+    const withIt = await storage.restoreAll({ ...base, quincenaSchedule: [custom[0], { from: '2026-12-01', mode: 'paydays', day1: 10, day2: null }] })
+    expect(withIt.quincenaSchedule.map((e) => e.day1)).toEqual([1, 10])
+
+    const without = await storage.restoreAll({ ...base, savings: [] })
+    expect(without.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+})
+
 describe('clearAll', () => {
   it('removes everything the user added and keeps the built-in categories', async () => {
     const { id } = await storage.insertCategory({ name: 'Pets', color: 'cyan' })
@@ -609,6 +676,7 @@ describe('clearAll', () => {
       budgets: [],
       recurring: [],
       savings: [],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
   })
 })
@@ -659,6 +727,7 @@ describe('restoreAll', () => {
       recurring: expected.recurring,
       // ordered by id
       savings: [expected.savings[1], expected.savings[0]],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
     expect(await storage.loadAll()).toEqual(result)
     expect(await rows('SELECT amount_cents FROM transactions WHERE id = 20')).toEqual([

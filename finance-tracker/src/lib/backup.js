@@ -2,6 +2,7 @@ import { categoryColors, findCategoryByName } from './categories'
 import { daysBetween, isValidDate, parseDate } from './dates'
 import { currencies, isValidAmount } from './money'
 import { normalizePaymentMethod } from './payment'
+import { DEFAULT_SCHEDULE, normalizeSchedule } from './quincenaSchedule'
 import { schedules } from './recurring'
 
 const currencyCodes = currencies.map((c) => c.code)
@@ -10,7 +11,14 @@ const types = ['income', 'expense']
 // Everything the user has entered, as one JSON-friendly object.
 // Built-in categories are not included: every install already has them.
 export function buildBackup(
-  { transactions, categories, budgets, recurring, savings = [] },
+  {
+    transactions,
+    categories,
+    budgets,
+    recurring,
+    savings = [],
+    quincenaSchedule = DEFAULT_SCHEDULE,
+  },
   now = new Date(),
 ) {
   return {
@@ -24,6 +32,7 @@ export function buildBackup(
     budgets,
     recurring,
     savings,
+    quincenaSchedule,
   }
 }
 
@@ -115,7 +124,8 @@ function cleanRecurring(item, knownIds) {
   const entry = cleanEntry(item, knownIds)
   if (!entry || !schedules.includes(item.schedule)) return null
   const validPeriod =
-    typeof item.lastPeriod === 'string' && /^\d{4}-\d{2}-[12]$/.test(item.lastPeriod)
+    typeof item.lastPeriod === 'string' &&
+    /^\d{4}-\d{2}-([12]|\d{2})$/.test(item.lastPeriod)
   return {
     ...entry,
     schedule: item.schedule,
@@ -200,7 +210,9 @@ const LISTS = ['categories', 'transactions', 'budgets', 'recurring', 'savings']
 // dropped how many were left out (invalid, repeated, or a category whose
 // name already exists). trimmed is how many restored records had a note or a
 // category name cut to the length the forms allow. It never throws.
-// Older backups have no savings: they read as an empty list.
+// Older backups have no savings: they read as an empty list. Backups made
+// before the quincena could be configured have no quincenaSchedule: they read
+// as 15/30. data also carries quincenaSchedule (not counted in `counts`).
 export function inspectBackup(text, builtInCategories) {
   try {
     if (typeof text !== 'string') return { ok: false, reason: 'format' }
@@ -284,6 +296,8 @@ export function inspectBackup(text, builtInCategories) {
         clean(source.savings, cleanSavingsMove),
         (move) => move.id,
       ),
+      // an older backup has no schedule, and a damaged one reads the same: 15/30
+      quincenaSchedule: normalizeSchedule(data.quincenaSchedule),
     }
 
     const counts = {}
