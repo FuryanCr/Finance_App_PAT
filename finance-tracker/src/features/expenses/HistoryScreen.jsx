@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
 import { categoryLabel } from '../../lib/categories'
 import { downloadCsv, transactionRows } from '../../lib/csv'
-import { byNewest, isSameMonth, parseDate } from '../../lib/dates'
+import { byNewest, getQuincenaRange, isSameMonth, parseDate } from '../../lib/dates'
 import { formatDate, formatMonth } from '../../lib/format'
 import { currencies, formatMoney, getTotals } from '../../lib/money'
+import { paymentMethods, totalsByMethod } from '../../lib/payment'
 import { filterTransactions, hasFilters } from '../../lib/search'
 import { useSettings } from '../../context/useSettings'
 import EmptyState from '../../components/EmptyState'
@@ -21,11 +22,13 @@ export default function HistoryScreen() {
   const [query, setQuery] = useState('')
   const [type, setType] = useState('all')
   const [categoryId, setCategoryId] = useState('all')
+  const [method, setMethod] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
-  const filters = { query, type, categoryId }
+  const filters = { query, type, categoryId, method }
   const filtering = hasFilters(filters)
-  // an active type or category filter can never be hidden
-  const open = showFilters || type !== 'all' || categoryId !== 'all'
+  // an active type, category or method filter can never be hidden
+  const open =
+    showFilters || type !== 'all' || categoryId !== 'all' || method !== 'all'
 
   // later months can be seen too when a transaction is dated in one
   const nextMonth = new Date(month.getFullYear(), month.getMonth() + 1, 1)
@@ -41,6 +44,7 @@ export default function HistoryScreen() {
     setQuery('')
     setType('all')
     setCategoryId('all')
+    setMethod('all')
     setShowFilters(false)
   }
 
@@ -58,6 +62,11 @@ export default function HistoryScreen() {
     if (last && last.date === tx.date) last.items.push(tx)
     else days.push({ date: tx.date, items: [tx] })
   }
+
+  // spending per payment method in the quincena of today; it ignores the
+  // filters so the three methods can always be compared
+  const quincena = getQuincenaRange(today)
+  const methodTotals = totalsByMethod(transactions, quincena)
 
   const summaries = currencies
     .map((c) => ({ ...c, ...getTotals(list, c.code) }))
@@ -162,6 +171,23 @@ export default function HistoryScreen() {
               ))}
             </div>
 
+            <div className="pill-group payment">
+              {[
+                ['all', t('all')],
+                ...paymentMethods.map((m) => [m.code, t(m.labelKey)]),
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={method === value ? 'pill active' : 'pill'}
+                  aria-pressed={method === value}
+                  onClick={() => setMethod(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <label className="field">
               <span className="label">{t('category')}</span>
               <select
@@ -212,6 +238,30 @@ export default function HistoryScreen() {
               ))}
             </section>
           )}
+
+          <section className="card">
+            <p className="label">
+              {t('spentByMethod')} · {t('quincena')}
+            </p>
+            <p className="sub">
+              {formatDate(quincena.start, locale, { year: false })} –{' '}
+              {formatDate(quincena.end, locale, { year: false })}
+            </p>
+            <ul className="list">
+              {methodTotals.map((m) => (
+                <li className="row" key={m.code}>
+                  <span>{t(m.labelKey)}</span>
+                  <span className="sub day-totals">
+                    {currencies.map((c) => (
+                      <span className="spending" key={c.code}>
+                        {formatMoney(m[c.code].spent, c.code)}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <section className="card">
             <p className="label">{t('data')}</p>

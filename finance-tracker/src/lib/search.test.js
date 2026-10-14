@@ -88,3 +88,47 @@ describe('hasFilters', () => {
     expect(hasFilters({ ...none, categoryId: 3 })).toBe(true)
   })
 })
+
+describe('payment method filter', () => {
+  const paid = [
+    tx(1, { paymentMethod: 'cash' }),
+    tx(2, { paymentMethod: 'card', note: 'Café' }),
+    tx(3, { paymentMethod: 'sinpe', categoryId: 1 }),
+    tx(4, { paymentMethod: 'card', type: 'income' }),
+    tx(5, {}),
+  ]
+  const ids = (filters) =>
+    filterTransactions(paid, { ...none, ...filters }, categories, t).map(
+      (x) => x.id,
+    )
+
+  it('keeps only that method', () => {
+    expect(ids({ method: 'card' })).toEqual([2, 4])
+    expect(ids({ method: 'sinpe' })).toEqual([3])
+  })
+
+  it('reads a missing method as cash', () => {
+    expect(ids({ method: 'cash' })).toEqual([1, 5])
+  })
+
+  it('shows everything for all, or when the filter is absent', () => {
+    expect(ids({ method: 'all' })).toEqual([1, 2, 3, 4, 5])
+    expect(
+      filterTransactions(paid, none, categories, t).map((x) => x.id),
+    ).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('combines with type, category and text', () => {
+    expect(ids({ method: 'card', type: 'income' })).toEqual([4])
+    expect(ids({ method: 'sinpe', categoryId: 1 })).toEqual([3])
+    expect(ids({ method: 'sinpe', categoryId: 2 })).toEqual([])
+    expect(ids({ method: 'card', query: 'cafe' })).toEqual([2])
+    expect(ids({ method: 'cash', query: 'cafe' })).toEqual([])
+  })
+
+  it('counts as an active filter', () => {
+    expect(hasFilters({ ...none, method: 'card' })).toBe(true)
+    expect(hasFilters({ ...none, method: 'all' })).toBe(false)
+    expect(hasFilters(none)).toBe(false)
+  })
+})
