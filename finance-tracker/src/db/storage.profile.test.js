@@ -246,3 +246,56 @@ describe('completeOnboarding with a missing recurring item', () => {
     expect(again.profile.name).toBe('Otra')
   })
 })
+
+describe('completeOnboarding with new categories', () => {
+  const withNew = (name, changes = {}) =>
+    recurringItem({ categoryId: null, newCategory: name, ...changes })
+
+  it('creates the category and uses it, once for repeated names', async () => {
+    const state = await storage.completeOnboarding({
+      profile: profile(),
+      add: [
+        withNew('Pasajes', { note: 'Bus' }),
+        withNew('pasajes', { note: 'Taxi' }),
+        withNew('Mascota', { note: 'Comida' }),
+      ],
+    })
+    const custom = state.categories.filter((c) => c.name)
+    expect(custom.map((c) => c.name)).toEqual(['Pasajes', 'Mascota'])
+    const byNote = Object.fromEntries(state.recurring.map((r) => [r.note, r.categoryId]))
+    expect(byNote.Bus).toBe(custom[0].id)
+    expect(byNote.Taxi).toBe(custom[0].id)
+    expect(byNote.Comida).toBe(custom[1].id)
+    expect(custom[0].color).not.toBe(custom[1].color)
+  })
+
+  it('reuses a category that already exists, built-in ones in any language', async () => {
+    const state = await storage.completeOnboarding({
+      profile: profile(),
+      add: [withNew('Transport'), withNew('transporte')],
+    })
+    expect(state.categories.filter((c) => c.name)).toEqual([])
+    expect(state.recurring.map((r) => r.categoryId)).toEqual([2, 2])
+  })
+
+  it('undoes the new categories when the copy to disk fails', async () => {
+    current.persist.mockRejectedValueOnce(new Error('disk'))
+    await expect(
+      storage.completeOnboarding({ profile: profile(), add: [withNew('Pasajes')] }),
+    ).rejects.toThrow('disk')
+    const state = await storage.loadAll()
+    expect(state.categories.filter((c) => c.name)).toEqual([])
+    expect(state.recurring).toEqual([])
+    await noPending()
+  })
+
+  it('creates no category when a later item fails', async () => {
+    await expect(
+      storage.completeOnboarding({
+        profile: profile(),
+        add: [withNew('Pasajes'), recurringItem({ amount: 0 })],
+      }),
+    ).rejects.toThrow()
+    expect((await storage.loadAll()).categories.filter((c) => c.name)).toEqual([])
+  })
+})

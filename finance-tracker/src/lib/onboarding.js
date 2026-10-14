@@ -7,6 +7,9 @@ export const MAX_NAME_LENGTH = 30
 export const MAX_EXPENSE_NOTE_LENGTH = 60
 // the built-in "Bills" category (see db/mockData.js)
 export const BILLS_CATEGORY_ID = 3
+// the "New category..." choice of the category selector
+export const NEW_CATEGORY = 'new'
+export const MAX_CATEGORY_NAME_LENGTH = 24
 
 // The name as it is saved: no stray spaces, cut to what the field allows
 export function cleanName(text) {
@@ -78,30 +81,44 @@ export function scheduleForOnboarding(current, choice, today, hasData) {
 
 // A fixed expense typed in the list. Returns { ok: true, item } with the
 // recurring item ready to save, or { ok: false, reason } where reason is
-// 'name' (empty) or 'amount' (missing or invalid).
+// 'name' (empty), 'amount' (missing or invalid) or 'category' (a new
+// category was chosen without a name).
+// categoryId is an existing category id, or NEW_CATEGORY with the name in
+// newCategoryName: the item then carries `newCategory` (the name) instead of
+// a categoryId, and saving it creates the category (see completeOnboarding).
 export function buildFixedExpense({
   name,
   amountText,
   schedule = 'every',
   currency = 'CRC',
   categoryId = BILLS_CATEGORY_ID,
+  newCategoryName = '',
 }) {
   const note =
     typeof name === 'string' ? name.trim().slice(0, MAX_EXPENSE_NOTE_LENGTH) : ''
   if (note === '') return { ok: false, reason: 'name' }
   const amount = parseAmount(amountText)
   if (amount === null || amount <= 0) return { ok: false, reason: 'amount' }
-  return {
-    ok: true,
-    item: {
-      amount,
-      currency: cleanCurrency(currency),
-      type: 'expense',
-      categoryId,
-      note,
-      schedule,
-    },
+  const base = {
+    amount,
+    currency: cleanCurrency(currency),
+    type: 'expense',
+    note,
+    schedule,
   }
+  if (categoryId !== NEW_CATEGORY) {
+    return { ok: true, item: { ...base, categoryId } }
+  }
+  const newCategory =
+    typeof newCategoryName === 'string'
+      ? newCategoryName
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, MAX_CATEGORY_NAME_LENGTH)
+          .trim()
+      : ''
+  if (newCategory === '') return { ok: false, reason: 'category' }
+  return { ok: true, item: { ...base, categoryId: null, newCategory } }
 }
 
 // The recurring income created from "how much do you earn per pay"

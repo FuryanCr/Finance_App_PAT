@@ -6,7 +6,11 @@ import CurrencyPills from '../../components/CurrencyPills'
 import Logo from '../../components/Logo'
 import QuincenaSetting from '../../components/QuincenaSetting'
 import { formatMoney, currencies } from '../../lib/money'
+import { categoryLabel } from '../../lib/categories'
 import {
+  BILLS_CATEGORY_ID,
+  MAX_CATEGORY_NAME_LENGTH,
+  NEW_CATEGORY,
   MAX_NAME_LENGTH,
   MAX_EXPENSE_NOTE_LENGTH,
   buildFixedExpense,
@@ -56,6 +60,7 @@ export default function OnboardingScreen() {
   const today = useToday()
   const {
     profile,
+    categories,
     recurring,
     transactions,
     savings,
@@ -80,6 +85,9 @@ export default function OnboardingScreen() {
   const [draftName, setDraftName] = useState('')
   const [draftAmount, setDraftAmount] = useState('')
   const [draftSchedule, setDraftSchedule] = useState('every')
+  // an existing category id (as text) or NEW_CATEGORY
+  const [draftCategory, setDraftCategory] = useState(String(BILLS_CATEGORY_ID))
+  const [draftNewCategory, setDraftNewCategory] = useState('')
   const [draftError, setDraftError] = useState(null)
   const [goalText, setGoalText] = useState(startGoal)
   const [busy, setBusy] = useState(false)
@@ -91,6 +99,7 @@ export default function OnboardingScreen() {
 
   const heading = useRef(null)
   const draftNameInput = useRef(null)
+  const draftCategoryInput = useRef(null)
   const draftAmountInput = useRef(null)
   const firstRender = useRef(true)
   const nextId = useRef(1)
@@ -130,6 +139,12 @@ export default function OnboardingScreen() {
       perMonth,
     })
 
+  const categoryName = (item) => {
+    if (item.newCategory) return item.newCategory
+    const category = categories.find((c) => c.id === item.categoryId)
+    return category ? categoryLabel(category, t) : t('typeExpense')
+  }
+
   const draftFilled = draftName.trim() !== '' || draftAmount.trim() !== ''
 
   // Adds the expense being typed to the list; false when it is not valid
@@ -139,16 +154,24 @@ export default function OnboardingScreen() {
       amountText: draftAmount,
       schedule: draftSchedule,
       currency,
+      categoryId:
+        draftCategory === NEW_CATEGORY ? NEW_CATEGORY : Number(draftCategory),
+      newCategoryName: draftNewCategory,
     })
     if (!built.ok) {
       setDraftError(built.reason)
-      const field = built.reason === 'name' ? draftNameInput : draftAmountInput
+      const field = {
+        name: draftNameInput,
+        amount: draftAmountInput,
+        category: draftCategoryInput,
+      }[built.reason]
       field.current?.focus()
       return false
     }
     setExpenses((list) => [...list, { ...built.item, id: nextId.current++ }])
     setDraftName('')
     setDraftAmount('')
+    setDraftNewCategory('')
     setDraftError(null)
     draftNameInput.current?.focus()
     return true
@@ -386,6 +409,7 @@ export default function OnboardingScreen() {
                     <div>
                       <p className="row-name">{item.note}</p>
                       <p className="row-meta">
+                        {categoryName(item)} ·{' '}
                         {t(scheduleKey(item.schedule, labelSchedule, today))}
                       </p>
                     </div>
@@ -441,6 +465,37 @@ export default function OnboardingScreen() {
                   onKeyDown={onDraftKey}
                 />
               </label>
+              <label className="field">
+                <span className="label">{t('category')}</span>
+                <select
+                  value={draftCategory}
+                  onChange={(e) => setDraftCategory(e.target.value)}
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {categoryLabel(c, t)}
+                    </option>
+                  ))}
+                  <option value={NEW_CATEGORY}>{t('obNewCategory')}</option>
+                </select>
+              </label>
+              {draftCategory === NEW_CATEGORY && (
+                <label className="field">
+                  <span className="label">{t('obNewCategoryName')}</span>
+                  <input
+                    ref={draftCategoryInput}
+                    type="text"
+                    maxLength={MAX_CATEGORY_NAME_LENGTH}
+                    aria-invalid={draftError === 'category'}
+                    aria-describedby={
+                      draftError === 'category' ? 'ob-draft-error' : undefined
+                    }
+                    value={draftNewCategory}
+                    onChange={(e) => setDraftNewCategory(e.target.value)}
+                    onKeyDown={onDraftKey}
+                  />
+                </label>
+              )}
               <p className="label" id="ob-repeats-label">
                 {t('obExpenseRepeats')}
               </p>
@@ -464,6 +519,11 @@ export default function OnboardingScreen() {
               {draftError === 'name' && (
                 <p className="field-note error" role="alert" id="ob-draft-error">
                   {t('obExpenseNameInvalid')}
+                </p>
+              )}
+              {draftError === 'category' && (
+                <p className="field-note error" role="alert" id="ob-draft-error">
+                  {t('obCategoryInvalid')}
                 </p>
               )}
               {draftError === 'amount' && (

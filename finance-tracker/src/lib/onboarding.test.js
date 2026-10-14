@@ -311,3 +311,37 @@ describe('guards found in review', () => {
     expect(result.item.currency).toBe('USD')
   })
 })
+
+describe('buildFixedExpense with a new category', () => {
+  const base = { name: 'Pasajes', amountText: '10.000', schedule: 'every' }
+
+  it('carries the new category name instead of an id', () => {
+    expect(
+      buildFixedExpense({ ...base, categoryId: 'new', newCategoryName: '  Pasajes   bus ' }),
+    ).toEqual({
+      ok: true,
+      item: {
+        amount: 10000,
+        currency: 'CRC',
+        type: 'expense',
+        note: 'Pasajes',
+        schedule: 'every',
+        categoryId: null,
+        newCategory: 'Pasajes bus',
+      },
+    })
+  })
+
+  it('needs a name for it, and cuts it to the category limit', () => {
+    expect(buildFixedExpense({ ...base, categoryId: 'new', newCategoryName: '  ' })).toEqual({
+      ok: false,
+      reason: 'category',
+    })
+    const long = buildFixedExpense({ ...base, categoryId: 'new', newCategoryName: 'x'.repeat(50) })
+    expect(long.item.newCategory).toHaveLength(24)
+  })
+
+  it('keeps an existing category id as it is', () => {
+    expect(buildFixedExpense({ ...base, categoryId: 2 }).item.categoryId).toBe(2)
+  })
+})

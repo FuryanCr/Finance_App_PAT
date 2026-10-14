@@ -1,6 +1,10 @@
 import { categories as builtInCategories } from './mockData'
 import { getDb, persist } from './database'
-import { customColorAt, customColors } from '../lib/categories'
+import {
+  customColorAt,
+  customColors,
+  findCategoryByName,
+} from '../lib/categories'
 import { isValidDate, todayString } from '../lib/dates'
 import { EMPTY_PROFILE, cleanCurrency, cleanName } from '../lib/onboarding'
 import { normalizePaymentMethod } from '../lib/payment'
@@ -820,10 +824,35 @@ export function completeOnboarding({
             .values[0]
         : null,
     }
+    const createdCategories = []
     const ids = await inTransaction(db, async () => {
       if (schedule) await writeSchedule(db, schedule)
+      // an expense with a `newCategory` name creates it (or finds the one
+      // that already has that name), in this same transaction
+      const known = (await db.query('SELECT * FROM categories ORDER BY id'))
+        .values.map(toCategory)
       const created = []
-      for (const item of add) {
+      for (const original of add) {
+        let item = original
+        if (original.newCategory) {
+          let category = findCategoryByName(known, original.newCategory)
+          if (!category) {
+            const color = customColorAt(known.filter((c) => c.name).length)
+            const made = await db.run(
+              'INSERT INTO categories (name, color) VALUES (?, ?)',
+              [original.newCategory, color],
+              false,
+            )
+            category = {
+              id: made.changes.lastId,
+              name: original.newCategory,
+              color,
+            }
+            known.push(category)
+            createdCategories.push(category.id)
+          }
+          item = { ...original, categoryId: category.id }
+        }
         const result = await db.run(
           `INSERT INTO recurring
             (amount_cents, currency, type, category_id, note, schedule)
@@ -870,6 +899,9 @@ export function completeOnboarding({
             ],
             false,
           )
+        }
+        for (const id of createdCategories) {
+          await db.run('DELETE FROM categories WHERE id = ?', [id], false)
         }
         await writeSchedule(db, before.schedule)
         await writeProfile(db, before.profile)
