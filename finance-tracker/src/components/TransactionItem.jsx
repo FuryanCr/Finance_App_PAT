@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import { categoryColor, categoryLabel } from '../lib/categories'
 import { parseDate } from '../lib/dates'
+import { formatDate } from '../lib/format'
 import { formatMoney } from '../lib/money'
+import { paymentNote } from '../lib/payment'
 import { useSettings } from '../context/useSettings'
 import { useTransactions } from '../context/useTransactions'
 
@@ -13,13 +15,17 @@ export default function TransactionItem({ tx, showDate = true }) {
   const category = categories.find((c) => c.id === tx.categoryId)
   const fallback = isIncome ? t('income') : t('typeExpense')
   const label = category ? categoryLabel(category, t) : fallback
-  const date = parseDate(tx.date).toLocaleDateString(locale, {
-    month: 'short',
-    day: 'numeric',
-  })
+  const date = formatDate(parseDate(tx.date), locale, { year: false })
+  // card and SINPE are named in the row; cash is the default and says nothing
+  const method = paymentNote(tx.paymentMethod, t)
+  const join = (...parts) => parts.filter(Boolean).join(' · ')
 
   const dot = category && (
-    <span className="dot" style={{ background: categoryColor(category) }} />
+    <span
+      className="dot"
+      aria-hidden="true"
+      style={{ background: categoryColor(category) }}
+    />
   )
 
   return (
@@ -36,7 +42,7 @@ export default function TransactionItem({ tx, showDate = true }) {
               <p className="row-name">{tx.note}</p>
               <p className="row-meta">
                 {dot}
-                {showDate ? `${label} · ${date}` : label}
+                {showDate ? join(label, date, method) : join(label, method)}
               </p>
             </>
           ) : (
@@ -46,7 +52,9 @@ export default function TransactionItem({ tx, showDate = true }) {
                 {dot}
                 {label}
               </p>
-              {showDate && <p className="row-meta">{date}</p>}
+              {(showDate || method) && (
+                <p className="row-meta">{join(showDate && date, method)}</p>
+              )}
             </>
           )}
         </div>

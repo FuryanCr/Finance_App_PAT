@@ -17,7 +17,7 @@ A personal finance tracker built with React. I AM POOR FOR NOW (shown as "POBRE,
 - A backup reminder when the last backup is more than 14 days old; with no backup yet, the 14 days count from the oldest transaction
 
 **Adding and editing**
-- Add expenses and income with a numeric keypad, in colones or dollars
+- Add expenses and income with a numeric keypad, in colones or dollars, and choose how it was paid (payment method)
 - Remembers the last currency and category used, and suggests notes from past entries
 - Custom expense categories: type a new name while adding
 - Tap any transaction to edit or delete it, or use "Repeat today" to copy it as a new entry
@@ -34,10 +34,11 @@ A personal finance tracker built with React. I AM POOR FOR NOW (shown as "POBRE,
 **Statistics and history**
 - Statistics: spending bars by week, month or year (last 7 days, 6 months, 3 years), spending by category, past quincenas and recent transactions, per currency
 - History: one month at a time with balance, income and spent per currency, transactions grouped by day
-- Search by note or category; filters (type and category) are behind a "Filters" toggle and search every month
+- Search by note or category; filters (type, category and payment method) are behind a "Filters" toggle and search every month; the quincena is totaled per payment method
 - CSV export of what History shows (the month, or the search results)
 
 **Settings and safety**
+- Quincena schedule: the default is days 1 and 16; you can set your own pay days (one or two a month). A change takes effect after the quincena in progress, so past quincenas keep the way they were cut
 - Language (Spanish / English, English by default) and theme (dark / light)
 - Export everything as CSV, download a backup and restore from one, load sample data and clear all data
 - Only one tab can use the data at a time
@@ -128,7 +129,7 @@ Vite prints a local address in the terminal, usually `http://localhost:5173`.
 ### Data and storage
 
 - **Where it lives:** a SQLite database. In the browser it is kept in memory and saved to IndexedDB. A fresh install starts with no transactions and the four built-in categories (Food, Transport, Bills, Fun).
-- **Schema (version 4):** `categories` (built-in and custom), `transactions`, `budgets` (a limit per category and currency), `recurring` (repeating items and the last quincena handled) and `savings` (money moved in or out of savings).
+- **Schema (version 6):** `categories` (built-in and custom), `transactions`, `budgets` (a limit per category and currency), `recurring` (repeating items and the last quincena handled) and `savings` (money moved in or out of savings). Transactions also keep the payment method (version 5), and the quincena schedule is saved with the settings (version 6).
 - **Internal names kept for compatibility:** the database is named `quincena`, the tab lock is `quincena-db` and backup files carry the marker `app: 'quincena'`; these are internal names the user never sees, and they stay unchanged so existing data and old backups keep working.
 - **Amounts** are stored as whole cents to avoid rounding errors.
 - **Migrations** in `src/db/migrations.js` are versioned, one per schema version, and are never edited once shipped: a change is a new migration.

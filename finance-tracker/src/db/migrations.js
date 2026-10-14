@@ -74,6 +74,35 @@ export const migrations = [
       false,
     )
   },
+  // v5: how a transaction was paid. Rows saved before this version do not say,
+  // so they read as cash, the default (the person can change them one by one).
+  async (db) => {
+    await db.execute(
+      `ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL
+        DEFAULT 'cash' CHECK (payment_method IN ('cash', 'card', 'sinpe'));`,
+      false,
+    )
+  },
+  // v6: when the quincena starts. One row per change, with the date it takes
+  // effect, so changing it later never moves the quincenas already lived.
+  // Everyone who already has the app starts in 15/30 (days 1 and 16).
+  async (db) => {
+    await db.execute(
+      `CREATE TABLE quincena_config (
+        effective_from TEXT PRIMARY KEY,
+        mode TEXT NOT NULL CHECK (mode IN ('fixed', 'paydays')),
+        day1 INTEGER NOT NULL CHECK (day1 BETWEEN 1 AND 31),
+        day2 INTEGER CHECK (day2 IS NULL OR day2 BETWEEN 1 AND 31)
+      );`,
+      false,
+    )
+    await db.run(
+      `INSERT INTO quincena_config (effective_from, mode, day1, day2)
+        VALUES ('2000-01-01', 'fixed', 1, 16)`,
+      [],
+      false,
+    )
+  },
 ]
 
 export async function runMigrations(db, list = migrations) {

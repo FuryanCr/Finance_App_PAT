@@ -8,6 +8,7 @@ export default function CurrencyPills({ value, onChange }) {
           key={code}
           type="button"
           className={value === code ? 'pill active' : 'pill'}
+          aria-pressed={value === code}
           onClick={() => onChange(code)}
         >
           {code}

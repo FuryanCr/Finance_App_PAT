@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Navigate,
   useLocation,
@@ -8,14 +8,20 @@ import {
 } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { daysBetween, isValidDate, parseDate, todayString } from '../../lib/dates'
-import { currencies, parseAmount } from '../../lib/money'
+import { formatDate } from '../../lib/format'
+import { applyKey, formatTyping } from '../../lib/keypad'
+import { MAX_AMOUNT, currencies, parseAmount } from '../../lib/money'
+import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
+import { normalizePaymentMethod } from '../../lib/payment'
 import { readPref, writePref } from '../../lib/prefs'
 import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
 import Keypad from '../../components/Keypad'
+import PaymentPills from '../../components/PaymentPills'
 
 // A warning shows when the date is more than this many days ahead
 const FUTURE_DAYS_LIMIT = 3
@@ -24,6 +30,11 @@ const FUTURE_DAYS_LIMIT = 3
 function lastCurrency() {
   const saved = readPref('lastCurrency')
   return currencies.some((c) => c.code === saved) ? saved : 'CRC'
+}
+
+// The payment method of the last transaction added (cash if none saved)
+function lastPaymentMethod() {
+  return normalizePaymentMethod(readPref('lastPaymentMethod'))
 }
 
 // The category of the last expense added, if it still exists
@@ -42,7 +53,8 @@ function validRepeat(value) {
 
 // Used for both /add and /edit/:id
 export default function AddExpenseScreen() {
-  const { t } = useSettings()
+  const { locale, t } = useSettings()
+  const { confirm } = useDialog()
   const {
     transactions,
     addTransaction,
@@ -51,6 +63,7 @@ export default function AddExpenseScreen() {
     categories,
     addCategory,
     recurring,
+    quincenaSchedule,
     confirmRecurring,
     addSavingsMove,
     addIncomeWithSavings,
@@ -72,6 +85,10 @@ export default function AddExpenseScreen() {
   const [currency, setCurrency] = useState(() =>
     source ? source.currency : lastCurrency(),
   )
+  // an edit or a repeat keeps its method; a new entry starts with the last used
+  const [paymentMethod, setPaymentMethod] = useState(() =>
+    source ? normalizePaymentMethod(source.paymentMethod) : lastPaymentMethod(),
+  )
   const [amountText, setAmountText] = useState(() =>
     source && Number.isFinite(source.amount) ? String(source.amount) : '',
   )
@@ -92,6 +109,32 @@ export default function AddExpenseScreen() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
 
+  const handleKey = (key) => {
+    setAmountText((text) => applyKey(text, key, currency))
+  }
+
+  // the physical keyboard types the amount too (digits, point or comma,
+  // Backspace), unless the focus is on a field that takes text itself
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      // a dialog (confirm / alert) is open: the keys are for it, not the amount
+      if (document.querySelector('dialog[open]')) return
+      if (event.target.closest?.('input, select, textarea, [contenteditable]')) {
+        return
+      }
+      let key = null
+      if (/^[0-9]$/.test(event.key)) key = event.key
+      else if (event.key === 'Backspace') key = '⌫'
+      else if (event.key === '.' || event.key === ',') key = '.'
+      if (key === null) return
+      event.preventDefault()
+      setAmountText((text) => applyKey(text, key, currency))
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [currency])
+
   // the id in the address does not exist, or was just deleted: go back
   if (id && !editing) return <Navigate to={backTo} replace />
 
@@ -108,25 +151,16 @@ export default function AddExpenseScreen() {
   const toSavingsValid =
     toSavingsParsed !== null && toSavingsParsed <= amount
   const toSavings = showToSavings && toSavingsValid ? toSavingsParsed : 0
+  const amountTooBig = amount > MAX_AMOUNT
+  // case L1: pay dated on the 15th / the last day of the month
+  const closingDayIncome = type === 'income' && dateValid && isClosingDay(date, quincenaSchedule)
+  const nextStart = closingDayIncome ? nextQuincenaStart(date, quincenaSchedule) : null
   const canSave =
     amount > 0 &&
+    !amountTooBig &&
     dateValid &&
     (!isCustom || customName.trim() !== '') &&
     (!showToSavings || toSavingsValid)
-
-  const handleKey = (key) => {
-    setAmountText((text) => {
-      if (key === '⌫') return text.slice(0, -1)
-      if (key === '.') {
-        if (text.includes('.')) return text
-        return text === '' ? '0.' : text + '.'
-      }
-      if (text.length >= 10) return text
-      if (text.includes('.') && text.split('.')[1].length >= 2) return text
-      if (text === '0') return key
-      return text + key
-    })
-  }
 
   // the same name RecurringRow shows for the item
   const matchQuestion = (item) => {
@@ -154,6 +188,7 @@ export default function AddExpenseScreen() {
         categoryId: type === 'expense' ? savedCategoryId : null,
         note: note.trim(),
         date,
+        paymentMethod,
       }
 
       if (editing) {
@@ -161,7 +196,7 @@ export default function AddExpenseScreen() {
         navigate(backTo)
       } else {
         // a due recurring item with the same amount may be this very bill
-        const match = findMatchingDue(recurring, tx)
+        const match = findMatchingDue(recurring, tx, new Date(), quincenaSchedule)
         const move =
           toSavings > 0
             ? {
@@ -172,7 +207,16 @@ export default function AddExpenseScreen() {
                 date,
               }
             : null
-        if (match && window.confirm(matchQuestion(match))) {
+        const matched =
+          match &&
+          (
+            await confirm({
+              message: matchQuestion(match),
+              confirmLabel: t('markPaidYes'),
+              cancelLabel: t('markPaidNo'),
+            })
+          ).confirmed
+        if (matched) {
           await confirmRecurring(match, tx)
           if (move) await addSavingsMove(move)
         } else if (move) {
@@ -181,6 +225,7 @@ export default function AddExpenseScreen() {
           await addTransaction(tx)
         }
         writePref('lastCurrency', currency)
+        writePref('lastPaymentMethod', paymentMethod)
         if (type === 'expense') writePref('lastCategoryId', savedCategoryId)
         navigate('/')
       }
@@ -206,7 +251,12 @@ export default function AddExpenseScreen() {
   const handleDelete = async () => {
     if (saving) return
     // once deleted, the check above sends the screen back
-    if (!window.confirm(t('confirmDelete'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDelete'),
+      confirmLabel: t('delete'),
+      danger: true,
+    })
+    if (!confirmed) return
     setSaveError(false)
     try {
       await deleteTransaction(editing.id)
@@ -229,6 +279,7 @@ export default function AddExpenseScreen() {
             key={tp}
             type="button"
             className={type === tp ? 'pill active' : 'pill'}
+            aria-pressed={type === tp}
             onClick={() => setType(tp)}
           >
             {tp === 'expense' ? t('typeExpense') : t('typeIncome')}
@@ -241,11 +292,16 @@ export default function AddExpenseScreen() {
           <section className="card">
             <CurrencyPills value={currency} onChange={setCurrency} />
             <p className="label amount-label">{t('amount')}</p>
-            <p className="amount-display">
+            <p
+              className="amount-display"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {symbol}
-              {amountText || '0'}
+              {formatTyping(amountText, currency) || '0'}
             </p>
-            <Keypad onKey={handleKey} />
+            <Keypad onKey={handleKey} currency={currency} />
           </section>
         </div>
 
@@ -259,6 +315,7 @@ export default function AddExpenseScreen() {
                     key={c.id}
                     type="button"
                     className={categoryId === c.id ? 'pill active' : 'pill'}
+                    aria-pressed={categoryId === c.id}
                     onClick={() => setCategoryId(c.id)}
                   >
                     {categoryLabel(c, t)}
@@ -267,6 +324,7 @@ export default function AddExpenseScreen() {
                 <button
                   type="button"
                   className={isCustom ? 'pill active' : 'pill'}
+                  aria-pressed={isCustom}
                   onClick={() => setCategoryId(null)}
                 >
                   + {t('customCategory')}
@@ -287,6 +345,8 @@ export default function AddExpenseScreen() {
           )}
 
           <section className="card">
+            <p className="label">{t('paymentMethod')}</p>
+            <PaymentPills value={paymentMethod} onChange={setPaymentMethod} />
             <label className="field">
               <span className="label">{t('note')}</span>
               <input
@@ -318,9 +378,22 @@ export default function AddExpenseScreen() {
                 onChange={(e) => setDate(e.target.value)}
               />
             </label>
-            {!dateValid && <p className="field-note error">{t('invalidDate')}</p>}
+            {!dateValid && <p className="field-note error" role="alert">{t('invalidDate')}</p>}
             {isFarFuture && (
-              <p className="field-note warning">{t('futureDateWarning')}</p>
+              <p className="field-note warning" role="status">{t('futureDateWarning')}</p>
+            )}
+            {closingDayIncome && (
+              <div className="field-note warning">
+                <p>{t('closingDayIncome')}</p>
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => setDate(nextStart)}
+                >
+                  {t('dateItOn')}{' '}
+                  {formatDate(parseDate(nextStart), locale, { year: false })}
+                </button>
+              </div>
             )}
             {showToSavings && (
               <label className="field">
@@ -334,20 +407,35 @@ export default function AddExpenseScreen() {
               </label>
             )}
             {showToSavings && !toSavingsValid && (
-              <p className="field-note error">{t('toSavingsInvalid')}</p>
+              <p className="field-note error" role="alert">{t('toSavingsInvalid')}</p>
             )}
           </section>
 
-          {saveError && <p className="field-note error">{t('saveError')}</p>}
+          {amountTooBig && (
+            <p className="field-note error" role="alert">
+              {t('amountTooBig')}
+            </p>
+          )}
+          {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
-          <button
-            type="button"
-            className="btn"
-            disabled={!canSave || saving}
-            onClick={handleSave}
-          >
-            {t('save')}
-          </button>
+          {/* always visible at the bottom of the screen, even with the
+              keypad and the category list above it */}
+          <div className="save-bar">
+            {amount === 0 && (
+              <p className="sub" id="save-hint">
+                {t('typeAmountFirst')}
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={!canSave || saving}
+              aria-describedby={amount === 0 ? 'save-hint' : undefined}
+              onClick={handleSave}
+            >
+              {t('save')}
+            </button>
+          </div>
 
           {editing && (
             <button

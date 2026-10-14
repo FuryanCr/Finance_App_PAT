@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { categoryLabel } from '../../lib/categories'
 import { parseAmount } from '../../lib/money'
-import { schedules } from '../../lib/recurring'
+import { scheduleKey, schedules } from '../../lib/recurring'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
@@ -11,8 +12,14 @@ import RecurringRow from '../../components/RecurringRow'
 // item is null for a new one
 function RecurringEditor({ item, onDone }) {
   const { t } = useSettings()
-  const { categories, addRecurring, updateRecurring, deleteRecurring } =
-    useTransactions()
+  const { confirm } = useDialog()
+  const {
+    categories,
+    quincenaSchedule,
+    addRecurring,
+    updateRecurring,
+    deleteRecurring,
+  } = useTransactions()
 
   const [type, setType] = useState(item?.type ?? 'expense')
   const [currency, setCurrency] = useState(item?.currency ?? 'CRC')
@@ -57,7 +64,12 @@ function RecurringEditor({ item, onDone }) {
 
   const handleDelete = async () => {
     if (saving) return
-    if (!window.confirm(t('confirmDeleteRecurring'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDeleteRecurring'),
+      confirmLabel: t('delete'),
+      danger: true,
+    })
+    if (!confirmed) return
     setSaving(true)
     setSaveError(false)
     try {
@@ -78,6 +90,7 @@ function RecurringEditor({ item, onDone }) {
             key={tp}
             type="button"
             className={type === tp ? 'pill active' : 'pill'}
+            aria-pressed={type === tp}
             onClick={() => setType(tp)}
           >
             {tp === 'expense' ? t('typeExpense') : t('typeIncome')}
@@ -97,7 +110,7 @@ function RecurringEditor({ item, onDone }) {
         />
       </label>
       {amountText.trim() !== '' && !amountValid && (
-        <p className="field-note error">{t('invalidAmount')}</p>
+        <p className="field-note error" role="alert">{t('invalidAmount')}</p>
       )}
 
       {type === 'expense' && (
@@ -133,14 +146,15 @@ function RecurringEditor({ item, onDone }) {
             key={s}
             type="button"
             className={schedule === s ? 'pill active' : 'pill'}
+            aria-pressed={schedule === s}
             onClick={() => setSchedule(s)}
           >
-            {t(`schedule.${s}`)}
+            {t(scheduleKey(s, quincenaSchedule))}
           </button>
         ))}
       </div>
 
-      {saveError && <p className="field-note error">{t('saveError')}</p>}
+      {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
       <div className="actions">
         <button

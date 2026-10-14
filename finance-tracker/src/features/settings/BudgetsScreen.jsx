@@ -58,6 +58,7 @@ function BudgetForm({ currency }) {
               <span className="row-name">
                 <span
                   className="dot"
+                  aria-hidden="true"
                   style={{ background: categoryColor(c) }}
                 />
                 {categoryLabel(c, t)}
@@ -76,8 +77,8 @@ function BudgetForm({ currency }) {
         </ul>
       </section>
 
-      {invalid && <p className="field-note error">{t('invalidAmount')}</p>}
-      {saveError && <p className="field-note error">{t('saveError')}</p>}
+      {invalid && <p className="field-note error" role="alert">{t('invalidAmount')}</p>}
+      {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
       <button
         type="button"
@@ -87,7 +88,10 @@ function BudgetForm({ currency }) {
       >
         {t('save')}
       </button>
-      {saved && <p className="sub">{t('saved')}</p>}
+      {/* always in the page, so a screen reader announces the change */}
+      <p className="sub" role="status">
+        {saved ? t('saved') : ''}
+      </p>
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { getTotals, sum } from './money'
 import { uncategorized } from './categories'
 import { getQuincenaRange, isSameMonth, parseDate } from './dates'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 import { savingsInRange } from './savings'
 
 // First day covered by the chart of each period
@@ -106,9 +107,10 @@ export function getQuincenaHistory(
   count,
   today = new Date(),
   moves = [],
+  schedule = DEFAULT_SCHEDULE,
 ) {
   const history = []
-  let range = getQuincenaRange(today)
+  let range = getQuincenaRange(today, schedule)
   for (let i = 0; i < count; i++) {
     const { start, end } = range
     const inRange = transactions.filter((tx) => {
@@ -132,6 +134,7 @@ export function getQuincenaHistory(
     // the day before this start belongs to the previous quincena
     range = getQuincenaRange(
       new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1),
+      schedule,
     )
   }
   return history

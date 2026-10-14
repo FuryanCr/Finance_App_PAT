@@ -4,18 +4,23 @@ import { readPref, writePref } from '../lib/prefs'
 import { translations } from '../lib/translations'
 
 export default function SettingsProvider({ children }) {
-  // English unless Spanish was saved
-  const [lang, setLang] = useState(() =>
-    readPref('lang') === 'es' ? 'es' : 'en',
+  // Spanish (Costa Rica) unless English was saved. Only a choice made in
+  // Settings is written, so a fresh install is never pinned to the default.
+  const [lang, setLangState] = useState(() =>
+    readPref('lang') === 'en' ? 'en' : 'es',
   )
   // dark unless light was saved
   const [theme, setTheme] = useState(() =>
     readPref('theme') === 'light' ? 'light' : 'dark',
   )
 
+  const setLang = (next) => {
+    writePref('lang', next)
+    setLangState(next)
+  }
+
   useEffect(() => {
-    writePref('lang', lang)
-    document.documentElement.lang = lang
+    document.documentElement.lang = lang === 'es' ? 'es-CR' : 'en'
     document.title = `${translations[lang].titleMain} ${translations[lang].titleAccent}`
   }, [lang])
 
