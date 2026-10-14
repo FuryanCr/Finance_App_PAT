@@ -7,6 +7,7 @@ import {
   cleanName,
   freePerQuincena,
   isOnboarded,
+  planIncome,
   optionalAmount,
   quincenasPerMonth,
   scheduleForOnboarding,
@@ -211,5 +212,74 @@ describe('buildIncomeItem', () => {
       note: 'Salario',
       schedule: 'every',
     })
+  })
+})
+
+describe('planIncome', () => {
+  const income = (changes = {}) => ({
+    id: 5,
+    type: 'income',
+    schedule: 'every',
+    amount: 450000,
+    currency: 'CRC',
+    note: 'Salario',
+    lastPeriod: '2026-10-1',
+    categoryId: null,
+    ...changes,
+  })
+
+  it('does nothing when no income was typed', () => {
+    expect(
+      planIncome({ income: null, currency: 'CRC', note: 'x', recurring: [income()] }),
+    ).toEqual({ action: 'none' })
+  })
+
+  it('adds the income the first time', () => {
+    expect(
+      planIncome({ income: 300000, currency: 'CRC', note: 'Salario', recurring: [] }),
+    ).toEqual({
+      action: 'add',
+      item: buildIncomeItem(300000, 'CRC', 'Salario'),
+    })
+  })
+
+  it('changes the income the welcome created instead of adding another', () => {
+    const result = planIncome({
+      income: 500000,
+      currency: 'CRC',
+      note: 'Income',
+      previous: { income: 450000, currency: 'CRC' },
+      recurring: [income()],
+    })
+    expect(result.action).toBe('update')
+    expect(result.id).toBe(5)
+    expect(result.item).toMatchObject({
+      amount: 500000,
+      note: 'Salario',
+      lastPeriod: '2026-10-1',
+    })
+  })
+
+  it('does nothing when the income did not change, or already exists', () => {
+    const same = {
+      income: 450000,
+      currency: 'CRC',
+      note: 'x',
+      previous: { income: 450000, currency: 'CRC' },
+      recurring: [income()],
+    }
+    expect(planIncome(same)).toEqual({ action: 'none' })
+    expect(planIncome({ ...same, previous: null })).toEqual({ action: 'none' })
+  })
+
+  it('adds when the old income was deleted in the meantime', () => {
+    const result = planIncome({
+      income: 450000,
+      currency: 'CRC',
+      note: 'Salario',
+      previous: { income: 450000, currency: 'CRC' },
+      recurring: [],
+    })
+    expect(result.action).toBe('add')
   })
 })

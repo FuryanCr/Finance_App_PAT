@@ -113,3 +113,53 @@ export function buildIncomeItem(amount, currency, note) {
     schedule: 'every',
   }
 }
+
+// The profile of a person who has not done the welcome yet (and what "clear
+// all data" goes back to)
+export const EMPTY_PROFILE = {
+  name: '',
+  income: null,
+  currency: 'CRC',
+  savingsGoal: null,
+  onboardedAt: null,
+}
+
+// What to do with the recurring income when the welcome is done again.
+//   income: the amount typed now (null = left empty)
+//   previous: { income, currency } saved in the profile before
+//   recurring: the current recurring items
+// Returns { action: 'none' } (nothing typed, or nothing changed),
+// { action: 'update', id, item } (the income the welcome created before is
+// found and changed) or { action: 'add', item }. Never duplicates an income.
+export function planIncome({ income, currency, note, previous, recurring }) {
+  if (income === null || income === undefined) return { action: 'none' }
+  const item = buildIncomeItem(income, currency, note)
+  const old = previous?.income
+    ? recurring.find(
+        (r) =>
+          r.type === 'income' &&
+          r.schedule === 'every' &&
+          r.amount === previous.income &&
+          r.currency === previous.currency,
+      )
+    : null
+  if (!old) {
+    // same income already in the list (typed again by hand): leave it alone
+    const same = recurring.some(
+      (r) =>
+        r.type === 'income' &&
+        r.schedule === 'every' &&
+        r.amount === item.amount &&
+        r.currency === item.currency,
+    )
+    return same ? { action: 'none' } : { action: 'add', item }
+  }
+  if (old.amount === item.amount && old.currency === item.currency) {
+    return { action: 'none' }
+  }
+  return {
+    action: 'update',
+    id: old.id,
+    item: { ...item, note: old.note, lastPeriod: old.lastPeriod },
+  }
+}
