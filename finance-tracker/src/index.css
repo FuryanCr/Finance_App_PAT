@@ -1424,7 +1424,13 @@ dialog.modal::backdrop {
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
-  transition: width 0.2s ease;
+}
+
+/* La barra avanza con animación solo si la persona no pidió menos movimiento */
+@media (prefers-reduced-motion: no-preference) {
+  .ob-progress-fill {
+    transition: width 0.2s ease;
+  }
 }
 
 /* "Paso 2 de 5", centrado */
@@ -1432,8 +1438,9 @@ dialog.modal::backdrop {
   text-align: center;
 }
 
-/* El título recibe el foco al cambiar de paso: sin contorno extra */
-.ob-title:focus {
+/* El título recibe el foco al cambiar de paso: sin contorno extra
+   (con teclado el foco visible se conserva) */
+.ob-title:focus:not(:focus-visible) {
   outline: none;
 }
 
@@ -1463,6 +1470,12 @@ dialog.modal::backdrop {
 }
 
 /* Cuánto queda libre por quincena */
+/* El monto grande se achica en pantallas angostas en vez de salirse */
+.ob-free .balance {
+  font-size: clamp(28px, 9vw, 40px);
+  overflow-wrap: anywhere;
+}
+
 .ob-free {
   padding: 14px;
   border-radius: 12px;
@@ -1477,11 +1490,18 @@ dialog.modal::backdrop {
 
 .ob-nav-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .ob-nav-row .btn {
-  flex: 1;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+/* Los grupos de pills no suman margen extra dentro de la bienvenida */
+.ob-card .pill-group.wrap {
+  margin-top: 0;
 }
 
 /* "Omitir la configuración": enlace pequeño al final */
@@ -1495,6 +1515,7 @@ dialog.modal::backdrop {
   background: none;
   border: 0;
   cursor: pointer;
+  font: inherit;
   font-size: 14px;
   text-decoration: underline;
 }

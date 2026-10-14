@@ -137,8 +137,7 @@ export const translations = {
     'schedule.secondPay': 'Una vez al mes, en la segunda quincena',
     // Bienvenida (primer uso) y su repetición desde Ajustes
     obProgress: 'Progreso de la configuración',
-    obStep: 'Paso',
-    obOf: 'de',
+    obStepOf: 'Paso {n} de {total}',
     obBasicsTitle: 'Bienvenido',
     obBasicsHint:
       'Unos pocos datos y listo. Todo es opcional y lo puedes cambiar después en Ajustes.',
@@ -154,10 +153,10 @@ export const translations = {
     obIncomeNote: 'Salario',
     obFixedTitle: 'Tus gastos fijos',
     obFixedHint:
-      'Alquiler, recibos, suscripciones: lo que se paga siempre. Agrégalos uno por uno.',
+      'Alquiler, recibos, suscripciones: lo que se paga siempre. Agrégalos uno por uno; lo que dejes escrito se agrega al continuar.',
     obExpenseName: 'Nombre del gasto',
     obExpenseAmount: 'Monto',
-    obExpenseRepeats: 'Se paga',
+    obExpenseRepeats: 'Frecuencia',
     obAddExpense: 'Agregar a la lista',
     obExpenseNameInvalid: 'Escribe un nombre para el gasto.',
     obRemove: 'Quitar',
@@ -167,7 +166,7 @@ export const translations = {
     obFreeAverage:
       'Es un promedio: lo que se paga una vez al mes se reparte entre tus quincenas.',
     obFreeNeedIncome:
-      'Escribe cuánto ganas por pago (paso 3) para ver cuánto te queda libre.',
+      'Escribe cuánto ganas por pago (paso de ingresos) para ver cuánto te queda libre.',
     obFreeNegative:
       'Tus gastos fijos pasan de lo que ganas por pago. Revisa los montos.',
     obGoalTitle: 'Una meta de ahorro',
@@ -179,6 +178,7 @@ export const translations = {
     obBack: 'Atrás',
     obNext: 'Siguiente',
     obSkip: 'Saltar este paso',
+    obSkipGoal: 'Terminar sin meta',
     obSkipAll: 'Omitir la configuración',
     obFinish: 'Terminar',
     obSaving: 'Guardando…',
@@ -406,8 +406,7 @@ export const translations = {
     'schedule.secondPay': 'Monthly, in the second quincena',
     // Welcome (first use) and doing it again from Settings
     obProgress: 'Setup progress',
-    obStep: 'Step',
-    obOf: 'of',
+    obStepOf: 'Step {n} of {total}',
     obBasicsTitle: 'Welcome',
     obBasicsHint:
       'A few details and you are set. Everything is optional and you can change it later in Settings.',
@@ -423,20 +422,20 @@ export const translations = {
     obIncomeNote: 'Salary',
     obFixedTitle: 'Your fixed expenses',
     obFixedHint:
-      'Rent, bills, subscriptions: whatever is always paid. Add them one by one.',
+      'Rent, bills, subscriptions: whatever is always paid. Add them one by one; whatever you leave typed is added when you continue.',
     obExpenseName: 'Expense name',
     obExpenseAmount: 'Amount',
-    obExpenseRepeats: 'Paid',
+    obExpenseRepeats: 'How often',
     obAddExpense: 'Add to the list',
     obExpenseNameInvalid: 'Type a name for the expense.',
     obRemove: 'Remove',
     obNoExpenses: 'You have not added any yet.',
     obAlreadyHad: 'You already had these',
-    obFreeLabel: 'Free per quincena',
+    obFreeLabel: 'Free left per quincena',
     obFreeAverage:
       'This is an average: what is paid once a month is spread over your quincenas.',
     obFreeNeedIncome:
-      'Type how much you earn per pay (step 3) to see how much is left free.',
+      'Type how much you earn per pay (income step) to see how much is left free.',
     obFreeNegative:
       'Your fixed expenses are more than you earn per pay. Check the amounts.',
     obGoalTitle: 'A savings goal',
@@ -448,6 +447,7 @@ export const translations = {
     obBack: 'Back',
     obNext: 'Next',
     obSkip: 'Skip this step',
+    obSkipGoal: 'Finish without a goal',
     obSkipAll: 'Skip the setup',
     obFinish: 'Finish',
     obSaving: 'Saving…',

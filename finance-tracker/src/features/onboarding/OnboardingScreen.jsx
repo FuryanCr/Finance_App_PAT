@@ -30,7 +30,7 @@ function FreeSummary({ figures, hasIncome, currency }) {
   const { t } = useSettings()
   const negative = figures.free < 0
   return (
-    <div className="ob-free" role="status">
+    <div className="ob-free">
       <p className="label">{t('obFreeLabel')}</p>
       {hasIncome ? (
         <>
@@ -85,7 +85,13 @@ export default function OnboardingScreen() {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
+  const stepText = t('obStepOf')
+    .replace('{n}', step + 1)
+    .replace('{total}', STEP_COUNT)
+
   const heading = useRef(null)
+  const draftNameInput = useRef(null)
+  const draftAmountInput = useRef(null)
   const firstRender = useRef(true)
   const nextId = useRef(1)
 
@@ -136,13 +142,26 @@ export default function OnboardingScreen() {
     })
     if (!built.ok) {
       setDraftError(built.reason)
+      const field = built.reason === 'name' ? draftNameInput : draftAmountInput
+      field.current?.focus()
       return false
     }
     setExpenses((list) => [...list, { ...built.item, id: nextId.current++ }])
     setDraftName('')
     setDraftAmount('')
     setDraftError(null)
+    draftNameInput.current?.focus()
     return true
+  }
+
+  // Amounts typed in one currency are not converted: changing the currency
+  // clears what depends on it, so nothing is saved with the wrong currency
+  const changeCurrency = (code) => {
+    if (code === currency) return
+    setCurrency(code)
+    setExpenses([])
+    setIncomeText('')
+    setGoalText('')
   }
 
   const resetStep = () => {
@@ -188,7 +207,7 @@ export default function OnboardingScreen() {
           : null,
         recurring,
       })
-      const add = expenses.map((item) => ({ ...item, id: undefined, currency }))
+      const add = expenses.map((item) => ({ ...item, id: undefined }))
       if (plan.action === 'add') add.unshift(plan.item)
       await completeOnboarding({
         profile: {
@@ -269,15 +288,15 @@ export default function OnboardingScreen() {
         aria-valuemin={1}
         aria-valuemax={STEP_COUNT}
         aria-valuenow={step + 1}
-        aria-valuetext={`${t('obStep')} ${step + 1} ${t('obOf')} ${STEP_COUNT}`}
+        aria-valuetext={stepText}
       >
         <div
           className="ob-progress-fill"
           style={{ width: `${((step + 1) / STEP_COUNT) * 100}%` }}
         />
       </div>
-      <p className="sub ob-step-count">
-        {t('obStep')} {step + 1} {t('obOf')} {STEP_COUNT}
+      <p className="sub ob-step-count" aria-hidden="true">
+        {stepText}
       </p>
 
       <section className="card ob-card">
@@ -298,8 +317,12 @@ export default function OnboardingScreen() {
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <p className="label">{t('obCurrency')}</p>
-            <CurrencyPills value={currency} onChange={setCurrency} />
+            <div role="group" aria-labelledby="ob-currency-label">
+              <p className="label" id="ob-currency-label">
+                {t('obCurrency')}
+              </p>
+              <CurrencyPills value={currency} onChange={changeCurrency} />
+            </div>
           </>
         )}
 
@@ -320,12 +343,14 @@ export default function OnboardingScreen() {
               <input
                 type="text"
                 inputMode="decimal"
+                aria-invalid={income === undefined}
+                aria-describedby={income === undefined ? 'ob-income-error' : undefined}
                 value={incomeText}
                 onChange={(e) => setIncomeText(e.target.value)}
               />
             </label>
             {income === undefined && (
-              <p className="field-note error" role="alert">
+              <p className="field-note error" role="alert" id="ob-income-error">
                 {t('invalidAmount')}
               </p>
             )}
@@ -372,11 +397,12 @@ export default function OnboardingScreen() {
                         type="button"
                         className="pill"
                         aria-label={`${t('obRemove')}: ${item.note}`}
-                        onClick={() =>
+                        onClick={() => {
                           setExpenses((list) =>
                             list.filter((other) => other.id !== item.id),
                           )
-                        }
+                          draftNameInput.current?.focus()
+                        }}
                       >
                         {t('obRemove')}
                       </button>
@@ -390,8 +416,11 @@ export default function OnboardingScreen() {
               <label className="field">
                 <span className="label">{t('obExpenseName')}</span>
                 <input
+                  ref={draftNameInput}
                   type="text"
                   maxLength={MAX_EXPENSE_NOTE_LENGTH}
+                  aria-invalid={draftError === 'name'}
+                  aria-describedby={draftError === 'name' ? 'ob-draft-error' : undefined}
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
                   onKeyDown={onDraftKey}
@@ -402,15 +431,24 @@ export default function OnboardingScreen() {
                   {t('obExpenseAmount')} ({symbol})
                 </span>
                 <input
+                  ref={draftAmountInput}
                   type="text"
                   inputMode="decimal"
+                  aria-invalid={draftError === 'amount'}
+                  aria-describedby={draftError === 'amount' ? 'ob-draft-error' : undefined}
                   value={draftAmount}
                   onChange={(e) => setDraftAmount(e.target.value)}
                   onKeyDown={onDraftKey}
                 />
               </label>
-              <p className="label">{t('obExpenseRepeats')}</p>
-              <div className="pill-group wrap">
+              <p className="label" id="ob-repeats-label">
+                {t('obExpenseRepeats')}
+              </p>
+              <div
+                className="pill-group wrap"
+                role="group"
+                aria-labelledby="ob-repeats-label"
+              >
                 {schedules.map((s) => (
                   <button
                     key={s}
@@ -424,12 +462,12 @@ export default function OnboardingScreen() {
                 ))}
               </div>
               {draftError === 'name' && (
-                <p className="field-note error" role="alert">
+                <p className="field-note error" role="alert" id="ob-draft-error">
                   {t('obExpenseNameInvalid')}
                 </p>
               )}
               {draftError === 'amount' && (
-                <p className="field-note error" role="alert">
+                <p className="field-note error" role="alert" id="ob-draft-error">
                   {t('invalidAmount')}
                 </p>
               )}
@@ -461,12 +499,14 @@ export default function OnboardingScreen() {
               <input
                 type="text"
                 inputMode="decimal"
+                aria-invalid={goal === undefined}
+                aria-describedby={goal === undefined ? 'ob-goal-error' : undefined}
                 value={goalText}
                 onChange={(e) => setGoalText(e.target.value)}
               />
             </label>
             {goal === undefined && (
-              <p className="field-note error" role="alert">
+              <p className="field-note error" role="alert" id="ob-goal-error">
                 {t('invalidAmount')}
               </p>
             )}
@@ -510,7 +550,7 @@ export default function OnboardingScreen() {
               disabled={busy}
               onClick={skipStep}
             >
-              {t('obSkip')}
+              {step === LAST_STEP ? t('obSkipGoal') : t('obSkip')}
             </button>
           </div>
         </div>
