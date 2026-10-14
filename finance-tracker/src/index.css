@@ -1396,3 +1396,112 @@ dialog.modal::backdrop {
     opacity: 1;
   }
 }
+
+/* Bienvenida (primer uso): pasos cortos con barra de progreso */
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+/* Logo centrado arriba de la barra */
+.ob-brand {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* Barra de progreso: llena en teal hasta el paso actual */
+.ob-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.ob-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+/* "Paso 2 de 5", centrado */
+.ob-step-count {
+  text-align: center;
+}
+
+/* El título recibe el foco al cambiar de paso: sin contorno extra */
+.ob-title:focus {
+  outline: none;
+}
+
+/* Tarjeta del paso: el contenido va uno debajo del otro */
+.ob-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Lista de gastos fijos agregados: sin el margen superior de las listas */
+.ob-list {
+  margin-top: 0;
+}
+
+/* Mini formulario para agregar un gasto fijo */
+.ob-add {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-add .field {
+  margin: 0;
+}
+
+/* Cuánto queda libre por quincena */
+.ob-free {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  text-align: center;
+}
+
+/* Botones de navegación: el principal arriba, los otros dos en una fila */
+.ob-nav {
+  margin-top: 4px;
+}
+
+.ob-nav-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ob-nav-row .btn {
+  flex: 1;
+}
+
+/* "Omitir la configuración": enlace pequeño al final */
+.ob-skip-all {
+  text-align: center;
+}
+
+.ob-skip-all .text-link {
+  min-height: 44px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+/* Inicio: saludo con el nombre, encima de la quincena */
+.hello {
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+}

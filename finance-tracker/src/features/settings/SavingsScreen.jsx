@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { byNewest, parseDate, todayString } from '../../lib/dates'
+import { byNewest, getQuincenaRange, parseDate, todayString } from '../../lib/dates'
 import { formatDate } from '../../lib/format'
 import { currencies, formatMoney, parseAmount } from '../../lib/money'
 import { availableForSavings, quincenaFigures } from '../../lib/quincena'
-import { savingsBalance } from '../../lib/savings'
+import { savingsBalance, savingsInRange } from '../../lib/savings'
 import { useToday } from '../../lib/useToday'
 import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
@@ -18,12 +18,13 @@ export default function SavingsScreen() {
     savings,
     recurring,
     quincenaSchedule,
+    profile,
     addSavingsMove,
     deleteSavingsMove,
   } = useTransactions()
   const today = useToday()
 
-  const [currency, setCurrency] = useState('CRC')
+  const [currency, setCurrency] = useState(profile.currency)
   const [amountText, setAmountText] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -90,6 +91,11 @@ export default function SavingsScreen() {
 
   const sorted = [...savings].sort(byNewest)
 
+  // the goal from the welcome, in its currency, against this quincena
+  const goalCode = profile.currency
+  const { start, end } = getQuincenaRange(today, quincenaSchedule)
+  const savedNow = savingsInRange(savings, goalCode, start, end).toSavings
+
   return (
     <>
       <h1 className="screen-title">{t('savings')}</h1>
@@ -107,6 +113,20 @@ export default function SavingsScreen() {
               </li>
             ))}
           </ul>
+          {profile.savingsGoal && (
+            <ul className="list divider">
+              <li className="row">
+                <span className="row-name">{t('savingsGoalPerQuincena')}</span>
+                <span className="row-amount">
+                  {formatMoney(profile.savingsGoal, goalCode)}
+                </span>
+              </li>
+              <li className="row">
+                <span className="row-name">{t('savedThisQuincena')}</span>
+                <span className="row-amount">{formatMoney(savedNow, goalCode)}</span>
+              </li>
+            </ul>
+          )}
         </section>
 
         <section className="card">

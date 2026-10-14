@@ -44,6 +44,7 @@ export default function HomeScreen() {
     budgets,
     recurring,
     savings,
+    profile,
     confirmRecurring,
     skipRecurring,
     addSavingsMove,
@@ -322,6 +323,11 @@ export default function HomeScreen() {
   return (
     <>
       <div className="greeting">
+        {profile.name && (
+          <p className="hello">
+            {t('hello')}, {profile.name}
+          </p>
+        )}
         <h1 className="screen-title">
           {t('quincena')} · {rangeText}
         </h1>
@@ -364,6 +370,9 @@ export default function HomeScreen() {
           {(due.length > 0 || handled.length > 0) && (
             <section className="card">
               <p className="label">{t('dueThisQuincena')}</p>
+              {transactions.length === 0 && due.length > 0 && (
+                <p className="sub">{t('obHomeHint')}</p>
+              )}
               <ul className="list">
                 {due.map((item) => (
                   <li key={item.id}>

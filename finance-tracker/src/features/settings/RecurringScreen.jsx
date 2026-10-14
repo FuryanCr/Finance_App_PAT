@@ -16,13 +16,14 @@ function RecurringEditor({ item, onDone }) {
   const {
     categories,
     quincenaSchedule,
+    profile,
     addRecurring,
     updateRecurring,
     deleteRecurring,
   } = useTransactions()
 
   const [type, setType] = useState(item?.type ?? 'expense')
-  const [currency, setCurrency] = useState(item?.currency ?? 'CRC')
+  const [currency, setCurrency] = useState(item?.currency ?? profile.currency)
   const [amountText, setAmountText] = useState(item ? String(item.amount) : '')
   const [categoryId, setCategoryId] = useState(
     String(item?.categoryId ?? categories[0].id),

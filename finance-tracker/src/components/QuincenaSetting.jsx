@@ -24,13 +24,15 @@ function toChoice(mode, day1, day2) {
 // the change takes effect when the quincena in progress ends, and what is
 // already registered is never moved. With `embedded` (the welcome steps) it
 // has no card or Save button and reports each choice through onChange
-// (the choice, or null while the days are not valid); the welcome saves it.
-export default function QuincenaSetting({ embedded = false, onChange }) {
+// (the choice, or null while the days are not valid); the welcome saves it,
+// and `initial` is the choice to show when the step is opened again.
+export default function QuincenaSetting({ embedded = false, initial, onChange }) {
   const { locale, t } = useSettings()
   const { quincenaSchedule, saveQuincenaSchedule } = useTransactions()
   const today = useToday()
   const { current, pending } = describeSchedule(quincenaSchedule, today)
-  const shown = pending ?? current
+  // embedded: start from the choice already made in the welcome, if any
+  const shown = (embedded && initial) || pending || current
 
   const [mode, setMode] = useState(shown.mode)
   const [day1, setDay1] = useState(String(shown.mode === 'paydays' ? shown.day1 : 5))

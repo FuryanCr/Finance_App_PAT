@@ -13,6 +13,7 @@ import QuincenaSetting from '../../components/QuincenaSetting'
 import { downloadCsv, downloadFile, transactionRows } from '../../lib/csv'
 import { byNewest, isValidDate, parseDate, todayString } from '../../lib/dates'
 import { formatDate } from '../../lib/format'
+import { MAX_NAME_LENGTH, cleanName } from '../../lib/onboarding'
 import { readPref, writePref } from '../../lib/prefs'
 
 // The date of the last backup made on this device, or null
@@ -31,13 +32,17 @@ export default function SettingsScreen() {
     recurring,
     savings,
     quincenaSchedule,
+    profile,
     loadSampleData,
     clearAllData,
     restoreData,
+    saveProfileName,
+    startOnboarding,
   } = useTransactions()
 
   const [busy, setBusy] = useState(false)
   const [lastBackup, setLastBackup] = useState(readLastBackup)
+  const [nameText, setNameText] = useState(profile.name)
 
   const hasTransactions = transactions.length > 0
   const customCount = categories.filter((c) => c.name).length
@@ -83,6 +88,7 @@ export default function SettingsScreen() {
       recurring,
       savings,
       quincenaSchedule,
+      profile,
     })
     downloadFile(name, JSON.stringify(backup, null, 2), 'application/json')
   }
@@ -224,7 +230,45 @@ export default function SettingsScreen() {
             </div>
           </section>
 
+          <section className="card">
+            <label className="field">
+              <span className="label">{t('profileName')}</span>
+              <input
+                type="text"
+                autoComplete="given-name"
+                maxLength={MAX_NAME_LENGTH}
+                value={nameText}
+                onChange={(e) => setNameText(e.target.value)}
+              />
+            </label>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || cleanName(nameText) === profile.name}
+                onClick={() => run(() => saveProfileName(nameText))}
+              >
+                {t('save')}
+              </button>
+            </div>
+          </section>
+
           <QuincenaSetting />
+
+          <section className="card">
+            <p className="label">{t('setupSection')}</p>
+            <p className="sub">{t('redoSetupHint')}</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={busy}
+                onClick={startOnboarding}
+              >
+                {t('redoSetup')}
+              </button>
+            </div>
+          </section>
 
           <section className="card">
             <p className="label">{t('manage')}</p>
