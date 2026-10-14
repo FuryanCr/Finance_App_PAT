@@ -152,17 +152,49 @@ function clean(list, cleaner) {
   return list.map(cleaner).filter((item) => item !== null)
 }
 
+// How many restored records had a text cut: a note over MAX_NOTE_LENGTH or a
+// category name over MAX_CATEGORY_NAME_LENGTH. Each id is counted once.
+function countTrimmed(source, result) {
+  let total = 0
+  for (const name of ['transactions', 'recurring', 'savings']) {
+    const kept = new Set(result[name].map((item) => item.id))
+    for (const raw of source[name]) {
+      if (
+        isObject(raw) &&
+        kept.delete(raw.id) &&
+        typeof raw.note === 'string' &&
+        raw.note.length > MAX_NOTE_LENGTH
+      ) {
+        total++
+      }
+    }
+  }
+  const keptCategories = new Set(result.categories.map((c) => c.id))
+  for (const raw of source.categories) {
+    if (
+      isObject(raw) &&
+      keptCategories.delete(raw.id) &&
+      typeof raw.name === 'string' &&
+      raw.name.trim().length > MAX_CATEGORY_NAME_LENGTH
+    ) {
+      total++
+    }
+  }
+  return total
+}
+
 const LISTS = ['categories', 'transactions', 'budgets', 'recurring', 'savings']
 
 // Checks and cleans the text of a backup file and says what happened to it:
 //   { ok: false, reason }  reason: 'format' (not a backup of this app),
 //                          'newer' (made by a newer version), 'tooBig'
 //                          (the text or a list is over the limits)
-//   { ok: true, data, counts, dropped, droppedTotal }
+//   { ok: true, data, counts, dropped, droppedTotal, trimmed }
 // data is { transactions, categories, budgets, recurring, savings } ready to
 // restore; counts is how many records of each list will be restored, and
 // dropped how many were left out (invalid, repeated, or a category whose
-// name already exists). It never throws.
+// name already exists). trimmed is how many restored records had a note or a
+// category name cut to the length the forms allow. It never throws.
 // Older backups have no savings: they read as an empty list.
 export function inspectBackup(text, builtInCategories) {
   try {
@@ -257,7 +289,8 @@ export function inspectBackup(text, builtInCategories) {
       dropped[name] = source[name].length - result[name].length
       droppedTotal += dropped[name]
     }
-    return { ok: true, data: result, counts, dropped, droppedTotal }
+    const trimmed = countTrimmed(source, result)
+    return { ok: true, data: result, counts, dropped, droppedTotal, trimmed }
   } catch {
     return { ok: false, reason: 'format' }
   }

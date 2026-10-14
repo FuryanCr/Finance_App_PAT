@@ -336,6 +336,25 @@ describe('limits of a restored backup', () => {
     },
   )
 
+  it('counts the notes and category names that were cut', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, note: 'x'.repeat(61) },
+        { ...validTx, id: 9, note: 'short' },
+      ],
+      categories: [{ id: 50, name: 'N'.repeat(30), color: 'violet' }],
+    })
+    expect(result.trimmed).toBe(2)
+    expect(result.data.transactions[0].note).toHaveLength(60)
+  })
+
+  it('does not count a cut text of a record that was dropped', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, amount: -5, note: 'x'.repeat(61) }],
+    })
+    expect(result.trimmed).toBe(0)
+  })
+
   it('keeps an amount at the cap', () => {
     const result = inspect({
       transactions: [{ ...validTx, amount: 1_000_000_000 }],

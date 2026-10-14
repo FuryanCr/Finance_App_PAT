@@ -134,6 +134,9 @@ export default function SettingsScreen() {
     if (result.droppedTotal > 0) {
       lines.push('', `${t('restoreDropped')}: ${result.droppedTotal}`)
     }
+    if (result.trimmed > 0) {
+      lines.push('', `${t('restoreTrimmed')}: ${result.trimmed}`)
+    }
     const answer = await confirm({
       message: lines.join('\n'),
       confirmLabel: t('restoreConfirm'),
