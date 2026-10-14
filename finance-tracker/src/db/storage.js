@@ -834,7 +834,7 @@ export function completeOnboarding({
         created.push(result.changes.lastId)
       }
       if (update) {
-        await db.run(
+        const result = await db.run(
           `UPDATE recurring SET
             amount_cents = ?, currency = ?, type = ?, category_id = ?,
             note = ?, schedule = ?
@@ -842,6 +842,10 @@ export function completeOnboarding({
           [...recurringParams(update.item), update.id],
           false,
         )
+        // the item was deleted meanwhile: fail instead of reporting a save
+        if (result.changes.changes === 0) {
+          throw new Error(`Recurring item not found: ${update.id}`)
+        }
       }
       await writeProfile(db, { ...profile, onboardedAt: todayString() })
       return created

@@ -283,3 +283,31 @@ describe('planIncome', () => {
     expect(result.action).toBe('add')
   })
 })
+
+describe('guards found in review', () => {
+  it('freePerQuincena reads a bad pay-day count as one a month', () => {
+    const expenses = [{ amount: 100, schedule: 'first' }]
+    for (const perMonth of [0, -2, undefined, NaN]) {
+      const result = freePerQuincena({ income: 1000, expenses, perMonth })
+      expect(Number.isFinite(result.free)).toBe(true)
+    }
+  })
+
+  it('planIncome does nothing for an income of 0 or less', () => {
+    expect(planIncome({ income: 0, currency: 'CRC', note: 'x', recurring: [] })).toEqual({ action: 'none' })
+    expect(planIncome({ income: -5, currency: 'CRC', note: 'x', recurring: [] })).toEqual({ action: 'none' })
+  })
+
+  it('planIncome adds a new income when the currency changed (no conversion)', () => {
+    const old = { id: 1, type: 'income', schedule: 'every', amount: 450000, currency: 'CRC', note: 'S', lastPeriod: null }
+    const result = planIncome({
+      income: 900,
+      currency: 'USD',
+      note: 'Salary',
+      previous: { income: 450000, currency: 'CRC' },
+      recurring: [old],
+    })
+    expect(result.action).toBe('update')
+    expect(result.item.currency).toBe('USD')
+  })
+})

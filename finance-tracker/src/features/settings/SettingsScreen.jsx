@@ -230,7 +230,7 @@ export default function SettingsScreen() {
             </div>
           </section>
 
-          <section className="card">
+          <section className="card" key={profile.name}>
             <label className="field">
               <span className="label">{t('profileName')}</span>
               <input

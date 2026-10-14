@@ -216,3 +216,33 @@ describe('profile and the first-use screen', () => {
     }
   })
 })
+
+describe('completeOnboarding with a missing recurring item', () => {
+  it('fails and saves nothing when the item to update does not exist', async () => {
+    await expect(
+      storage.completeOnboarding({
+        profile: profile(),
+        schedule: [{ from: '2000-01-01', mode: 'paydays', day1: 5, day2: 20 }],
+        add: [recurringItem({ note: 'Luz' })],
+        update: { id: 999, item: income() },
+      }),
+    ).rejects.toThrow(/not found/)
+    const state = await storage.loadAll()
+    expect(state.profile).toEqual(EMPTY_PROFILE)
+    expect(state.recurring).toEqual([])
+    expect(state.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+    await noPending()
+  })
+
+  it('clearAll puts the quincena back to 15/30 and the welcome can be done again', async () => {
+    await storage.completeOnboarding({
+      profile: profile(),
+      schedule: [{ from: '2000-01-01', mode: 'paydays', day1: 5, day2: 20 }],
+    })
+    await storage.clearAll()
+    const state = await storage.loadAll()
+    expect(state.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+    const again = await storage.completeOnboarding({ profile: profile({ name: 'Otra' }) })
+    expect(again.profile.name).toBe('Otra')
+  })
+})

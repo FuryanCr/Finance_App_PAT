@@ -132,7 +132,7 @@ export const migrations = [
             WHERE NOT (effective_from = '2000-01-01' AND mode = 'fixed'
               AND day1 = 1 AND day2 = 16)
           )
-        THEN date('now') ELSE NULL END)`,
+        THEN date('now', 'localtime') ELSE NULL END)`,
       [],
       false,
     )

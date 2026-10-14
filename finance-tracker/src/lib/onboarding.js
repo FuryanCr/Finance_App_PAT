@@ -60,7 +60,9 @@ export function freePerQuincena({
   const monthly = sum(
     expenses.filter((e) => e.schedule !== 'every').map((e) => e.amount),
   )
-  const fixed = sum([everyQuincena, monthly / perMonth])
+  // a pay-day count that is not a positive number reads as one a month
+  const divisor = perMonth >= 1 ? perMonth : 1
+  const fixed = sum([everyQuincena, monthly / divisor])
   const goal = savingsGoal || 0
   return { income, fixed, goal, free: sum([income, -fixed, -goal]) }
 }
@@ -132,7 +134,7 @@ export const EMPTY_PROFILE = {
 // { action: 'update', id, item } (the income the welcome created before is
 // found and changed) or { action: 'add', item }. Never duplicates an income.
 export function planIncome({ income, currency, note, previous, recurring }) {
-  if (income === null || income === undefined) return { action: 'none' }
+  if (!(income > 0)) return { action: 'none' }
   const item = buildIncomeItem(income, currency, note)
   const old = previous?.income
     ? recurring.find(
