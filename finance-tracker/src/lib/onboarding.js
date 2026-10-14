@@ -40,7 +40,7 @@ export function optionalAmount(text) {
 // How many pay days a month the person has: 15/30 and two pay days are 2,
 // a single pay day a month is 1
 export function quincenasPerMonth(choice) {
-  if (!choice || choice.mode === 'fixed') return 2
+  if (!choice || choice.mode !== 'paydays') return 2
   const { day1, day2 } = choice
   return day2 && day2 !== day1 ? 2 : 1
 }
