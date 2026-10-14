@@ -13,7 +13,7 @@ import TransactionItem from '../../components/TransactionItem'
 
 export default function HistoryScreen() {
   const { lang, locale, t } = useSettings()
-  const { transactions, categories } = useTransactions()
+  const { transactions, categories, quincenaSchedule } = useTransactions()
 
   const today = new Date()
   const [month, setMonth] = useState(
@@ -65,7 +65,7 @@ export default function HistoryScreen() {
 
   // spending per payment method in the quincena of today; it ignores the
   // filters so the three methods can always be compared
-  const quincena = getQuincenaRange(today)
+  const quincena = getQuincenaRange(today, quincenaSchedule)
   const methodTotals = totalsByMethod(transactions, quincena)
 
   const summaries = currencies

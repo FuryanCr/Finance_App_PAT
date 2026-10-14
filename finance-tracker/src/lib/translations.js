@@ -24,11 +24,12 @@ export const translations = {
     retry: 'Reintentar',
     loading: 'Abriendo tus datos…',
     otherTab:
-      'La aplicación ya está abierta en otra pestaña. Ciérrala y vuelve a intentarlo: usar dos a la vez podría borrar tus datos.',
+      'La aplicación ya está abierta en otra pestaña. Cierra la otra pestaña y toca Reintentar: usar dos a la vez podría borrar tus datos.',
     backupReminder:
-      'Hace más de dos semanas que no descargas un respaldo. Tus datos solo viven en este navegador.',
+      'Hace tiempo que no descargas un respaldo. Si borras los datos del navegador o cambias de teléfono, pierdes todo.',
     goToBackup: 'Ir al respaldo',
-    saveError: 'No se pudo guardar. Inténtalo de nuevo.',
+    saveError:
+      'No se pudo guardar. Revisa que tengas espacio en el teléfono e inténtalo de nuevo. Si sigue, descarga un respaldo.',
     budgets: 'Presupuestos',
     budgetHint:
       'Límite de gasto por categoría en cada quincena. Déjalo vacío si no quieres poner límite.',
@@ -135,10 +136,96 @@ export const translations = {
     'schedule.second': 'Una vez al mes, del 16 a fin de mes',
     'schedule.firstPay': 'Una vez al mes, en la primera quincena',
     'schedule.secondPay': 'Una vez al mes, en la segunda quincena',
+    // Bienvenida (primer uso) y su repetición desde Ajustes
+    obProgress: 'Progreso de la configuración',
+    obStepOf: 'Paso {n} de {total}',
+    obBasicsTitle: 'Bienvenido',
+    obBasicsHint:
+      'Unos pocos datos y listo. Todo es opcional y lo puedes cambiar después en Ajustes.',
+    obName: 'Tu nombre (opcional)',
+    obCurrency: 'Moneda principal',
+    obPaydayTitle: 'Cuándo te pagan',
+    obPaydayHint:
+      'Así sabemos dónde empieza y termina tu quincena. Si te pagan el 15 y el 30, no cambies nada. Si tu pago cae en días distintos cada mes, elige "Sin día fijo" y márcalo cuando te paguen.',
+    obIncomeTitle: 'Cuánto ganas por pago',
+    obIncomeHint:
+      'Lo guardamos como un ingreso que se repite cada quincena: cuando te paguen solo lo confirmas.',
+    obIncomeLabel: 'Monto por pago',
+    obIncomeNote: 'Salario',
+    obFixedTitle: 'Tus gastos fijos',
+    obFixedHint:
+      'Alquiler, recibos, suscripciones: lo que se paga siempre. Agrégalos uno por uno; lo que dejes escrito se agrega al continuar.',
+    obExpenseName: 'Nombre del gasto',
+    obExpenseAmount: 'Monto',
+    obExpenseRepeats: 'Frecuencia',
+    obNewCategory: 'Nueva categoría…',
+    obNewCategoryName: 'Nombre de la categoría',
+    obCategoryInvalid: 'Escribe el nombre de la categoría nueva.',
+    obAddExpense: 'Agregar a la lista',
+    obExpenseNameInvalid: 'Escribe un nombre para el gasto.',
+    obRemove: 'Quitar',
+    obNoExpenses: 'Todavía no has agregado ninguno.',
+    obAlreadyHad: 'Ya los tenías',
+    obFreeLabel: 'Te quedan libres por quincena',
+    obFreeAverage:
+      'Es un promedio: lo que se paga una vez al mes se reparte entre tus quincenas.',
+    obFreeNeedIncome:
+      'Escribe cuánto ganas por pago (paso de ingresos) para ver cuánto te queda libre.',
+    obFreeNegative:
+      'Tus gastos fijos pasan de lo que ganas por pago. Revisa los montos.',
+    obGoalTitle: 'Una meta de ahorro',
+    obGoalHint:
+      'Cuánto quieres apartar en cada quincena. Es opcional y la puedes cambiar cuando quieras.',
+    obGoalLabel: 'Ahorro por quincena',
+    obHomeHint:
+      'Confirma tu ingreso cuando te paguen y cada gasto fijo cuando lo pagues: así tu saldo se arma solo.',
+    obCurrencyWarn:
+      'Si cambias la moneda, se borra lo que escribiste en los pasos siguientes.',
+    obAdded: 'Agregado',
+    obRemoved: 'Quitado',
+    obSkipAllConfirm:
+      'Si omites ahora, no se guarda lo que escribiste. Puedes hacer la configuración después en Ajustes.',
+    manualCardTitle: 'Tu pago llega en días distintos',
+    manualPaidAgain: 'Ya registraste un pago el {date}. ¿Registrar otro?',
+    waitingPay: 'Esperando tu próximo pago',
+    loadSampleConfirm:
+      'Se agregarán movimientos de ejemplo. Después los puedes borrar.',
+    obBack: 'Atrás',
+    obNext: 'Siguiente',
+    obSkip: 'Saltar este paso',
+    obSkipGoal: 'Terminar sin meta',
+    obSkipAll: 'Omitir la configuración',
+    obFinish: 'Terminar',
+    obSaving: 'Guardando…',
+    hello: 'Hola',
+    setupSection: 'Configuración inicial',
+    redoSetup: 'Repetir configuración inicial',
+    redoSetupHint:
+      'Vuelves a ver los pasos de bienvenida. Tus movimientos no se borran; lo que termines aquí se suma a tus gastos fijos.',
+    profileName: 'Tu nombre',
+    savingsGoalPerQuincena: 'Meta por quincena',
+    savedThisQuincena: 'Apartado esta quincena',
     quincenaSetting: 'Cómo se corta la quincena',
-    quincenaMode15: '15 y 30 (días 1 y 16)',
+    quincenaMode15: 'El 15 y el 30 de cada mes',
     quincenaModePaydays: 'Mis días de pago',
     quincenaPayDays: 'Días de pago',
+    quincenaModeManual: 'Sin día fijo',
+    quincenaPaidOn: 'Día de pago (el último o el próximo)',
+    quincenaPaidInvalid: 'Escribe una fecha válida.',
+    quincenaPaidFuture:
+      'Aquí marcas un pago que ya recibiste. Si es tu próximo pago, ve a Ajustes → Cómo se corta la quincena.',
+    quincenaPaidEarly:
+      'Esa fecha es anterior a esta quincena: movería quincenas que ya viviste. Elige un día de la quincena en curso.',
+    quincenaManualNote:
+      'La quincena corre desde el día de pago hasta el día antes del siguiente. Si pones una fecha futura, la quincena actual sigue hasta ese día. Sin el próximo pago registrado, se cuenta de 15 días.',
+    manualPaidToday: 'Me pagaron hoy',
+    manualPaidOther: 'Otra fecha',
+    manualPaidRegister: 'Registrar pago',
+    manualSince: 'Quincena abierta desde el',
+    manualHint:
+      'Cuando te depositen, márcalo aquí: empieza una quincena nueva y vuelves a ver tus pendientes.',
+    manualOverdue:
+      'Ya pasaron más de 15 días desde tu último pago. ¿Ya te pagaron?',
     quincenaDay1: 'Primer día de pago (1 a 31)',
     quincenaDay2: 'Segundo día de pago (opcional)',
     quincenaDaysInvalid:
@@ -240,11 +327,12 @@ export const translations = {
     retry: 'Try again',
     loading: 'Opening your data…',
     otherTab:
-      'I AM POOR FOR NOW is already open in another tab. Close it and try again: using two at once could erase data.',
+      'I AM POOR FOR NOW is already open in another tab. Close the other tab and tap Retry: using two at once could erase data.',
     backupReminder:
-      'You have not downloaded a backup in over two weeks. Your data only lives in this browser.',
+      'It has been a while since your last backup. If you clear the browser data or change phones, you lose everything.',
     goToBackup: 'Go to backup',
-    saveError: 'Could not save. Please try again.',
+    saveError:
+      'Could not save. Check that your phone has free space and try again. If it keeps failing, download a backup.',
     budgets: 'Budgets',
     budgetHint:
       'Spending limit per category for each quincena. Leave it empty for no limit.',
@@ -349,10 +437,95 @@ export const translations = {
     'schedule.second': 'Monthly, day 16 to month end',
     'schedule.firstPay': 'Monthly, in the first quincena',
     'schedule.secondPay': 'Monthly, in the second quincena',
+    // Welcome (first use) and doing it again from Settings
+    obProgress: 'Setup progress',
+    obStepOf: 'Step {n} of {total}',
+    obBasicsTitle: 'Welcome',
+    obBasicsHint:
+      'A few details and you are set. Everything is optional and you can change it later in Settings.',
+    obName: 'Your name (optional)',
+    obCurrency: 'Main currency',
+    obPaydayTitle: 'When you get paid',
+    obPaydayHint:
+      'This tells us where your quincena starts and ends. If you are paid on the 15th and 30th, change nothing. If your pay lands on different days each month, pick "No fixed day" and mark it when you are paid.',
+    obIncomeTitle: 'How much you earn per pay',
+    obIncomeHint:
+      'We save it as an income that repeats every quincena: when you get paid you just confirm it.',
+    obIncomeLabel: 'Amount per pay',
+    obIncomeNote: 'Salary',
+    obFixedTitle: 'Your fixed expenses',
+    obFixedHint:
+      'Rent, bills, subscriptions: whatever is always paid. Add them one by one; whatever you leave typed is added when you continue.',
+    obExpenseName: 'Expense name',
+    obExpenseAmount: 'Amount',
+    obExpenseRepeats: 'How often',
+    obNewCategory: 'New category…',
+    obNewCategoryName: 'Category name',
+    obCategoryInvalid: 'Type a name for the new category.',
+    obAddExpense: 'Add to the list',
+    obExpenseNameInvalid: 'Type a name for the expense.',
+    obRemove: 'Remove',
+    obNoExpenses: 'You have not added any yet.',
+    obAlreadyHad: 'You already had these',
+    obFreeLabel: 'Free left per quincena',
+    obFreeAverage:
+      'This is an average: what is paid once a month is spread over your quincenas.',
+    obFreeNeedIncome:
+      'Type how much you earn per pay (income step) to see how much is left free.',
+    obFreeNegative:
+      'Your fixed expenses are more than you earn per pay. Check the amounts.',
+    obGoalTitle: 'A savings goal',
+    obGoalHint:
+      'How much you want to set aside each quincena. It is optional and you can change it any time.',
+    obGoalLabel: 'Savings per quincena',
+    obHomeHint:
+      'Confirm your income when you get paid and each fixed expense when you pay it: your balance builds itself.',
+    obCurrencyWarn:
+      'If you change the currency, what you typed in the next steps is cleared.',
+    obAdded: 'Added',
+    obRemoved: 'Removed',
+    obSkipAllConfirm:
+      'If you skip now, what you typed is not saved. You can do the setup later in Settings.',
+    manualCardTitle: 'Your pay lands on different days',
+    manualPaidAgain: 'You already registered a payment on {date}. Register another?',
+    waitingPay: 'Waiting for your next payment',
+    loadSampleConfirm:
+      'Sample transactions will be added. You can delete them later.',
+    obBack: 'Back',
+    obNext: 'Next',
+    obSkip: 'Skip this step',
+    obSkipGoal: 'Finish without a goal',
+    obSkipAll: 'Skip the setup',
+    obFinish: 'Finish',
+    obSaving: 'Saving…',
+    hello: 'Hi',
+    setupSection: 'Initial setup',
+    redoSetup: 'Repeat initial setup',
+    redoSetupHint: 'You see the welcome steps again. Your transactions are not deleted; what you finish here is added to your fixed expenses.',
+    profileName: 'Your name',
+    savingsGoalPerQuincena: 'Goal per quincena',
+    savedThisQuincena: 'Set aside this quincena',
     quincenaSetting: 'How the quincena is cut',
-    quincenaMode15: '15/30 (days 1 and 16)',
+    quincenaMode15: 'The 15th and 30th of each month',
     quincenaModePaydays: 'My pay days',
     quincenaPayDays: 'Pay days',
+    quincenaModeManual: 'No fixed day',
+    quincenaPaidOn: 'Pay day (the last or the next one)',
+    quincenaPaidInvalid: 'Type a valid date.',
+    quincenaPaidFuture:
+      'Here you mark a payment you already received. If it is your next payment, go to Settings → How the quincena is cut.',
+    quincenaPaidEarly:
+      'That date is before this quincena: it would move quincenas you already lived. Pick a day of the quincena in progress.',
+    quincenaManualNote:
+      'The quincena runs from the pay day to the day before the next one. If you pick a future date, the current quincena goes on until then. Without the next payment registered, it counts as 15 days.',
+    manualPaidToday: 'I was paid today',
+    manualPaidOther: 'Another date',
+    manualPaidRegister: 'Register payment',
+    manualSince: 'Quincena open since',
+    manualHint:
+      'When you get paid, mark it here: a new quincena starts and your pending items come back.',
+    manualOverdue:
+      'More than 15 days have passed since your last payment. Were you paid?',
     quincenaDay1: 'First pay day (1 to 31)',
     quincenaDay2: 'Second pay day (optional)',
     quincenaDaysInvalid:

@@ -1396,3 +1396,221 @@ dialog.modal::backdrop {
     opacity: 1;
   }
 }
+
+/* Bienvenida (primer uso): pasos cortos con barra de progreso */
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+/* Logo centrado arriba de la barra */
+.ob-brand {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* Barra de progreso: llena en teal hasta el paso actual */
+.ob-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.ob-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* La barra avanza con animación solo si la persona no pidió menos movimiento */
+@media (prefers-reduced-motion: no-preference) {
+  .ob-progress-fill {
+    transition: width 0.2s ease;
+  }
+}
+
+/* "Paso 2 de 5", centrado */
+.ob-step-count {
+  text-align: center;
+}
+
+/* El título recibe el foco al cambiar de paso: sin contorno extra
+   (con teclado el foco visible se conserva) */
+.ob-title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Tarjeta del paso: el contenido va uno debajo del otro */
+.ob-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Lista de gastos fijos agregados: sin el margen superior de las listas */
+.ob-list {
+  margin-top: 0;
+}
+
+/* Mini formulario para agregar un gasto fijo */
+.ob-add {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.ob-add .field {
+  margin: 0;
+}
+
+/* Cuánto queda libre por quincena */
+/* El monto grande se achica en pantallas angostas en vez de salirse */
+.ob-free .balance {
+  font-size: clamp(28px, 9vw, 40px);
+  overflow-wrap: anywhere;
+}
+
+.ob-free {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  text-align: center;
+}
+
+/* Botones de navegación: el principal arriba, los otros dos en una fila */
+.ob-nav {
+  margin-top: 4px;
+}
+
+.ob-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ob-nav-row .btn {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+/* Los grupos de pills no suman margen extra dentro de la bienvenida */
+.ob-card .pill-group.wrap {
+  margin-top: 0;
+}
+
+/* "Omitir la configuración": enlace pequeño al final */
+.ob-skip-all {
+  text-align: center;
+}
+
+.ob-skip-all .text-link {
+  min-height: 44px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+/* Inicio: saludo con el nombre, encima de la quincena */
+.hello {
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* Accesibilidad y uso real en el celular (revisión previa a entregar) */
+
+/* Borde de los controles (campos, listas, pills) con contraste suficiente
+   para verse como un límite: 3:1 contra su fondo */
+:root {
+  --control-border: #4b6169;
+}
+
+:root[data-theme='light'] {
+  --control-border: #8a8378;
+}
+
+.field input,
+.field select,
+.pill:not(.active) {
+  border-color: var(--control-border);
+}
+
+/* Las pills miden al menos 44 px de alto para poder tocarlas */
+.pill {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Campo de fecha: cabe en 320 px y no colapsa en iOS cuando está vacío */
+.field input[type='date'] {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+}
+
+.field input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+}
+
+.field select {
+  min-width: 0;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Tarjeta de inicio "Tu pago llega en días distintos" */
+.manual-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.due-actions {
+  flex-wrap: wrap;
+}
+
+.due-actions .pill {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+/* Nombres largos no se salen de la fila */
+.row-name,
+.row-meta {
+  overflow-wrap: anywhere;
+}
+
+/* Enlace deshabilitado */
+.text-link:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Texto solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

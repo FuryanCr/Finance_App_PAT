@@ -16,6 +16,7 @@ import { currencies, formatMoney } from '../../lib/money'
 import { isBackupReminderDue } from '../../lib/backup'
 import { readPref, writePref } from '../../lib/prefs'
 import { quincenaFigures, rolloverLeftover } from '../../lib/quincena'
+import { manualState, registerPayday } from '../../lib/quincenaSchedule'
 import { isDue, isHandled } from '../../lib/recurring'
 import {
   ROLLOVER_NOTE,
@@ -34,7 +35,7 @@ const skipKey = (code) => `rolloverSkipped.${code}`
 
 export default function HomeScreen() {
   const { locale, t } = useSettings()
-  const { alert } = useDialog()
+  const { alert, confirm } = useDialog()
 
   const today = useToday()
   const {
@@ -44,6 +45,8 @@ export default function HomeScreen() {
     budgets,
     recurring,
     savings,
+    profile,
+    saveQuincenaSchedule,
     confirmRecurring,
     skipRecurring,
     addSavingsMove,
@@ -51,6 +54,9 @@ export default function HomeScreen() {
   const { start, end } = getQuincenaRange(today, quincenaSchedule)
   const daysLeft = daysLeftInQuincena(today, quincenaSchedule)
   const [busy, setBusy] = useState(false)
+  // manual pay days: the date being typed for "another date", or null
+  const [otherDate, setOtherDate] = useState(null)
+  const [paidError, setPaidError] = useState(null)
   // the quincena each currency's rollover offer was skipped for
   const [skipped, setSkipped] = useState(() =>
     Object.fromEntries(currencies.map((c) => [c.code, readPref(skipKey(c.code))])),
@@ -117,6 +123,41 @@ export default function HomeScreen() {
       setSkipped((prev) => ({ ...prev, [code]: previousKey }))
     })
 
+  const manual = manualState(quincenaSchedule, today)
+
+  // "I was paid": a new quincena starts on that day (today unless another
+  // date was typed); a date that would move the past is explained, not saved
+  const registerPaid = async (dateText) => {
+    // here the person says they WERE paid: a day that has not come is an error
+    // (in Settings and the welcome a future day is the next payment)
+    const result =
+      dateText > todayString(today)
+        ? { ok: false, reason: 'future' }
+        : registerPayday(quincenaSchedule, dateText, today)
+    if (!result.ok) {
+      setPaidError(result.reason)
+      return
+    }
+    // two payments a few days apart are usually a double tap
+    if (
+      manual.active &&
+      manual.since !== dateText &&
+      daysBetween(parseDate(manual.since), parseDate(dateText)) < 3
+    ) {
+      const { confirmed } = await confirm({
+        message: t('manualPaidAgain').replace(
+          '{date}',
+          formatDate(parseDate(manual.since), locale),
+        ),
+        confirmLabel: t('manualPaidRegister'),
+      })
+      if (!confirmed) return
+    }
+    setPaidError(null)
+    setOtherDate(null)
+    run(() => saveQuincenaSchedule(result.schedule))
+  }
+
   const rangeText = `${formatDate(start, locale, { year: false })} – ${formatDate(end, locale, { year: false })}`
 
   // a currency gets a card when it has transactions, pending bills or savings
@@ -159,8 +200,11 @@ export default function HomeScreen() {
     const pct =
       income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
     const categoryTotals = getCategoryTotals(expenses, categories)
-    const daysText =
-      daysLeft === 1 ? t('lastDay') : `${daysLeft} ${t('daysLeft')}`
+    const daysText = manual.overdue
+      ? t('waitingPay')
+      : daysLeft === 1
+        ? t('lastDay')
+        : `${daysLeft} ${t('daysLeft')}`
 
     // the headline is what can be spent today; without income (or money from
     // savings) there is no daily amount, so it shows what is left instead
@@ -280,7 +324,8 @@ export default function HomeScreen() {
       .join(' · ') || formatMoney(0, 'CRC')
 
   const totalDays = daysBetween(start, end) + 1
-  const dayNumber = totalDays - daysLeft + 1
+  // a late manual quincena has no known end: show it as its last day
+  const dayNumber = manual.overdue ? totalDays : totalDays - daysLeft + 1
 
   // the leftover of the quincena that closed: shown right after the main card
   const offersCard = offers.length > 0 && (
@@ -322,6 +367,11 @@ export default function HomeScreen() {
   return (
     <>
       <div className="greeting">
+        {profile.name && (
+          <p className="hello">
+            {t('hello')}, {profile.name}
+          </p>
+        )}
         <h1 className="screen-title">
           {t('quincena')} · {rangeText}
         </h1>
@@ -344,8 +394,91 @@ export default function HomeScreen() {
         </div>
       </div>
 
+      {isBackupReminderDue(readPref('lastBackup'), transactions, today) && (
+        <p className="sub backup-line">
+          {t('backupReminder')}{' '}
+          <Link className="text-link" to="/settings">
+            {t('goToBackup')}
+          </Link>
+        </p>
+      )}
+
       <div className="cols">
         <div className="col">
+          {manual.active && (
+            <section className="card manual-card" aria-busy={busy}>
+              <p className="label">{t('manualCardTitle')}</p>
+              <p className="sub">
+                {t('manualSince')} {formatDate(parseDate(manual.since), locale)}
+              </p>
+              {manual.overdue ? (
+                <p className="sub warn" role="status">
+                  {t('manualOverdue')}
+                </p>
+              ) : (
+                <p className="sub">{t('manualHint')}</p>
+              )}
+              <div className="due-actions">
+                <button
+                  type="button"
+                  className="pill active"
+                  disabled={busy}
+                  onClick={() => registerPaid(todayString(today))}
+                >
+                  {t('manualPaidToday')}
+                </button>
+                <button
+                  type="button"
+                  className="pill"
+                  aria-expanded={otherDate !== null}
+                  onClick={() => {
+                    setPaidError(null)
+                    setOtherDate(otherDate === null ? todayString(today) : null)
+                  }}
+                >
+                  {t('manualPaidOther')}
+                </button>
+              </div>
+              {otherDate !== null && (
+                <>
+                  <label className="field">
+                    <span className="label">{t('quincenaPaidOn')}</span>
+                    <input
+                      type="date"
+                      max={todayString(today)}
+                      value={otherDate}
+                      aria-invalid={paidError !== null}
+                      aria-describedby={paidError ? 'home-paid-error' : undefined}
+                      onChange={(e) => {
+                        setOtherDate(e.target.value)
+                        setPaidError(null)
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    disabled={busy}
+                    onClick={() => registerPaid(otherDate)}
+                  >
+                    {t('manualPaidRegister')}
+                  </button>
+                </>
+              )}
+              {paidError && (
+                <p className="field-note error" role="alert" id="home-paid-error">
+                  {t(
+                    {
+                      invalid: 'quincenaPaidInvalid',
+                      future: 'quincenaPaidFuture',
+                      early: 'quincenaPaidEarly',
+                    }[paidError],
+                  )}
+                </p>
+              )}
+            </section>
+          )}
+
           {shown.slice(0, 1).map((c) => renderCard(c, 0))}
 
           {offersCard}
@@ -364,6 +497,9 @@ export default function HomeScreen() {
           {(due.length > 0 || handled.length > 0) && (
             <section className="card">
               <p className="label">{t('dueThisQuincena')}</p>
+              {transactions.length === 0 && due.length > 0 && (
+                <p className="sub">{t('obHomeHint')}</p>
+              )}
               <ul className="list">
                 {due.map((item) => (
                   <li key={item.id}>
@@ -429,14 +565,6 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {isBackupReminderDue(readPref('lastBackup'), transactions, today) && (
-        <p className="sub backup-line">
-          {t('backupReminder')}{' '}
-          <Link className="text-link" to="/settings">
-            {t('goToBackup')}
-          </Link>
-        </p>
-      )}
     </>
   )
 }
