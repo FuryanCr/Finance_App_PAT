@@ -3,6 +3,7 @@ import { TransactionsContext } from './TransactionsContext'
 import { categories as builtInCategories } from '../db/mockData'
 import {
   clearAll,
+  completeOnboarding as storeOnboarding,
   confirmRecurring as saveConfirmedRecurring,
   deleteCategory as removeCategory,
   deleteRecurring as removeRecurring,
@@ -16,7 +17,9 @@ import {
   insertTransactions,
   loadAll,
   restoreAll,
+  saveProfileName as storeProfileName,
   saveQuincenaSchedule as storeQuincenaSchedule,
+  skipOnboarding as storeSkipOnboarding,
   setBudget as saveBudget,
   skipRecurring as saveSkippedRecurring,
   updateCategory as replaceCategory,
@@ -26,6 +29,7 @@ import {
 import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
+import { EMPTY_PROFILE, isOnboarded } from '../lib/onboarding'
 import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
 import { sampleTransactions } from '../lib/sample'
 import StatusScreen from '../components/StatusScreen'
@@ -42,11 +46,26 @@ export default function TransactionsProvider({ children }) {
   const [recurring, setRecurring] = useState([])
   const [savings, setSavings] = useState([])
   const [quincenaSchedule, setQuincenaSchedule] = useState(DEFAULT_SCHEDULE)
+  const [profile, setProfile] = useState(EMPTY_PROFILE)
+  // true while the welcome is being done again from Settings (not saved: if
+  // the app is closed the person is back where they were)
+  const [repeating, setRepeating] = useState(false)
   const [loading, setLoading] = useState(true)
   // false, 'failed' (the database could not be opened) or 'timeout'
   const [error, setError] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const { lang, t } = useSettings()
+
+  // puts a whole state read from the database on screen
+  const applyState = (state) => {
+    setTransactions(state.transactions)
+    setCategories(state.categories)
+    setBudgets(state.budgets)
+    setRecurring(state.recurring)
+    setSavings(state.savings)
+    setQuincenaSchedule(state.quincenaSchedule)
+    setProfile(state.profile)
+  }
 
   useEffect(() => {
     let ignore = false
@@ -71,12 +90,7 @@ export default function TransactionsProvider({ children }) {
       .then((data) => {
         if (ignore || finished || !data) return
         finished = true
-        setTransactions(data.transactions)
-        setCategories(data.categories)
-        setBudgets(data.budgets)
-        setRecurring(data.recurring)
-        setSavings(data.savings)
-        setQuincenaSchedule(data.quincenaSchedule)
+        applyState(data)
         setLoading(false)
       })
       .catch((err) => {
@@ -241,23 +255,39 @@ export default function TransactionsProvider({ children }) {
     setBudgets([])
     setRecurring([])
     setSavings([])
+    // back to 15/30 and to the welcome, like a new install
+    setQuincenaSchedule(DEFAULT_SCHEDULE)
+    setProfile(EMPTY_PROFILE)
+    setRepeating(false)
   }
 
   // replaces everything with the (already cleaned) data of a backup
   const restoreData = async (data) => {
-    const state = await restoreAll(data)
-    setTransactions(state.transactions)
-    setCategories(state.categories)
-    setBudgets(state.budgets)
-    setRecurring(state.recurring)
-    setSavings(state.savings)
-    setQuincenaSchedule(state.quincenaSchedule)
+    applyState(await restoreAll(data))
   }
 
   // the new way to cut the quincena (see lib/quincenaSchedule changeSchedule)
   const saveQuincenaSchedule = async (schedule) => {
     const saved = await storeQuincenaSchedule(schedule)
     setQuincenaSchedule(saved)
+  }
+
+  // the welcome: saves everything the person chose in one go and leaves it
+  const completeOnboarding = async (payload) => {
+    applyState(await storeOnboarding(payload))
+    setRepeating(false)
+  }
+
+  // no welcome, nothing else changed. A repeat just closes.
+  const skipOnboarding = async () => {
+    if (!repeating) setProfile(await storeSkipOnboarding())
+    setRepeating(false)
+  }
+
+  const startOnboarding = () => setRepeating(true)
+
+  const saveProfileName = async (name) => {
+    setProfile(await storeProfileName(name))
   }
 
   // screens never see a half-loaded state
@@ -311,6 +341,13 @@ export default function TransactionsProvider({ children }) {
         deleteSavingsMove,
         quincenaSchedule,
         saveQuincenaSchedule,
+        profile,
+        showOnboarding: repeating || !isOnboarded(profile),
+        repeatingOnboarding: repeating,
+        completeOnboarding,
+        skipOnboarding,
+        startOnboarding,
+        saveProfileName,
         addIncomeWithSavings,
         loadSampleData,
         clearAllData,
