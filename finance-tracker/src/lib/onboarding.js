@@ -1,0 +1,115 @@
+import { currencies, parseAmount, sum } from './money'
+import { changeSchedule, normalizeSchedule } from './quincenaSchedule'
+
+// Pure rules of the first-use screen: no database, no clock, no React.
+
+export const MAX_NAME_LENGTH = 30
+export const MAX_EXPENSE_NOTE_LENGTH = 60
+// the built-in "Bills" category (see db/mockData.js)
+export const BILLS_CATEGORY_ID = 3
+
+// The name as it is saved: no stray spaces, cut to what the field allows
+export function cleanName(text) {
+  return typeof text === 'string'
+    ? text.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH).trim()
+    : ''
+}
+
+export function cleanCurrency(code) {
+  return currencies.some((c) => c.code === code) ? code : 'CRC'
+}
+
+// True once the welcome was done (or skipped); a profile without the date
+// has not seen it
+export function isOnboarded(profile) {
+  return typeof profile?.onboardedAt === 'string' && profile.onboardedAt !== ''
+}
+
+// An optional amount typed in a step: '' (or 0) is "nothing" (null), a valid
+// amount is a number, anything else is invalid (undefined) so the step can
+// warn about it
+export function optionalAmount(text) {
+  const amount = parseAmount(text)
+  if (amount === null) return undefined
+  return amount > 0 ? amount : null
+}
+
+// How many pay days a month the person has: 15/30 and two pay days are 2,
+// a single pay day a month is 1
+export function quincenasPerMonth(choice) {
+  if (!choice || choice.mode === 'fixed') return 2
+  const { day1, day2 } = choice
+  return day2 && day2 !== day1 ? 2 : 1
+}
+
+// What is left free in a quincena, on average, once the fixed expenses and
+// the savings goal are taken out of one pay.
+//   expenses: [{ amount, schedule }]  'every' is paid each quincena; 'first'
+//   and 'second' are monthly, so they weigh 1/perMonth of their amount in an
+//   average quincena. Everything is in the profile's main currency.
+// Returns { income, fixed, goal, free } rounded to cents; free may be negative.
+export function freePerQuincena({
+  income = 0,
+  expenses = [],
+  savingsGoal = 0,
+  perMonth = 2,
+}) {
+  const everyQuincena = sum(
+    expenses.filter((e) => e.schedule === 'every').map((e) => e.amount),
+  )
+  const monthly = sum(
+    expenses.filter((e) => e.schedule !== 'every').map((e) => e.amount),
+  )
+  const fixed = sum([everyQuincena, monthly / perMonth])
+  const goal = savingsGoal || 0
+  return { income, fixed, goal, free: sum([income, -fixed, -goal]) }
+}
+
+// The schedule to save after the pay days step. On a really new install
+// (nothing registered) the choice is in force from the start, because there
+// is no past to protect; with data it goes through changeSchedule, so the
+// quincenas already lived are never moved.
+export function scheduleForOnboarding(current, choice, today, hasData) {
+  if (hasData) return changeSchedule(current, choice, today)
+  return normalizeSchedule([{ ...choice, from: '2000-01-01' }])
+}
+
+// A fixed expense typed in the list. Returns { ok: true, item } with the
+// recurring item ready to save, or { ok: false, reason } where reason is
+// 'name' (empty) or 'amount' (missing or invalid).
+export function buildFixedExpense({
+  name,
+  amountText,
+  schedule = 'every',
+  currency = 'CRC',
+  categoryId = BILLS_CATEGORY_ID,
+}) {
+  const note =
+    typeof name === 'string' ? name.trim().slice(0, MAX_EXPENSE_NOTE_LENGTH) : ''
+  if (note === '') return { ok: false, reason: 'name' }
+  const amount = parseAmount(amountText)
+  if (amount === null || amount <= 0) return { ok: false, reason: 'amount' }
+  return {
+    ok: true,
+    item: {
+      amount,
+      currency: cleanCurrency(currency),
+      type: 'expense',
+      categoryId,
+      note,
+      schedule,
+    },
+  }
+}
+
+// The recurring income created from "how much do you earn per pay"
+export function buildIncomeItem(amount, currency, note) {
+  return {
+    amount,
+    currency: cleanCurrency(currency),
+    type: 'income',
+    categoryId: null,
+    note,
+    schedule: 'every',
+  }
+}
