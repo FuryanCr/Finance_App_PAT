@@ -4,6 +4,7 @@ import { currencies, isValidAmount } from './money'
 import { normalizePaymentMethod } from './payment'
 import { DEFAULT_SCHEDULE, normalizeSchedule } from './quincenaSchedule'
 import { schedules } from './recurring'
+import { cleanCurrency, cleanName } from './onboarding'
 
 const currencyCodes = currencies.map((c) => c.code)
 const types = ['income', 'expense']
@@ -18,6 +19,7 @@ export function buildBackup(
     recurring,
     savings = [],
     quincenaSchedule = DEFAULT_SCHEDULE,
+    profile,
   },
   now = new Date(),
 ) {
@@ -33,6 +35,15 @@ export function buildBackup(
     recurring,
     savings,
     quincenaSchedule,
+    // the day it was welcomed is not carried: a restore marks it done itself
+    ...(profile && {
+      profile: {
+        name: profile.name,
+        currency: profile.currency,
+        income: profile.income,
+        savingsGoal: profile.savingsGoal,
+      },
+    }),
   }
 }
 
@@ -162,6 +173,18 @@ function cleanSavingsMove(move) {
   }
 }
 
+// The name, main currency, income and savings goal of a backup; null when
+// the file has none (an older backup) or it is not an object
+function cleanProfile(p) {
+  if (!isObject(p)) return null
+  return {
+    name: cleanName(p.name),
+    currency: cleanCurrency(p.currency),
+    income: isPositiveAmount(p.income) ? toCents(p.income) : null,
+    savingsGoal: isPositiveAmount(p.savingsGoal) ? toCents(p.savingsGoal) : null,
+  }
+}
+
 // Applies the cleaner to each record and drops the ones it rejects
 function clean(list, cleaner) {
   return list.map(cleaner).filter((item) => item !== null)
@@ -213,6 +236,8 @@ const LISTS = ['categories', 'transactions', 'budgets', 'recurring', 'savings']
 // Older backups have no savings: they read as an empty list. Backups made
 // before the quincena could be configured have no quincenaSchedule: they read
 // as 15/30. data also carries quincenaSchedule (not counted in `counts`).
+// A backup may carry a profile (name, currency, income, savings goal); without
+// one data has no `profile` key. The format stays version 1.
 export function inspectBackup(text, builtInCategories) {
   try {
     if (typeof text !== 'string') return { ok: false, reason: 'format' }
@@ -299,6 +324,9 @@ export function inspectBackup(text, builtInCategories) {
       // an older backup has no schedule, and a damaged one reads the same: 15/30
       quincenaSchedule: normalizeSchedule(data.quincenaSchedule),
     }
+    // an older backup has no profile: the restore then keeps the current one
+    const profile = cleanProfile(data.profile)
+    if (profile) result.profile = profile
 
     const counts = {}
     const dropped = {}

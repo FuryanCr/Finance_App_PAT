@@ -640,3 +640,34 @@ describe('summarizeCounts', () => {
     ).toBe('<listNothing>')
   })
 })
+
+describe('profile in a backup', () => {
+  const profile = { name: 'Ana', currency: 'USD', income: 1200.5, savingsGoal: 100 }
+
+  it('is written and read back, and the format stays version 1', () => {
+    const backup = buildBackup({ ...state, profile: { ...profile, onboardedAt: '2026-10-01' } }, now)
+    expect(backup.version).toBe(1)
+    expect(backup.profile).toEqual(profile)
+    expect(parseBackup(JSON.stringify(backup), builtIn).profile).toEqual(profile)
+  })
+
+  it('is left out when there is none, and an old backup reads without it', () => {
+    expect(buildBackup(state, now)).not.toHaveProperty('profile')
+    const result = parseBackup(file(), builtIn)
+    expect(result).not.toBeNull()
+    expect(result).not.toHaveProperty('profile')
+  })
+
+  it('cleans a damaged one instead of rejecting the backup', () => {
+    const dirty = parseBackup(
+      file({ profile: { name: '  Ana   M  ', currency: 'EUR', income: -5, savingsGoal: 'x' } }),
+      builtIn,
+    )
+    expect(dirty.profile).toEqual({ name: 'Ana M', currency: 'CRC', income: null, savingsGoal: null })
+    for (const bad of [null, 'x', 5, [], undefined]) {
+      const result = parseBackup(file({ profile: bad }), builtIn)
+      expect(result).not.toBeNull()
+      expect(result).not.toHaveProperty('profile')
+    }
+  })
+})
