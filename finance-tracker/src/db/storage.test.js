@@ -640,10 +640,10 @@ describe('quincena schedule', () => {
     expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
   })
 
-  it('stays when everything is cleared', async () => {
+  it('goes back to 15/30 when everything is cleared', async () => {
     await storage.saveQuincenaSchedule(custom)
     await storage.clearAll()
-    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
   })
 
   it('is replaced by the one in a backup, and is 15/30 when the backup has none', async () => {
@@ -667,6 +667,25 @@ describe('clearAll', () => {
     await storage.setBudget(1, 'USD', 100)
     await storage.insertRecurring(recurringItem())
     await storage.insertSavingsMove(move())
+
+    await storage.clearAll()
+
+    expect(await storage.loadAll()).toEqual({
+      transactions: [],
+      categories: builtIn,
+      budgets: [],
+      recurring: [],
+      savings: [],
+      quincenaSchedule: DEFAULT_SCHEDULE,
+    })
+  })
+
+  it('also puts the pay days back to 15/30', async () => {
+    await storage.saveQuincenaSchedule([
+      { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+      { from: '2026-10-16', mode: 'paydays', day1: 10, day2: 25 },
+    ])
+    expect((await storage.loadAll()).quincenaSchedule).toHaveLength(2)
 
     await storage.clearAll()
 

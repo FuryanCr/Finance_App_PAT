@@ -164,6 +164,8 @@ export default function SettingsScreen() {
       '',
       summarizeCounts(currentCounts, t),
       '',
+      t('clearResetsSchedule'),
+      '',
       t('cannotUndo'),
     ].join('\n')
     const { confirmed } = await confirm({

@@ -543,6 +543,7 @@ export function clearAll() {
       await db.run('DELETE FROM savings', [], false)
       await db.run('DELETE FROM transactions', [], false)
       await db.run('DELETE FROM categories WHERE key IS NULL', [], false)
+      await writeSchedule(db, DEFAULT_SCHEDULE)
     })
     await persist()
   })
