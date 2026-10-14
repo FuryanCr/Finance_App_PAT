@@ -1,0 +1,185 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  categoryColor,
+  categoryColors,
+  categoryLabel,
+  findCategoryByName,
+} from '../../lib/categories'
+import { useSettings } from '../../context/useSettings'
+import { useTransactions } from '../../context/useTransactions'
+
+function CategoryEditor({ category, onDone }) {
+  const { t } = useSettings()
+  const { transactions, categories, updateCategory, deleteCategory } =
+    useTransactions()
+
+  const others = categories.filter((c) => c.id !== category.id)
+  const used = transactions.filter((tx) => tx.categoryId === category.id).length
+
+  const [name, setName] = useState(category.name)
+  const [color, setColor] = useState(category.color)
+  const [moveTo, setMoveTo] = useState(String(others[0].id))
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
+
+  const trimmedName = name.trim()
+  const clash = findCategoryByName(others, name)
+  const canSave = trimmedName !== '' && !clash && !saving
+
+  const handleSave = async () => {
+    if (!canSave) return
+    setSaving(true)
+    setSaveError(false)
+    try {
+      await updateCategory(category.id, { name: trimmedName, color })
+      onDone()
+    } catch (error) {
+      console.error(error)
+      setSaving(false)
+      setSaveError(true)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (saving) return
+    if (!window.confirm(t('confirmDeleteCategory'))) return
+    // with no transactions nothing moves; the id only has to exist
+    const moveToId = used > 0 ? Number(moveTo) : others[0].id
+    setSaving(true)
+    setSaveError(false)
+    try {
+      await deleteCategory(category.id, moveToId)
+      onDone()
+    } catch (error) {
+      console.error(error)
+      setSaving(false)
+      setSaveError(true)
+    }
+  }
+
+  return (
+    <div className="editor">
+      <label className="field">
+        <span className="label">{t('categoryName')}</span>
+        <input
+          type="text"
+          value={name}
+          maxLength={24}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      {clash && <p className="field-note error">{t('categoryExists')}</p>}
+
+      <p className="label">{t('color')}</p>
+      <div className="swatches">
+        {categoryColors.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={color === c ? 'swatch active' : 'swatch'}
+            style={{ background: `var(--cat-${c})` }}
+            aria-label={t(`color.${c}`)}
+            aria-pressed={color === c}
+            onClick={() => setColor(c)}
+          />
+        ))}
+      </div>
+
+      {used > 0 && (
+        <label className="field">
+          <span className="label">
+            {t('moveTo')} ({used})
+          </span>
+          <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+            {others.map((c) => (
+              <option key={c.id} value={c.id}>
+                {categoryLabel(c, t)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {saveError && <p className="field-note error">{t('saveError')}</p>}
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!canSave}
+          onClick={handleSave}
+        >
+          {t('save')}
+        </button>
+        <button
+          type="button"
+          className="btn danger"
+          disabled={saving}
+          onClick={handleDelete}
+        >
+          {t('deleteCategory')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function CategoriesScreen() {
+  const { t } = useSettings()
+  const { categories } = useTransactions()
+  const [editingId, setEditingId] = useState(null)
+
+  const hasCustom = categories.some((c) => c.name)
+
+  return (
+    <>
+      <Link className="back-link" to="/settings">
+        ‹ {t('settings')}
+      </Link>
+      <h1 className="screen-title">{t('categories')}</h1>
+
+      <div className="narrow">
+        <section className="card">
+          <ul className="list">
+            {categories.map((c) => (
+              <li key={c.id}>
+                <div className="row">
+                  <span className="row-name">
+                    <span
+                      className="dot"
+                      style={{ background: categoryColor(c) }}
+                    />
+                    {categoryLabel(c, t)}
+                  </span>
+                  {c.name ? (
+                    <button
+                      type="button"
+                      className="pill"
+                      onClick={() =>
+                        setEditingId(editingId === c.id ? null : c.id)
+                      }
+                    >
+                      {editingId === c.id ? t('cancel') : t('edit')}
+                    </button>
+                  ) : (
+                    <span className="row-meta">{t('builtIn')}</span>
+                  )}
+                </div>
+                {editingId === c.id && (
+                  <CategoryEditor
+                    key={c.id}
+                    category={c}
+                    onDone={() => setEditingId(null)}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {!hasCustom && <p className="sub empty">{t('noCustomCategories')}</p>}
+      </div>
+    </>
+  )
+}

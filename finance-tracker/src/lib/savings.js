@@ -1,0 +1,56 @@
+import { getTotals, sum } from './money'
+import { getQuincenaRange, parseDate } from './dates'
+
+// Note on the savings move made from a leftover offer; it is stored as text,
+// so it is one fixed language rather than a translation
+export const ROLLOVER_NOTE = 'Sobrante de la quincena'
+
+// What is in savings in one currency: everything moved in minus everything
+// taken out
+export function savingsBalance(moves, code) {
+  const list = moves.filter((move) => move.currency === code)
+  const moved = sum(
+    list.filter((move) => move.direction === 'in').map((move) => move.amount),
+  )
+  const taken = sum(
+    list.filter((move) => move.direction === 'out').map((move) => move.amount),
+  )
+  return sum([moved, -taken])
+}
+
+// Moves of one currency dated inside a period
+export function savingsInRange(moves, code, start, end) {
+  const list = moves.filter((move) => {
+    const date = parseDate(move.date)
+    return move.currency === code && date >= start && date <= end
+  })
+  return {
+    toSavings: sum(
+      list.filter((move) => move.direction === 'in').map((move) => move.amount),
+    ),
+    fromSavings: sum(
+      list.filter((move) => move.direction === 'out').map((move) => move.amount),
+    ),
+  }
+}
+
+// What a period really had left in one currency:
+// income - spent - moved to savings + taken from savings
+export function leftInRange(transactions, moves, code, start, end) {
+  const inRange = transactions.filter((tx) => {
+    const date = parseDate(tx.date)
+    return date >= start && date <= end
+  })
+  const { net } = getTotals(inRange, code)
+  const { toSavings, fromSavings } = savingsInRange(moves, code, start, end)
+  return sum([net, -toSavings, fromSavings])
+}
+
+// The quincena before the one containing `today`
+export function previousQuincenaRange(today = new Date()) {
+  const { start } = getQuincenaRange(today)
+  // the day before this start belongs to the previous quincena
+  return getQuincenaRange(
+    new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1),
+  )
+}

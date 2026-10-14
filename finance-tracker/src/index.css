@@ -1,111 +1,1173 @@
+/* ==========================================================================
+   Estilos de toda la app. Este es el único archivo CSS que se carga
+   (se importa en main.jsx).
+   ========================================================================== */
+
+/* Variables de color: tema oscuro (por defecto).
+   Todos los colores de la app salen de aquí; para cambiar la paleta
+   solo hay que tocar estas variables. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  color-scheme: dark; /* controles nativos (scroll, calendario) en oscuro */
+  --bg: #0b1114; /* fondo de la página */
+  --surface: #121b20; /* fondo de las tarjetas */
+  --surface-2: #1a262c; /* fondo de pills, teclas e inputs */
+  --border: #243239; /* bordes y líneas divisorias */
+  --text: #e6eef0; /* texto principal */
+  --muted: #94a8ad; /* texto secundario */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Color de marca (teal): solo para cosas que se pueden tocar
+     (botones, pestaña activa) y el acento del título */
+  --accent: #2dd4bf;
+  --accent-dim: rgba(45, 212, 191, 0.3); /* teal transparente */
+  --on-accent: #04201c; /* texto encima del teal */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Colores con significado: cada uno se usa solo para lo suyo */
+  --income: #34d399; /* menta: montos de ingreso */
+  --spending: #fb7185; /* coral: montos de gasto */
+  --spending-dim: rgba(251, 113, 133, 0.62); /* barras del gráfico */
+  --warning: #fbbf24; /* ámbar: avisos */
+  --danger: #f35b5b; /* rojo: borrar, errores y presupuesto pasado */
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Tarjeta principal del inicio */
+  --hero-from: #123038; /* inicio del degradado */
+  --hero-stop: 85%; /* dónde el degradado llega al color de la tarjeta */
+  --hero-glow: rgba(45, 212, 191, 0.14); /* brillo alrededor */
+
+  /* Colores de categoría. Cada categoría guarda el nombre del color
+     (por ejemplo "orange") y aquí se define su valor en cada tema. */
+  --cat-orange: #fb923c; /* Comida */
+  --cat-blue: #60a5fa; /* Transporte */
+  --cat-violet: #a78bfa; /* Servicios */
+  --cat-lime: #a3e635; /* Diversión */
+  --cat-cyan: #22d3ee; /* de aquí en adelante: categorías personalizadas */
+  --cat-fuchsia: #e879f9;
+  --cat-slate: #94a3b8;
+  --cat-sand: #d6b98c;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* Tema claro: mismas variables con otros valores (base arena, no blanco
+   puro, y acentos más oscuros para que se lean sobre fondo claro).
+   SettingsProvider pone data-theme="light" en <html> al cambiar de tema. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f2ee;
+  --surface: #ffffff;
+  --surface-2: #ece8e1;
+  --border: #ddd7ce;
+  --text: #14201f;
+  --muted: #5b6b6a;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --accent: #0f766e;
+  --accent-dim: rgba(15, 118, 110, 0.3);
+  --on-accent: #ffffff;
+
+  --income: #15803d;
+  --spending: #d1103f;
+  --spending-dim: rgba(209, 16, 63, 0.62);
+  --warning: #a04a08;
+  --danger: #b91c1c;
+
+  --hero-from: #e3f3f0;
+  /* termina antes: los montos quedan sobre blanco y se leen bien */
+  --hero-stop: 40%;
+  --hero-glow: rgba(15, 118, 110, 0.12);
+
+  --cat-orange: #c2410c;
+  --cat-blue: #2563eb;
+  --cat-violet: #7c3aed;
+  --cat-lime: #4d7c0f;
+  --cat-cyan: #0e7490;
+  --cat-fuchsia: #a21caf;
+  --cat-slate: #475569;
+  --cat-sand: #8a6d3b;
+}
+
+/* Base */
+
+/* El padding y el borde cuentan dentro del ancho del elemento */
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  /* Todos los números con el mismo ancho, para que los montos se alineen */
+  font-variant-numeric: tabular-nums;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* Los botones usan la misma fuente que el resto de la app */
+button {
+  font-family: inherit;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Texto de ejemplo en los inputs, con contraste suficiente */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
+/* Sin márgenes por defecto: el espacio lo da cada contenedor con gap */
+h1, h2, h3, h4, p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* Contorno visible al navegar con el teclado */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Contenedor de cada pantalla: columna centrada con ancho de teléfono */
+main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 8px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* espacio entre las secciones de la pantalla */
+}
+
+/* Barra superior en todo el ancho de la ventana: marca a la izquierda,
+   pestañas al centro y ajustes a la derecha. Queda pegada arriba al hacer
+   scroll. En celular son dos filas (marca y ajustes / pestañas) */
+.app-bar {
+  position: sticky;
+  /* Solo la fila de pestañas debe quedar visible al hacer scroll, así que la
+     barra sube lo que mide la fila 1: 8px de relleno superior + 44px del logo
+     y del engranaje + 8px de separación entre filas = 60px */
+  top: -60px;
+  z-index: 10; /* por encima del contenido que pasa por debajo */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'brand gear'
+    'tabs tabs';
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Marca: logo y nombre de la app, enlace al inicio (mín. 44px para tocar) */
+.brand {
+  grid-area: brand;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0; /* deja que el nombre se encoja en vez de empujar el engranaje */
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Nombre de la app junto al logo, en la fuente del título y en una sola línea */
+.brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+/* Tamaño del logo (no se encoge aunque falte espacio) */
+.logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* Barras del logo en el color de marca, más tenues las más bajas */
+.logo-bar {
+  fill: var(--accent);
+}
+
+.logo-bar-1 {
+  opacity: 0.45;
+}
+
+.logo-bar-2 {
+  opacity: 0.7;
+}
+
+.logo-bar-3 {
+  opacity: 1;
+}
+
+/* Anillo de la moneda en el color del texto */
+.logo-coin {
+  stroke: var(--text);
+}
+
+/* Flecha dentro de la moneda en el color de marca */
+.logo-arrow {
+  stroke: var(--accent);
+}
+
+/* Botón redondo con el ícono de engranaje, a la derecha de la barra */
+.app-bar .icon-link {
+  grid-area: gear;
+  justify-self: end;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px; /* 999px = bordes totalmente redondos */
+  cursor: pointer;
+}
+
+/* Tamaño del ícono de engranaje */
+.icon-link svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Enlace resaltado cuando estamos en ajustes */
+.app-bar .icon-link.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Título de la app */
+.header {
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  /* El tamaño crece con el ancho de la pantalla, entre 1.3rem y 2.1rem */
+  font-size: clamp(1.3rem, 6vw, 2.1rem);
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+/* Segunda parte del título, en el color de marca */
+.title-accent {
+  color: var(--accent);
+}
+
+/* Pestañas dentro de la barra: segunda fila a todo el ancho, centradas.
+   El relleno de 4px (compensado con margen negativo) deja sitio al contorno
+   de foco, que el overflow recortaría */
+.top-nav {
+  grid-area: tabs;
+  display: flex;
+  justify-content: safe center; /* centradas, pero sin cortar la primera si no caben */
+  gap: 8px;
+  margin: -4px;
+  padding: 4px;
+  overflow-x: auto; /* scroll horizontal si los enlaces no caben */
+  scrollbar-width: none; /* oculta la barra, pero se sigue pudiendo deslizar */
+}
+
+/* Oculta la barra de scroll en Chrome/Safari (el deslizamiento sigue funcionando) */
+.top-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.top-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* tamaño mínimo cómodo para tocar */
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Pantalla actual (React Router agrega la clase "active") */
+.top-nav a.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* En celulares: menos relleno y las pestañas reparten el ancho para que quepan las cuatro */
+@media (max-width: 440px) {
+  /* Las pestañas se reparten el ancho */
+  .top-nav a {
+    flex: 1 0 auto;
+    padding: 10px 8px;
+    text-align: center;
+  }
+}
+
+/* En celulares muy angostos (320px) las pestañas en español necesitan aún menos espacio */
+@media (max-width: 360px) {
+  /* La barra usa menos margen lateral para que quepan las pestañas */
+  .app-bar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Menos espacio entre pestañas */
+  .top-nav {
+    gap: 6px;
+  }
+
+  /* Pestañas más compactas */
+  .top-nav a {
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+}
+
+/* Por debajo de 360px el nombre no cabe junto al engranaje: solo queda el logo */
+@media (max-width: 359px) {
+  /* Oculta el nombre */
+  .brand-name {
+    display: none;
+  }
+}
+
+/* Estilos de texto */
+
+/* Título de cada pantalla, centrado */
+.screen-title {
+  font-size: 20px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Texto de introducción justo debajo del título: también centrado */
+.screen-title + .sub {
+  text-align: center;
+}
+
+/* Inicio: saludo y fecha de la quincena, centrados como un bloque */
+.greeting {
+  text-align: center;
+}
+
+/* Etiqueta pequeña en mayúsculas, encima de un dato */
+.label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Monto grande de la tarjeta principal del inicio */
+.balance {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 6px 0 14px;
+}
+
+/* Texto secundario pequeño */
+.sub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Tarjetas: tranquilas, la profundidad viene del color de fondo */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+/* Tarjeta principal del inicio: la única con degradado fuerte, borde
+   teal y un brillo suave alrededor, para que sea la que más destaca */
+.card.hero {
+  background: linear-gradient(
+    160deg,
+    var(--hero-from) 0%,
+    var(--surface) var(--hero-stop)
+  );
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 28px var(--hero-glow);
+}
+
+/* Barra de progreso y estadísticas */
+
+/* Fondo de la barra de "% del ingreso gastado" */
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden; /* recorta el relleno a los bordes redondos */
+  margin-bottom: 8px;
+}
+
+/* Relleno de la barra, en color de gasto; el ancho (%) se pone desde React */
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--spending);
+}
+
+/* Dos columnas iguales: ingresos y gastado */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.stat {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Montos con significado: se usan junto con .stat, .row-amount o solos.
+   El signo + o − siempre va en el texto; el color solo lo refuerza. */
+.income {
+  color: var(--income);
+}
+
+.spending {
+  color: var(--spending);
+}
+
+/* Botones */
+
+/* Fila de botones que se reparten el ancho */
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* Botón principal (color de marca) */
+.btn {
+  flex: 1;
+  text-align: center;
+  padding: 14px 16px;
+  border: 1px solid transparent; /* misma altura que los botones con borde */
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none; /* también se usa en enlaces <Link> */
+  cursor: pointer;
+}
+
+/* Botón secundario (gris) */
+.btn.secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* Pills: opciones para elegir una (período, moneda, categoría) */
+.pill-group {
+  display: flex;
+  gap: 8px;
+}
+
+/* Pill base: 44px de alto para poder tocarla */
+.pill {
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Opción seleccionada */
+.pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Listas */
+
+/* Lista sin viñetas, con espacio entre elementos */
+.list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Si la lista es lo primero de la tarjeta, no suma espacio extra arriba */
+.card > .list:first-child {
+  margin-top: 0;
+}
+
+/* Línea de separación encima de un bloque */
+.divider {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+
+/* Fila: texto a la izquierda y monto a la derecha */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* El texto de la izquierda es el que cede espacio y pasa a otra línea */
+.row > :first-child {
+  min-width: 0;
+}
+
+.row-name {
+  font-size: 16px;
+}
+
+/* Segunda línea de la fila: categoría y fecha */
+.row-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* El monto nunca se parte en dos líneas (el signo se quedaba solo) */
+.row-amount {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Barra delgada bajo cada categoría: su parte del gasto total */
+.mini-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+/* Relleno; el ancho (%) y el color de la categoría se ponen desde React */
+.mini-bar > div {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Punto con el color de la categoría, antes de su nombre */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+/* Gráfico de barras (Estadísticas) */
+
+/* Las columnas se alinean abajo para que las barras crezcan hacia arriba */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 160px;
+  margin-top: 16px;
+}
+
+/* Una columna por día, mes o año: barra arriba y etiqueta abajo */
+.bar-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Espacio disponible para la barra */
+.bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* La barra; la altura (%) se pone desde React */
+.bar-fill {
+  width: 100%;
+  min-height: 4px; /* se ve una línea aunque el total sea 0 */
+  border-radius: 8px;
+  background: var(--spending-dim); /* color de gasto, atenuado */
+}
+
+/* La barra más alta se resalta con el color de gasto completo */
+.bar-fill.max {
+  background: var(--spending);
+}
+
+.bar-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Pantalla de agregar */
+
+/* Pills que pasan a otra línea si no caben (categorías) */
+.pill-group.wrap {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* Sugerencias de nota: pegadas al campo y con aire antes de la fecha */
+.pill-group.suggestions {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+/* Las sugerencias no parecen categorías: borde punteado, más chicas y apagadas */
+.pill-group.suggestions .pill {
+  border-style: dashed;
+  font-size: 13px;
+  padding: 6px 12px;
+  color: var(--muted);
+}
+
+.amount-label {
+  margin-top: 16px;
+}
+
+/* Monto que se va escribiendo con el teclado */
+.amount-display {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 4px 0 16px;
+}
+
+/* Teclado numérico: cuadrícula de 3 columnas */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.key {
+  height: 60px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* Tecla mientras se presiona */
+.key:active {
+  background: var(--accent-dim);
+}
+
+/* Campo de formulario: etiqueta arriba, input abajo */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+/* Filtros sueltos en la pantalla: el espacio ya lo da el gap del contenedor */
+main > .field,
+.narrow > .field {
+  margin-bottom: 0;
+}
+
+/* Campo que va justo después de un grupo de pills (categoría personalizada) */
+.pill-group + .field {
+  margin-top: 14px;
+}
+
+.field input {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px; /* con menos de 16px el teléfono hace zoom al escribir */
+  font-family: inherit;
+}
+
+/* El buscador se ve igual que los demás inputs (sin el estilo del navegador) */
+.field input[type='search'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Los desplegables se ven igual que los inputs */
+.field select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+/* Pantalla de historial */
+
+/* Selector de mes: flecha, nombre del mes, flecha */
+.month-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.month-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* El mes viene en minúscula en español ("octubre de 2026") */
+.month-name::first-letter {
+  text-transform: uppercase;
+}
+
+/* Flechas para cambiar de mes */
+.month-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Flecha "siguiente" cuando ya se está en el mes actual */
+.month-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Balance del mes en la tarjeta de resumen */
+.month-balance {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+
+/* Mensaje cuando el mes no tiene transacciones */
+.empty {
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* Fila que lleva a editar la transacción: se ve igual que una fila normal */
+.row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Estado vacío: mensaje centrado con los botones para agregar */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+/* Botones uno debajo del otro (tarjeta de datos del historial) */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Botón de acciones que borran: sin relleno y en rojo */
+.btn.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+
+/* Mensaje debajo de un campo del formulario */
+.field-note {
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* Aviso: se puede guardar igual */
+.field-note.warning {
+  color: var(--warning);
+}
+
+/* Error: no se puede guardar hasta corregirlo */
+.field-note.error {
+  color: var(--danger);
+}
+
+/* Inicio: "disponible por día" debajo de ingresos y gastado */
+.safe-day {
+  margin-top: 16px;
+}
+
+/* Texto de "te pasaste del presupuesto" */
+.stat.over {
+  color: var(--danger);
+}
+
+/* Totales netos del día en el historial, uno por moneda */
+.day-totals {
+  display: flex;
+  gap: 10px;
+}
+
+/* Pantalla de categorías */
+
+/* Enlace para volver a Ajustes */
+.back-link {
+  display: inline-block;
+  padding: 12px 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* Rejilla de colores del editor de categorías */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  gap: 12px;
+  margin: 8px 0 14px;
+}
+
+/* Un color para elegir */
+.swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+/* Color elegido: con anillo, no solo con otro color */
+.swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface) inset;
+}
+
+/* Panel de edición debajo de la fila de la categoría */
+.editor {
+  margin-top: 14px;
+}
+
+/* Dos grupos de pills seguidos en el editor (tipo y moneda) no se pegan */
+.editor > .pill-group + .pill-group {
+  margin-top: 8px;
+}
+
+/* Presupuestos */
+
+/* Campo del límite de cada categoría */
+.budget-input {
+  width: 120px;
+  text-align: right;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+/* Aviso de texto debajo de la barra */
+.budget-note {
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Cerca del límite (80% o más) */
+.budget-note.near {
+  color: var(--warning);
+}
+
+/* Límite superado */
+.budget-note.over {
+  color: var(--danger);
+}
+
+/* Transacciones recurrentes */
+
+/* Botones Confirmar y Omitir bajo cada pendiente */
+.due-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Marca "Listo" de un pendiente ya confirmado u omitido */
+.due-done {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Lado derecho de la fila: monto y botón Editar, uno al lado del otro */
+.row-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Copia de seguridad */
+
+/* Fecha de la última copia, debajo de los botones de datos */
+.backup-note {
+  margin-top: 12px;
+}
+
+/* Botón desactivado (por ejemplo, Guardar sin monto) o hecho con <label>, que
+   no admite :disabled. Va al final para ganarle a .secondary y .danger */
+.btn:disabled,
+.btn.disabled {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* Inicio: tarjeta-enlace a Ahorros, nombre a la izquierda y saldos a la derecha */
+.link-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Enlace de texto dentro de una frase */
+.text-link {
+  color: var(--accent);
+}
+
+/* Inicio: aviso de copia de seguridad en una sola línea, centrado */
+.backup-line {
+  text-align: center;
+}
+
+/* Botón "Ver todas" bajo la última categoría */
+.show-all {
+  margin-top: 4px;
+}
+
+/* Diseño de página */
+
+/* Dos columnas de la pantalla: en celular son una sola columna, en el mismo orden */
+.cols {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Una columna de tarjetas apiladas; min-width 0 evita que el contenido la ensanche */
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Bloque angosto para formularios y listas cortas (en celular, una columna normal) */
+.narrow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Grupo de pills centrado (tipo de movimiento, período) */
+.pill-group.center,
+.center-pills .pill-group {
+  justify-content: center;
+}
+
+/* Estados de carga, bloqueo y error (solo una tarjeta o una línea dentro de main) */
+main > .card.empty-state,
+main > p.empty {
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Pantallas anchas (computadora): se ve como un sitio web */
+@media (min-width: 900px) {
+  /* Barra en una sola fila: marca a la izquierda, pestañas al centro de la ventana, ajustes a la derecha */
+  .app-bar {
+    top: 0; /* en pantallas anchas la barra es una sola fila y no hay nada que subir */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: 'brand tabs gear';
+    padding: 12px 24px;
+  }
+
+  /* Las pestañas quedan en el centro de la ventana */
+  .top-nav {
+    justify-self: center;
+  }
+
+  /* Logo y nombre más grandes */
+  .logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  /* La marca se ajusta al logo de 56px */
+  .brand {
+    min-height: 56px;
+    gap: 12px;
+  }
+
+  /* Nombre de la app de unos 20px */
+  .brand-name {
+    font-size: 20px;
+  }
+
+  /* Contenido más ancho, con más aire alrededor */
+  main {
+    max-width: 1120px;
+    padding: 24px 32px 64px;
+    gap: 20px;
+  }
+
+  /* Títulos de pantalla más grandes */
+  .screen-title {
+    font-size: 28px;
+  }
+
+  /* Dos columnas iguales, alineadas arriba */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Más espacio entre tarjetas de una columna */
+  .col {
+    gap: 20px;
+  }
+
+  /* Bloque angosto centrado, de hasta 640px */
+  .narrow {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    gap: 20px;
+  }
+
+  /* Teclado con teclas de tamaño razonable y el monto centrado encima */
+  /* Teclado de hasta 360px, centrado */
+  .keypad {
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  /* Monto centrado sobre el teclado */
+  .amount-display {
+    text-align: center;
+  }
+}
+
+/* Interacción con el ratón: solo donde hay hover real, así el celular no cambia */
+@media (hover: hover) {
+  /* Botones principales: un poco más claros al pasar el ratón (no si están desactivados) */
+  .btn:hover:not(:disabled):not(.disabled) {
+    filter: brightness(1.08);
+  }
+
+  /* Botones secundarios y pills: el borde se marca (la pill activa conserva el suyo) */
+  .btn.secondary:hover:not(:disabled):not(.disabled),
+  .pill:hover:not(:disabled):not(.active) {
+    border-color: var(--muted);
+  }
+
+  /* Pestañas y engranaje: el texto sube al color principal (la activa no cambia) */
+  .top-nav a:hover:not(.active),
+  .app-bar .icon-link:hover:not(.active) {
+    color: var(--text);
+  }
+
+  /* Filas que llevan a editar: el nombre se subraya */
+  .row-link:hover .row-name {
+    text-decoration: underline;
+  }
+
+  /* Tarjeta-enlace a Ahorros: borde de marca */
+  .link-card:hover {
+    border-color: var(--accent);
+  }
+
+  /* Teclas del teclado numérico */
+  .key:hover {
+    border-color: var(--muted);
+  }
+}
+
+/* Transición suave de borde, color y brillo (se quita si el usuario prefiere menos movimiento) */
+.btn,
+.pill,
+.key,
+.link-card,
+.top-nav a,
+.icon-link {
+  transition: border-color 0.15s, color 0.15s, filter 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .pill,
+  .key,
+  .link-card,
+  .top-nav a,
+  .icon-link {
+    transition: none;
+  }
+}
+
+/* Todo lo que se puede tocar muestra la manita (los enlaces con estilo de botón también) */
+.row-link,
+.link-card,
+.back-link,
+.text-link {
+  cursor: pointer;
 }
