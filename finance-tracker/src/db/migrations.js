@@ -103,6 +103,40 @@ export const migrations = [
       false,
     )
   },
+  // v7: who the person is and whether the welcome steps were done. One row
+  // (id 1). Anyone who already has data in the app starts as done, so they
+  // never see the first-use screen; only a really new install does.
+  async (db) => {
+    await db.execute(
+      `CREATE TABLE profile (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        name TEXT NOT NULL DEFAULT '',
+        income_cents INTEGER CHECK (income_cents IS NULL OR income_cents > 0),
+        currency TEXT NOT NULL DEFAULT 'CRC' CHECK (currency IN ('CRC', 'USD')),
+        savings_goal_cents INTEGER
+          CHECK (savings_goal_cents IS NULL OR savings_goal_cents > 0),
+        onboarded_at TEXT
+      );`,
+      false,
+    )
+    await db.run(
+      `INSERT INTO profile (id, onboarded_at) VALUES (1,
+        CASE WHEN
+          EXISTS (SELECT 1 FROM transactions)
+          OR EXISTS (SELECT 1 FROM recurring)
+          OR EXISTS (SELECT 1 FROM savings)
+          OR EXISTS (SELECT 1 FROM budgets)
+          OR EXISTS (SELECT 1 FROM categories WHERE key IS NULL)
+          OR EXISTS (
+            SELECT 1 FROM quincena_config
+            WHERE NOT (effective_from = '2000-01-01' AND mode = 'fixed'
+              AND day1 = 1 AND day2 = 16)
+          )
+        THEN date('now') ELSE NULL END)`,
+      [],
+      false,
+    )
+  },
 ]
 
 export async function runMigrations(db, list = migrations) {

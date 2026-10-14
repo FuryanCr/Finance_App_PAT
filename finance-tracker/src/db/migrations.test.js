@@ -31,8 +31,8 @@ describe('runMigrations on a new database', () => {
   it('ends at the latest version with every table and the date index', async () => {
     await runMigrations(db)
 
-    expect(migrations).toHaveLength(6)
-    expect(await version()).toBe(6)
+    expect(migrations).toHaveLength(7)
+    expect(await version()).toBe(7)
     const tables = await tableNames()
     for (const table of ['categories', 'transactions', 'budgets', 'recurring', 'savings']) {
       expect(tables).toContain(table)
@@ -69,7 +69,7 @@ describe('runMigrations on a new database', () => {
 
     await expect(runMigrations(db)).resolves.toBeUndefined()
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     expect(await rows('SELECT * FROM categories ORDER BY id')).toEqual(before)
   })
 })
@@ -85,7 +85,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['budgets', 'recurring', 'savings']),
     )
@@ -111,7 +111,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['recurring', 'savings']),
     )
@@ -135,7 +135,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     expect(await tableNames()).toContain('savings')
     expect(await rows('SELECT * FROM savings')).toEqual([])
     expect(await rows('SELECT amount_cents FROM transactions')).toEqual([
@@ -192,7 +192,7 @@ describe('upgrading from version 4 (payment method, v5)', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     const transactions = await rows(
       'SELECT id, amount_cents, currency, type, category_id, note, date, payment_method FROM transactions ORDER BY id',
     )
@@ -258,7 +258,7 @@ describe('upgrading from version 4 (payment method, v5)', () => {
     await runMigrations(db)
     await db.run("UPDATE transactions SET payment_method = 'card' WHERE id = 1")
     await runMigrations(db)
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     expect(await rows('SELECT payment_method FROM transactions WHERE id = 1')).toEqual([
       { payment_method: 'card' },
     ])
@@ -284,7 +284,7 @@ describe('upgrading from version 5 (configurable quincena, v6)', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(6)
+    expect(await version()).toBe(7)
     for (const table of tables) {
       expect(await rows(`SELECT * FROM ${table} ORDER BY 1`)).toEqual(before[table])
     }
@@ -328,6 +328,135 @@ describe('upgrading from version 5 (configurable quincena, v6)', () => {
     expect(await rows('SELECT mode, day1, day2 FROM quincena_config')).toEqual([
       { mode: 'paydays', day1: 5, day2: 20 },
     ])
+  })
+})
+
+// A database as version 6 of the app left it, with every table filled
+async function fillVersion6() {
+  await fillVersion5()
+  await runMigrations(db, migrations.slice(0, 6))
+}
+
+const profileRows = () => rows('SELECT * FROM profile')
+
+describe('upgrading from version 6 (profile and first-use screen, v7)', () => {
+  it('marks a person with real data as done, so they never see the welcome', async () => {
+    await fillVersion6()
+    expect(await version()).toBe(6)
+
+    await runMigrations(db)
+
+    expect(await version()).toBe(7)
+    const [profile] = await profileRows()
+    expect(profile.id).toBe(1)
+    expect(profile.onboarded_at).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(profile).toMatchObject({
+      name: '',
+      income_cents: null,
+      currency: 'CRC',
+      savings_goal_cents: null,
+    })
+  })
+
+  it('keeps every row of every table untouched', async () => {
+    await fillVersion6()
+    const tables = [
+      'categories', 'transactions', 'budgets', 'recurring', 'savings', 'quincena_config',
+    ]
+    const before = {}
+    for (const table of tables) {
+      before[table] = await rows(`SELECT * FROM ${table} ORDER BY 1`)
+    }
+    await runMigrations(db)
+    for (const table of tables) {
+      expect(await rows(`SELECT * FROM ${table} ORDER BY 1`)).toEqual(before[table])
+    }
+  })
+
+  it.each([
+    ['transactions', () => insertTx(1)],
+    [
+      'recurring',
+      () =>
+        db.run(
+          `INSERT INTO recurring (amount_cents, currency, type, schedule)
+            VALUES (100, 'CRC', 'income', 'every')`,
+        ),
+    ],
+    [
+      'savings',
+      () =>
+        db.run(
+          `INSERT INTO savings (amount_cents, currency, direction, date)
+            VALUES (100, 'CRC', 'in', '2026-10-01')`,
+        ),
+    ],
+    [
+      'budgets',
+      () =>
+        db.run(
+          "INSERT INTO budgets (category_id, currency, amount_cents) VALUES (1, 'CRC', 100)",
+        ),
+    ],
+    [
+      'a custom category',
+      () => db.run("INSERT INTO categories (name, color) VALUES ('Mascota', 'pink')"),
+    ],
+    [
+      'a changed quincena',
+      () =>
+        db.run(
+          "INSERT INTO quincena_config (effective_from, mode, day1, day2) VALUES ('2026-06-01', 'paydays', 5, 20)",
+        ),
+    ],
+  ])('marks a person whose only data is %s as done', async (_name, addData) => {
+    await migrateTo(6)
+    await addData()
+    await runMigrations(db)
+    expect((await profileRows())[0].onboarded_at).not.toBeNull()
+  })
+
+  it('leaves a really new install (and an opened but empty one) to see the welcome', async () => {
+    await runMigrations(db)
+    expect(await profileRows()).toEqual([
+      {
+        id: 1,
+        name: '',
+        income_cents: null,
+        currency: 'CRC',
+        savings_goal_cents: null,
+        onboarded_at: null,
+      },
+    ])
+
+    const old = await createTestDb()
+    db = old
+    await migrateTo(6)
+    await runMigrations(db)
+    expect((await profileRows())[0].onboarded_at).toBeNull()
+  })
+
+  it('does not run again on a database that is already at version 7', async () => {
+    await fillVersion6()
+    await runMigrations(db)
+    await db.run("UPDATE profile SET name = 'Ana', onboarded_at = '2026-10-01'")
+    await runMigrations(db)
+    expect(await profileRows()).toHaveLength(1)
+    expect((await profileRows())[0]).toMatchObject({
+      name: 'Ana',
+      onboarded_at: '2026-10-01',
+    })
+  })
+
+  it('allows only one row and valid values', async () => {
+    await runMigrations(db)
+    await expect(db.run('INSERT INTO profile (id) VALUES (2)')).rejects.toThrow()
+    await expect(db.run("UPDATE profile SET currency = 'EUR'")).rejects.toThrow()
+    await expect(db.run('UPDATE profile SET income_cents = 0')).rejects.toThrow()
+    await expect(db.run('UPDATE profile SET savings_goal_cents = -1')).rejects.toThrow()
+    await expect(
+      db.run("UPDATE profile SET currency = 'USD', income_cents = 5000"),
+    ).resolves.toBeDefined()
   })
 })
 
