@@ -1,4 +1,5 @@
 import { categoryLabel } from './categories'
+import { paymentLabel } from './payment'
 
 // Quotes a value when it has the separator, a quote, a line break or outer
 // spaces. Text starting with = + - @ (or a tab or carriage return) is run as
@@ -27,14 +28,14 @@ export function toCsv(rows, separator = ',') {
 const CSV_LANGUAGES = {
   en: {
     separator: ',',
-    header: ['date', 'type', 'amount', 'currency', 'category', 'note'],
+    header: ['date', 'type', 'amount', 'currency', 'category', 'note', 'payment method'],
     income: 'income',
     expense: 'expense',
     amount: (value) => value,
   },
   es: {
     separator: ';',
-    header: ['fecha', 'tipo', 'monto', 'moneda', 'categoría', 'nota'],
+    header: ['fecha', 'tipo', 'monto', 'moneda', 'categoría', 'nota', 'método de pago'],
     income: 'ingreso',
     expense: 'gasto',
     // with ';' as the separator Excel (es-CR) reads the comma as the decimal
@@ -59,6 +60,7 @@ export function transactionRows(transactions, categories, t, lang = 'en') {
       tx.currency,
       category ? categoryLabel(category, t) : '',
       tx.note ?? '',
+      paymentLabel(tx.paymentMethod, t),
     ]
   })
   return [language.header, ...rows]

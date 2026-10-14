@@ -3,8 +3,24 @@ import {
   DEFAULT_PAYMENT_METHOD,
   isPaymentMethod,
   normalizePaymentMethod,
+  paymentLabel,
   paymentMethods,
 } from './payment'
+
+describe('paymentLabel', () => {
+  const t = (key) => `T:${key}`
+
+  it('translates each method', () => {
+    expect(paymentLabel('cash', t)).toBe('T:payCash')
+    expect(paymentLabel('card', t)).toBe('T:payCard')
+    expect(paymentLabel('sinpe', t)).toBe('T:paySinpe')
+  })
+
+  it('reads a missing or unknown code as cash', () => {
+    expect(paymentLabel(undefined, t)).toBe('T:payCash')
+    expect(paymentLabel('bitcoin', t)).toBe('T:payCash')
+  })
+})
 
 describe('payment methods', () => {
   it('are cash, card and SINPE, with cash as the default', () => {

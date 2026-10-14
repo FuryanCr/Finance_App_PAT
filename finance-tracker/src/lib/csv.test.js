@@ -71,7 +71,7 @@ describe('transactionRows', () => {
 
   it('starts with the header row', () => {
     expect(transactionRows([], categories, t)).toEqual([
-      ['date', 'type', 'amount', 'currency', 'category', 'note'],
+      ['date', 'type', 'amount', 'currency', 'category', 'note', 'payment method'],
     ])
   })
 
@@ -92,6 +92,7 @@ describe('transactionRows', () => {
       'CRC',
       'T:category.food',
       'Lunch',
+      'T:payCash',
     ])
   })
 
@@ -125,7 +126,25 @@ describe('transactionRows', () => {
       'USD',
       '',
       'Freelance',
+      'T:payCash',
     ])
+  })
+
+  it('writes the payment method as a translated label in the last column', () => {
+    const base = {
+      id: 6,
+      amount: 10,
+      currency: 'CRC',
+      type: 'expense',
+      categoryId: 1,
+      note: '',
+      date: '2026-10-05',
+    }
+    const row = (paymentMethod) =>
+      transactionRows([{ ...base, paymentMethod }], categories, t)[1]
+    expect(row('card')[6]).toBe('T:payCard')
+    expect(row('sinpe')[6]).toBe('T:paySinpe')
+    expect(row(undefined)[6]).toBe('T:payCash')
   })
 
   it('leaves the category empty when it no longer exists', () => {
@@ -190,7 +209,9 @@ describe('Spanish CSV', () => {
 
   it('has Spanish headers and words for the type', () => {
     const rows = transactionRows(list, categories, t, 'es')
-    expect(rows[0]).toEqual(['fecha', 'tipo', 'monto', 'moneda', 'categoría', 'nota'])
+    expect(rows[0]).toEqual([
+      'fecha', 'tipo', 'monto', 'moneda', 'categoría', 'nota', 'método de pago',
+    ])
     expect(rows.map((row) => row[1]).slice(1)).toEqual(['gasto', 'ingreso', 'gasto'])
   })
 
@@ -209,9 +230,9 @@ describe('Spanish CSV', () => {
     const csv = toCsv(transactionRows(list, categories, t, 'es'), csvSeparator('es'))
     expect(csv.startsWith('\ufeff')).toBe(true)
     const lines = csv.slice(1).split('\r\n')
-    expect(lines[0]).toBe('fecha;tipo;monto;moneda;categoría;nota')
-    expect(lines[1]).toBe('2026-10-02;gasto;8500,5;CRC;T:category.food;"Almuerzo; con café"')
-    expect(lines[3]).toBe("2026-10-06;gasto;9,99;USD;T:category.food;'=CMD()")
+    expect(lines[0]).toBe('fecha;tipo;monto;moneda;categoría;nota;método de pago')
+    expect(lines[1]).toBe('2026-10-02;gasto;8500,5;CRC;T:category.food;"Almuerzo; con café";T:payCash')
+    expect(lines[3]).toBe("2026-10-06;gasto;9,99;USD;T:category.food;'=CMD();T:payCash")
   })
 
   it('picks the separator by language', () => {

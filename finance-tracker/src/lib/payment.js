@@ -18,3 +18,9 @@ export function isPaymentMethod(value) {
 export function normalizePaymentMethod(value) {
   return isPaymentMethod(value) ? value : DEFAULT_PAYMENT_METHOD
 }
+
+// The name on screen (or in a CSV) of a stored code; t translates the key
+export function paymentLabel(value, t) {
+  const code = normalizePaymentMethod(value)
+  return t(paymentMethods.find((method) => method.code === code).labelKey)
+}

@@ -1,6 +1,7 @@
 import { categoryColors, findCategoryByName } from './categories'
 import { daysBetween, isValidDate, parseDate } from './dates'
 import { currencies, isValidAmount } from './money'
+import { normalizePaymentMethod } from './payment'
 import { schedules } from './recurring'
 
 const currencyCodes = currencies.map((c) => c.code)
@@ -103,7 +104,11 @@ function cleanEntry(item, knownIds) {
 function cleanTransaction(tx, knownIds) {
   const entry = cleanEntry(tx, knownIds)
   if (!entry || typeof tx.date !== 'string' || !isValidDate(tx.date)) return null
-  return { ...entry, date: tx.date }
+  return {
+    ...entry,
+    date: tx.date,
+    paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+  }
 }
 
 function cleanRecurring(item, knownIds) {

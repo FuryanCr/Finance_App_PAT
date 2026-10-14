@@ -21,9 +21,9 @@ const now = new Date('2026-10-12T15:30:00Z')
 const state = {
   categories: [...builtIn, { id: 7, name: 'Mascotas', color: 'cyan' }],
   transactions: [
-    { id: 1, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01' },
-    { id: 2, amount: 8500.5, currency: 'CRC', type: 'expense', categoryId: 1, note: 'Lunch', date: '2026-10-02' },
-    { id: 3, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: '', date: '2026-10-06' },
+    { id: 1, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01', paymentMethod: 'sinpe' },
+    { id: 2, amount: 8500.5, currency: 'CRC', type: 'expense', categoryId: 1, note: 'Lunch', date: '2026-10-02', paymentMethod: 'cash' },
+    { id: 3, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: '', date: '2026-10-06', paymentMethod: 'card' },
   ],
   budgets: [
     { categoryId: 1, currency: 'CRC', amount: 50000 },
@@ -78,6 +78,35 @@ describe('parseBackup', () => {
       recurring: state.recurring,
       savings: state.savings,
     })
+  })
+
+  it('keeps the payment method of each transaction', () => {
+    const result = parseBackup(file(), builtIn)
+    expect(result.transactions.map((tx) => tx.paymentMethod)).toEqual([
+      'sinpe',
+      'cash',
+      'card',
+    ])
+  })
+
+  it('reads an older backup without a payment method as cash', () => {
+    const old = JSON.parse(file())
+    for (const tx of old.transactions) delete tx.paymentMethod
+    const result = parseBackup(JSON.stringify(old), builtIn)
+    expect(result.transactions.map((tx) => tx.paymentMethod)).toEqual([
+      'cash',
+      'cash',
+      'cash',
+    ])
+  })
+
+  it('reads an unknown payment method as cash and keeps the record', () => {
+    const odd = JSON.parse(file())
+    odd.transactions[0].paymentMethod = 'bitcoin'
+    const result = inspectBackup(JSON.stringify(odd), builtIn)
+    expect(result.ok).toBe(true)
+    expect(result.droppedTotal).toBe(0)
+    expect(result.data.transactions[0].paymentMethod).toBe('cash')
   })
 
   it('reads an older backup without savings as an empty list', () => {
@@ -206,7 +235,7 @@ describe('parseBackup', () => {
     })
     expect(result.transactions.map((x) => x.note)).toEqual(['', '', 'Lunch', 'Lunch', 'Lunch'])
     expect(result.transactions.map((x) => x.categoryId)).toEqual([1, 1, null, 7, null])
-    expect(Object.keys(result.transactions[0])).toHaveLength(7)
+    expect(Object.keys(result.transactions[0])).toHaveLength(8)
   })
 
   it('drops budgets that are invalid or point to an unknown category', () => {
