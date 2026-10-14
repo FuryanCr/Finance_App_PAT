@@ -42,9 +42,10 @@ export default function DialogProvider({ children }) {
 
   useEffect(() => {
     const element = ref.current
-    if (dialog && element && !element.open) {
-      element.showModal()
-      // the safe button first, even when the dialog has a checkbox
+    if (dialog && element) {
+      if (!element.open) element.showModal()
+      // the safe button first, even when the dialog has a checkbox; also when
+      // a second dialog replaces the one that was showing
       element.querySelector('[data-autofocus]')?.focus()
     }
   }, [dialog])

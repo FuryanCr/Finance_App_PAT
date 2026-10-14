@@ -106,6 +106,8 @@ export default function AddExpenseScreen() {
   useEffect(() => {
     const onKeyDown = (event) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return
+      // a dialog (confirm / alert) is open: the keys are for it, not the amount
+      if (document.querySelector('dialog[open]')) return
       if (event.target.closest?.('input, select, textarea, [contenteditable]')) {
         return
       }
