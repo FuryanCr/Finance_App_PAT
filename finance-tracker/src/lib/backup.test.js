@@ -409,9 +409,10 @@ describe('isBackupReminderDue', () => {
   })
 
   it('counts from the oldest transaction when there is no backup', () => {
+    // with no backup at all it is sooner: after 7 days
     expect(isBackupReminderDue(null, [tx('2026-10-25')], today)).toBe(false)
-    expect(isBackupReminderDue(null, [tx('2026-10-14')], today)).toBe(false)
-    expect(isBackupReminderDue(null, [tx('2026-10-13')], today)).toBe(true)
+    expect(isBackupReminderDue(null, [tx('2026-10-21')], today)).toBe(false)
+    expect(isBackupReminderDue(null, [tx('2026-10-20')], today)).toBe(true)
   })
 
   it('uses the oldest of several transactions out of order', () => {
@@ -669,5 +670,16 @@ describe('profile in a backup', () => {
       expect(result).not.toBeNull()
       expect(result).not.toHaveProperty('profile')
     }
+  })
+})
+
+describe('empty profile in a backup', () => {
+  it('is ignored, so a restore does not erase the name and income already there', () => {
+    for (const profile of [{}, { name: '  ' }, { currency: 'USD' }, { income: -4 }]) {
+      const result = parseBackup(file({ profile }), builtIn)
+      expect(result).not.toBeNull()
+      expect(result).not.toHaveProperty('profile')
+    }
+    expect(parseBackup(file({ profile: { savingsGoal: 5000 } }), builtIn).profile.savingsGoal).toBe(5000)
   })
 })

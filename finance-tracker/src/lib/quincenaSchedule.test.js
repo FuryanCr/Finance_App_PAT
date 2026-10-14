@@ -4,6 +4,7 @@ import {
   changeSchedule,
   describeSchedule,
   halfOf,
+  isOpenManual,
   keyFor,
   manualState,
   normalizeSchedule,
@@ -307,7 +308,9 @@ describe('manual pay days ("I was paid")', () => {
   ]
 
   it('normalizes a manual entry and ignores any days it carries', () => {
+    // and it gets the 15/30 before it, so earlier days are still cut
     expect(normalizeSchedule([{ from: '2026-10-11', mode: 'manual', day1: 9, day2: 3 }])).toEqual([
+      DEFAULT_SCHEDULE[0],
       { from: '2026-10-11', mode: 'manual', day1: 1, day2: null },
     ])
   })
@@ -331,12 +334,45 @@ describe('manual pay days ("I was paid")', () => {
     expect(span(at(2026, 9, 20), schedule)).toEqual(['2026-09-16', '2026-09-30'])
   })
 
-  it('uses the start date as the key and the day of the month for halves', () => {
+  it('uses the start date as the key and the place in the month for halves', () => {
     const schedule = manual('2026-10-11', '2026-10-26')
     expect(keyFor(at(2026, 10, 15), schedule)).toBe('2026-10-11')
     expect(keyFor(at(2026, 10, 30), schedule)).toBe('2026-10-26')
-    expect(halfOf(at(2026, 10, 15), schedule)).toBe('first')
-    expect(halfOf(at(2026, 10, 30), schedule)).toBe('second')
+    // Oct 1 (15/30) was the first of the month, so Oct 11 is the second and
+    // Oct 26 a third one with no monthly items
+    expect(halfOf(at(2026, 10, 5), schedule)).toBe('first')
+    expect(halfOf(at(2026, 10, 15), schedule)).toBe('second')
+    expect(halfOf(at(2026, 10, 30), schedule)).toBe('extra')
+  })
+
+  it('never makes a monthly item due twice in a month, whatever the days', () => {
+    // paid on the 3rd and the 14th: both start before the 16th
+    const schedule = [
+      { from: '2000-01-01', mode: 'manual' },
+      { from: '2026-10-03', mode: 'manual' },
+      { from: '2026-10-14', mode: 'manual' },
+      { from: '2026-11-02', mode: 'manual' },
+    ]
+    const halves = [at(2026, 10, 5), at(2026, 10, 20), at(2026, 11, 5)].map((d) => halfOf(d, schedule))
+    expect(halves).toEqual(['first', 'second', 'first'])
+  })
+
+  it('drops dates that do not exist and puts 15/30 before a first manual entry', () => {
+    expect(
+      normalizeSchedule([
+        { from: '2026-13-45', mode: 'manual' },
+        { from: '2026-02-31', mode: 'manual' },
+      ]),
+    ).toEqual(DEFAULT_SCHEDULE)
+    const only = normalizeSchedule([{ from: '2026-10-26', mode: 'manual' }])
+    expect(span(at(2026, 10, 10), only)).toEqual(['2026-10-01', '2026-10-15'])
+  })
+
+  it('isOpenManual is true only for a manual quincena with no payment after it', () => {
+    expect(isOpenManual(manual('2026-10-11'), at(2026, 10, 20))).toBe(true)
+    expect(isOpenManual(manual('2026-10-11', '2026-10-26'), at(2026, 10, 20))).toBe(false)
+    expect(isOpenManual(manual('2026-10-11', '2026-10-26'), at(2026, 10, 28))).toBe(true)
+    expect(isOpenManual(DEFAULT_SCHEDULE, at(2026, 10, 20))).toBe(false)
   })
 
   it('manualState says when the next payment is late', () => {
@@ -412,5 +448,21 @@ describe('registerPayday with a future payment', () => {
     expect(span(today, result.schedule)).toEqual(['2026-10-01', '2026-10-13'])
     expect(span(at(2026, 10, 14), result.schedule)[0]).toBe('2026-10-14')
     expect(describeSchedule(result.schedule, today).pending.from).toBe('2026-10-14')
+  })
+})
+
+describe('late payment and switching away from manual', () => {
+  const manual = [DEFAULT_SCHEDULE[0], { from: '2026-10-11', mode: 'manual' }]
+
+  it('registerPayday drops a payment that was registered ahead of time', () => {
+    const ahead = [...manual, { from: '2026-10-26', mode: 'manual' }]
+    const result = registerPayday(ahead, '2026-10-20', new Date(2026, 9, 21))
+    expect(result.ok).toBe(true)
+    expect(result.schedule.map((e) => e.from)).toEqual(['2000-01-01', '2026-10-11', '2026-10-20'])
+  })
+
+  it('changeSchedule from a late manual quincena starts the new way the day after today', () => {
+    const result = changeSchedule(manual, { mode: 'fixed' }, new Date(2026, 9, 30))
+    expect(result[result.length - 1].from).toBe('2026-10-31')
   })
 })

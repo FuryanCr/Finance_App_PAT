@@ -177,12 +177,16 @@ function cleanSavingsMove(move) {
 // the file has none (an older backup) or it is not an object
 function cleanProfile(p) {
   if (!isObject(p)) return null
-  return {
+  const cleaned = {
     name: cleanName(p.name),
     currency: cleanCurrency(p.currency),
     income: isPositiveAmount(p.income) ? toCents(p.income) : null,
     savingsGoal: isPositiveAmount(p.savingsGoal) ? toCents(p.savingsGoal) : null,
   }
+  // an empty profile would erase the name and income the person already has
+  const empty =
+    cleaned.name === '' && cleaned.income === null && cleaned.savingsGoal === null
+  return empty ? null : cleaned
 }
 
 // Applies the cleaner to each record and drops the ones it rejects
@@ -357,8 +361,11 @@ export function isBackupDue(lastBackup, today = new Date(), days = 14) {
   return daysBetween(parseDate(lastBackup), today) > days
 }
 
-// The backup reminder: counts from the last backup; with none ever made,
-// from the oldest transaction, so a fresh install is not nagged at once
+// The backup reminder: counts from the last backup (14 days); with none ever
+// made, from the oldest transaction and sooner (7 days): that is when the
+// person has the most to lose and no copy at all
+export const FIRST_BACKUP_DAYS = 7
+
 export function isBackupReminderDue(lastBackup, transactions, today = new Date()) {
   // nothing to back up yet
   if (transactions.length === 0) return false
@@ -370,7 +377,11 @@ export function isBackupReminderDue(lastBackup, transactions, today = new Date()
     .map((tx) => tx.date)
     .filter((date) => typeof date === 'string' && isValidDate(date))
   if (dates.length === 0) return false
-  return isBackupDue(dates.reduce((a, b) => (b < a ? b : a)), today)
+  return isBackupDue(
+    dates.reduce((a, b) => (b < a ? b : a)),
+    today,
+    FIRST_BACKUP_DAYS,
+  )
 }
 
 // "Movements: 12 · Budgets: 3 · ..." for a list of counts; lists with

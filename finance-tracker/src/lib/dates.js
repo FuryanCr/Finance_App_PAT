@@ -1,4 +1,10 @@
-import { DEFAULT_SCHEDULE, keyFor, rangeFor } from './quincenaSchedule'
+import {
+  DEFAULT_SCHEDULE,
+  MANUAL_QUINCENA_DAYS,
+  keyFor,
+  manualState,
+  rangeFor,
+} from './quincenaSchedule'
 
 // The quincena that contains a date. By default 1st-15th or 16th-end of month;
 // the schedule (see quincenaSchedule.js) says if the person chose other days.
@@ -14,7 +20,10 @@ export function daysBetween(a, b) {
 }
 
 // Days remaining in the quincena, counting today (the last day gives 1)
+// A manual quincena whose next payment is late has no known end: the money is
+// spread as if 15 days were left (MANUAL_QUINCENA_DAYS), never as if it were the last day.
 export function daysLeftInQuincena(date = new Date(), schedule = DEFAULT_SCHEDULE) {
+  if (manualState(schedule, date).overdue) return MANUAL_QUINCENA_DAYS
   return daysBetween(date, getQuincenaRange(date, schedule).end) + 1
 }
 

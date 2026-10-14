@@ -1,7 +1,7 @@
 import { daysLeftInQuincena, getQuincenaRange, parseDate, todayString } from './dates'
 import { getTotals, laterTotal, safePerDay, sum } from './money'
 import { pendingTotal } from './recurring'
-import { DEFAULT_SCHEDULE } from './quincenaSchedule'
+import { DEFAULT_SCHEDULE, isOpenManual } from './quincenaSchedule'
 import { leftInRange, previousQuincenaRange, savingsInRange } from './savings'
 
 // Everything Home needs to know about one currency in the current quincena.
@@ -98,6 +98,8 @@ export function isClosingDay(dateText, schedule = DEFAULT_SCHEDULE) {
   if (typeof dateText !== 'string') return false
   const date = parseDate(dateText)
   if (Number.isNaN(date.getTime())) return false
+  // a manual quincena with no next payment registered has no known last day
+  if (isOpenManual(schedule, date)) return false
   return todayString(getQuincenaRange(date, schedule).end) === dateText
 }
 

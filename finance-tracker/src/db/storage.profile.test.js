@@ -320,3 +320,49 @@ describe('manual quincena schedule', () => {
     expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
   })
 })
+
+describe('backup round trip with a manual schedule and a profile', () => {
+  const manualSchedule = [
+    DEFAULT_SCHEDULE[0],
+    { from: '2026-10-11', mode: 'manual', day1: 1, day2: null },
+  ]
+
+  it('comes back exactly, with one manual row and no leftovers', async () => {
+    const { buildBackup, inspectBackup } = await import('../lib/backup')
+    await storage.completeOnboarding({
+      profile: profile(),
+      schedule: manualSchedule,
+      add: [recurringItem({ note: 'Luz' })],
+    })
+    const before = await storage.loadAll()
+    const text = JSON.stringify(buildBackup(before))
+    const inspected = inspectBackup(text, before.categories.filter((c) => c.key))
+    expect(inspected.ok).toBe(true)
+
+    await storage.clearAll()
+    const after = await storage.restoreAll(inspected.data)
+
+    expect(after.quincenaSchedule).toEqual(manualSchedule)
+    expect(after.profile).toMatchObject({ name: 'Ana', currency: 'USD', income: 1200.5, savingsGoal: 100 })
+    expect(typeof after.profile.onboardedAt).toBe('string')
+    expect(after.recurring.map((r) => r.note)).toEqual(['Luz'])
+    const manualRows = (await current.db.query('SELECT start_date FROM quincena_manual')).values
+    expect(manualRows).toEqual([{ start_date: '2026-10-11' }])
+  })
+
+  it('restoring a backup without manual days empties the manual table', async () => {
+    await storage.saveQuincenaSchedule(manualSchedule)
+    await storage.restoreAll({ ...base, quincenaSchedule: DEFAULT_SCHEDULE })
+    const count = (await current.db.query('SELECT COUNT(*) AS n FROM quincena_manual')).values[0].n
+    expect(count).toBe(0)
+  })
+
+  it('reads one entry per date when both tables have the same day', async () => {
+    await current.db.run("INSERT INTO quincena_config VALUES ('2026-10-11', 'fixed', 1, 16)")
+    await current.db.run("INSERT INTO quincena_manual VALUES ('2026-10-11')")
+    const { quincenaSchedule } = await storage.loadAll()
+    expect(quincenaSchedule.filter((e) => e.from === '2026-10-11')).toEqual([
+      { from: '2026-10-11', mode: 'manual', day1: 1, day2: null },
+    ])
+  })
+})
