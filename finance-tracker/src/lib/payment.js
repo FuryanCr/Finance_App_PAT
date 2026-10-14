@@ -19,6 +19,14 @@ export function normalizePaymentMethod(value) {
   return isPaymentMethod(value) ? value : DEFAULT_PAYMENT_METHOD
 }
 
+// Small text for a list row: the method when it is not cash, so the lists
+// are not full of the default. Empty for cash.
+export function paymentNote(value, t) {
+  return normalizePaymentMethod(value) === DEFAULT_PAYMENT_METHOD
+    ? ''
+    : paymentLabel(value, t)
+}
+
 // The name on screen (or in a CSV) of a stored code; t translates the key
 export function paymentLabel(value, t) {
   const code = normalizePaymentMethod(value)

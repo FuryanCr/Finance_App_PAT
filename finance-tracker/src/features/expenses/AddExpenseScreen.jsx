@@ -12,6 +12,7 @@ import { formatDate } from '../../lib/format'
 import { applyKey, formatTyping } from '../../lib/keypad'
 import { MAX_AMOUNT, currencies, parseAmount } from '../../lib/money'
 import { isClosingDay, nextQuincenaStart } from '../../lib/quincena'
+import { normalizePaymentMethod } from '../../lib/payment'
 import { readPref, writePref } from '../../lib/prefs'
 import { findMatchingDue } from '../../lib/recurring'
 import { suggestNotes } from '../../lib/suggest'
@@ -20,6 +21,7 @@ import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
 import Keypad from '../../components/Keypad'
+import PaymentPills from '../../components/PaymentPills'
 
 // A warning shows when the date is more than this many days ahead
 const FUTURE_DAYS_LIMIT = 3
@@ -28,6 +30,11 @@ const FUTURE_DAYS_LIMIT = 3
 function lastCurrency() {
   const saved = readPref('lastCurrency')
   return currencies.some((c) => c.code === saved) ? saved : 'CRC'
+}
+
+// The payment method of the last transaction added (cash if none saved)
+function lastPaymentMethod() {
+  return normalizePaymentMethod(readPref('lastPaymentMethod'))
 }
 
 // The category of the last expense added, if it still exists
@@ -76,6 +83,10 @@ export default function AddExpenseScreen() {
   )
   const [currency, setCurrency] = useState(() =>
     source ? source.currency : lastCurrency(),
+  )
+  // an edit or a repeat keeps its method; a new entry starts with the last used
+  const [paymentMethod, setPaymentMethod] = useState(() =>
+    source ? normalizePaymentMethod(source.paymentMethod) : lastPaymentMethod(),
   )
   const [amountText, setAmountText] = useState(() =>
     source && Number.isFinite(source.amount) ? String(source.amount) : '',
@@ -176,6 +187,7 @@ export default function AddExpenseScreen() {
         categoryId: type === 'expense' ? savedCategoryId : null,
         note: note.trim(),
         date,
+        paymentMethod,
       }
 
       if (editing) {
@@ -212,6 +224,7 @@ export default function AddExpenseScreen() {
           await addTransaction(tx)
         }
         writePref('lastCurrency', currency)
+        writePref('lastPaymentMethod', paymentMethod)
         if (type === 'expense') writePref('lastCategoryId', savedCategoryId)
         navigate('/')
       }
@@ -331,6 +344,8 @@ export default function AddExpenseScreen() {
           )}
 
           <section className="card">
+            <p className="label">{t('paymentMethod')}</p>
+            <PaymentPills value={paymentMethod} onChange={setPaymentMethod} />
             <label className="field">
               <span className="label">{t('note')}</span>
               <input

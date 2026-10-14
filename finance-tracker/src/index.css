@@ -580,6 +580,13 @@ main {
   gap: 8px;
 }
 
+/* Método de pago: tres píldoras seguidas; en pantallas angostas pasan a la
+   línea de abajo antes de salirse */
+.pill-group.payment {
+  flex-wrap: wrap;
+  margin: 6px 0 14px;
+}
+
 /* Pill base: 44px de alto para poder tocarla */
 .pill {
   padding: 12px 16px;

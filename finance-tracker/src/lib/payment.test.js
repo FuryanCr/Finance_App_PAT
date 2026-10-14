@@ -5,6 +5,7 @@ import {
   normalizePaymentMethod,
   paymentLabel,
   paymentMethods,
+  paymentNote,
 } from './payment'
 
 describe('paymentLabel', () => {
@@ -19,6 +20,21 @@ describe('paymentLabel', () => {
   it('reads a missing or unknown code as cash', () => {
     expect(paymentLabel(undefined, t)).toBe('T:payCash')
     expect(paymentLabel('bitcoin', t)).toBe('T:payCash')
+  })
+})
+
+describe('paymentNote', () => {
+  const t = (key) => `T:${key}`
+
+  it('is empty for cash and for a missing method', () => {
+    expect(paymentNote('cash', t)).toBe('')
+    expect(paymentNote(undefined, t)).toBe('')
+    expect(paymentNote('bitcoin', t)).toBe('')
+  })
+
+  it('names card and SINPE', () => {
+    expect(paymentNote('card', t)).toBe('T:payCard')
+    expect(paymentNote('sinpe', t)).toBe('T:paySinpe')
   })
 })
 
