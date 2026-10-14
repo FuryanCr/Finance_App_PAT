@@ -345,3 +345,35 @@ describe('buildFixedExpense with a new category', () => {
     expect(buildFixedExpense({ ...base, categoryId: 2 }).item.categoryId).toBe(2)
   })
 })
+
+describe('scheduleForOnboarding with manual pay days', () => {
+  const today = new Date(2026, 9, 13)
+  const choice = { mode: 'manual', from: '2026-10-11' }
+
+  it('keeps 15/30 before the paid day when there is no data', () => {
+    expect(scheduleForOnboarding(DEFAULT_SCHEDULE, choice, today, false)).toEqual([
+      DEFAULT_SCHEDULE[0],
+      { from: '2026-10-11', mode: 'manual', day1: 1, day2: null },
+    ])
+    // even a paid day before the quincena in progress: nothing to protect
+    expect(
+      scheduleForOnboarding(DEFAULT_SCHEDULE, { mode: 'manual', from: '2026-09-28' }, today, false)[1].from,
+    ).toBe('2026-09-28')
+  })
+
+  it('with data goes through registerPayday and never moves the past', () => {
+    const ok = scheduleForOnboarding(DEFAULT_SCHEDULE, choice, today, true)
+    expect(ok.map((e) => e.mode)).toEqual(['fixed', 'manual'])
+    const early = scheduleForOnboarding(
+      DEFAULT_SCHEDULE,
+      { mode: 'manual', from: '2026-09-28' },
+      today,
+      true,
+    )
+    expect(early).toEqual(DEFAULT_SCHEDULE)
+  })
+
+  it('counts two quincenas a month for manual pay days', () => {
+    expect(quincenasPerMonth({ mode: 'manual', from: '2026-10-11' })).toBe(2)
+  })
+})

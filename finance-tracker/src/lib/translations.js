@@ -197,6 +197,22 @@ export const translations = {
     quincenaMode15: '15 y 30 (días 1 y 16)',
     quincenaModePaydays: 'Mis días de pago',
     quincenaPayDays: 'Días de pago',
+    quincenaModeManual: 'Sin día fijo',
+    quincenaPaidOn: 'Día en que te pagaron',
+    quincenaPaidInvalid: 'Escribe una fecha válida.',
+    quincenaPaidFuture: 'Esa fecha todavía no llega.',
+    quincenaPaidEarly:
+      'Esa fecha es anterior a esta quincena: movería quincenas que ya viviste. Elige un día de la quincena en curso.',
+    quincenaManualNote:
+      'La quincena empieza el día que te pagan y termina el día antes del siguiente pago. Mientras no registres el próximo, se cuenta de 15 días.',
+    manualPaidToday: 'Me pagaron hoy',
+    manualPaidOther: 'Otra fecha',
+    manualPaidRegister: 'Registrar pago',
+    manualSince: 'Quincena abierta desde el',
+    manualHint:
+      'Cuando te depositen, márcalo aquí: empieza una quincena nueva y vuelves a ver tus pendientes.',
+    manualOverdue:
+      'Ya pasaron más de 15 días desde tu último pago. ¿Ya te pagaron?',
     quincenaDay1: 'Primer día de pago (1 a 31)',
     quincenaDay2: 'Segundo día de pago (opcional)',
     quincenaDaysInvalid:
@@ -468,6 +484,22 @@ export const translations = {
     quincenaMode15: '15/30 (days 1 and 16)',
     quincenaModePaydays: 'My pay days',
     quincenaPayDays: 'Pay days',
+    quincenaModeManual: 'No fixed day',
+    quincenaPaidOn: 'Day you were paid',
+    quincenaPaidInvalid: 'Type a valid date.',
+    quincenaPaidFuture: 'That date has not come yet.',
+    quincenaPaidEarly:
+      'That date is before this quincena: it would move quincenas you already lived. Pick a day of the quincena in progress.',
+    quincenaManualNote:
+      'The quincena starts the day you are paid and ends the day before the next payment. Until you register the next one, it counts as 15 days.',
+    manualPaidToday: 'I was paid today',
+    manualPaidOther: 'Another date',
+    manualPaidRegister: 'Register payment',
+    manualSince: 'Quincena open since',
+    manualHint:
+      'When you get paid, mark it here: a new quincena starts and your pending items come back.',
+    manualOverdue:
+      'More than 15 days have passed since your last payment. Were you paid?',
     quincenaDay1: 'First pay day (1 to 31)',
     quincenaDay2: 'Second pay day (optional)',
     quincenaDaysInvalid:

@@ -16,6 +16,7 @@ import { currencies, formatMoney } from '../../lib/money'
 import { isBackupReminderDue } from '../../lib/backup'
 import { readPref, writePref } from '../../lib/prefs'
 import { quincenaFigures, rolloverLeftover } from '../../lib/quincena'
+import { manualState, registerPayday } from '../../lib/quincenaSchedule'
 import { isDue, isHandled } from '../../lib/recurring'
 import {
   ROLLOVER_NOTE,
@@ -45,6 +46,7 @@ export default function HomeScreen() {
     recurring,
     savings,
     profile,
+    saveQuincenaSchedule,
     confirmRecurring,
     skipRecurring,
     addSavingsMove,
@@ -52,6 +54,9 @@ export default function HomeScreen() {
   const { start, end } = getQuincenaRange(today, quincenaSchedule)
   const daysLeft = daysLeftInQuincena(today, quincenaSchedule)
   const [busy, setBusy] = useState(false)
+  // manual pay days: the date being typed for "another date", or null
+  const [otherDate, setOtherDate] = useState(null)
+  const [paidError, setPaidError] = useState(null)
   // the quincena each currency's rollover offer was skipped for
   const [skipped, setSkipped] = useState(() =>
     Object.fromEntries(currencies.map((c) => [c.code, readPref(skipKey(c.code))])),
@@ -117,6 +122,21 @@ export default function HomeScreen() {
       writePref(skipKey(code), previousKey)
       setSkipped((prev) => ({ ...prev, [code]: previousKey }))
     })
+
+  const manual = manualState(quincenaSchedule, today)
+
+  // "I was paid": a new quincena starts on that day (today unless another
+  // date was typed); a date that would move the past is explained, not saved
+  const registerPaid = (dateText) => {
+    const result = registerPayday(quincenaSchedule, dateText, today)
+    if (!result.ok) {
+      setPaidError(result.reason)
+      return
+    }
+    setPaidError(null)
+    setOtherDate(null)
+    run(() => saveQuincenaSchedule(result.schedule))
+  }
 
   const rangeText = `${formatDate(start, locale, { year: false })} – ${formatDate(end, locale, { year: false })}`
 
@@ -352,6 +372,80 @@ export default function HomeScreen() {
 
       <div className="cols">
         <div className="col">
+          {manual.active && (
+            <section className="card manual-card">
+              <p className="label">{t('quincenaModeManual')}</p>
+              <p className="sub">
+                {t('manualSince')} {formatDate(parseDate(manual.since), locale)}
+              </p>
+              {manual.overdue ? (
+                <p className="sub warn" role="status">
+                  {t('manualOverdue')}
+                </p>
+              ) : (
+                <p className="sub">{t('manualHint')}</p>
+              )}
+              <div className="due-actions">
+                <button
+                  type="button"
+                  className="pill active"
+                  disabled={busy}
+                  onClick={() => registerPaid(todayString(today))}
+                >
+                  {t('manualPaidToday')}
+                </button>
+                <button
+                  type="button"
+                  className="pill"
+                  aria-expanded={otherDate !== null}
+                  onClick={() => {
+                    setPaidError(null)
+                    setOtherDate(otherDate === null ? todayString(today) : null)
+                  }}
+                >
+                  {t('manualPaidOther')}
+                </button>
+              </div>
+              {otherDate !== null && (
+                <>
+                  <label className="field">
+                    <span className="label">{t('quincenaPaidOn')}</span>
+                    <input
+                      type="date"
+                      max={todayString(today)}
+                      value={otherDate}
+                      aria-invalid={paidError !== null}
+                      aria-describedby={paidError ? 'home-paid-error' : undefined}
+                      onChange={(e) => {
+                        setOtherDate(e.target.value)
+                        setPaidError(null)
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    disabled={busy}
+                    onClick={() => registerPaid(otherDate)}
+                  >
+                    {t('manualPaidRegister')}
+                  </button>
+                </>
+              )}
+              {paidError && (
+                <p className="field-note error" role="alert" id="home-paid-error">
+                  {t(
+                    {
+                      invalid: 'quincenaPaidInvalid',
+                      future: 'quincenaPaidFuture',
+                      early: 'quincenaPaidEarly',
+                    }[paidError],
+                  )}
+                </p>
+              )}
+            </section>
+          )}
+
           {shown.slice(0, 1).map((c) => renderCard(c, 0))}
 
           {offersCard}

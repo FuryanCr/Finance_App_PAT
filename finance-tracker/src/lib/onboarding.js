@@ -1,5 +1,10 @@
 import { currencies, parseAmount, sum } from './money'
-import { changeSchedule, normalizeSchedule } from './quincenaSchedule'
+import {
+  DEFAULT_SCHEDULE,
+  changeSchedule,
+  normalizeSchedule,
+  registerPayday,
+} from './quincenaSchedule'
 
 // Pure rules of the first-use screen: no database, no clock, no React.
 
@@ -74,7 +79,18 @@ export function freePerQuincena({
 // (nothing registered) the choice is in force from the start, because there
 // is no past to protect; with data it goes through changeSchedule, so the
 // quincenas already lived are never moved.
+// A manual choice ({ mode: 'manual', from }) starts a quincena on the day the
+// person was paid: with data it goes through registerPayday (a date that would
+// move the past leaves the schedule as it is); with none, the old 15/30 stays
+// before that day.
 export function scheduleForOnboarding(current, choice, today, hasData) {
+  if (choice.mode === 'manual') {
+    if (hasData) {
+      const result = registerPayday(current, choice.from, today)
+      return result.ok ? result.schedule : normalizeSchedule(current)
+    }
+    return normalizeSchedule([DEFAULT_SCHEDULE[0], { from: choice.from, mode: 'manual' }])
+  }
   if (hasData) return changeSchedule(current, choice, today)
   return normalizeSchedule([{ ...choice, from: '2000-01-01' }])
 }
