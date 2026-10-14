@@ -3,34 +3,30 @@ import { Link } from 'react-router-dom'
 import { useTransactions } from '../../context/useTransactions'
 import {
   byNewest,
+  daysBetween,
   daysLeftInQuincena,
   getQuincenaRange,
   parseDate,
   quincenaKey,
   todayString,
 } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { useToday } from '../../lib/useToday'
-import {
-  currencies,
-  formatMoney,
-  getTotals,
-  laterTotal,
-  safePerDay,
-  sum,
-} from '../../lib/money'
+import { currencies, formatMoney } from '../../lib/money'
 import { isBackupReminderDue } from '../../lib/backup'
 import { readPref, writePref } from '../../lib/prefs'
-import { isDue, isHandled, pendingTotal } from '../../lib/recurring'
+import { quincenaFigures, rolloverLeftover } from '../../lib/quincena'
+import { isDue, isHandled } from '../../lib/recurring'
 import {
   ROLLOVER_NOTE,
-  leftInRange,
   previousQuincenaRange,
   savingsBalance,
-  savingsInRange,
 } from '../../lib/savings'
 import { getCategoryTotals } from '../../lib/stats'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import CategoryBars from '../../components/CategoryBars'
+import EmptyState from '../../components/EmptyState'
 import RecurringRow from '../../components/RecurringRow'
 import TransactionItem from '../../components/TransactionItem'
 
@@ -38,11 +34,11 @@ const skipKey = (code) => `rolloverSkipped.${code}`
 
 export default function HomeScreen() {
   const { locale, t } = useSettings()
+  const { alert } = useDialog()
 
   const today = useToday()
-  const { start, end } = getQuincenaRange(today)
-  const daysLeft = daysLeftInQuincena(today)
   const {
+    quincenaSchedule,
     transactions,
     categories,
     budgets,
@@ -52,6 +48,8 @@ export default function HomeScreen() {
     skipRecurring,
     addSavingsMove,
   } = useTransactions()
+  const { start, end } = getQuincenaRange(today, quincenaSchedule)
+  const daysLeft = daysLeftInQuincena(today, quincenaSchedule)
   const [busy, setBusy] = useState(false)
   // the quincena each currency's rollover offer was skipped for
   const [skipped, setSkipped] = useState(() =>
@@ -65,21 +63,23 @@ export default function HomeScreen() {
     .sort(byNewest)
     .slice(0, 5)
 
-  const due = recurring.filter((item) => isDue(item, today))
-  const handled = recurring.filter((item) => isHandled(item, today))
+  const due = recurring.filter((item) => isDue(item, today, quincenaSchedule))
+  const handled = recurring.filter((item) =>
+    isHandled(item, today, quincenaSchedule),
+  )
 
   // last quincena's leftover is offered once per currency
-  const previous = previousQuincenaRange(today)
-  const previousKey = quincenaKey(previous.start)
+  const previous = previousQuincenaRange(today, quincenaSchedule)
+  const previousKey = quincenaKey(previous.start, quincenaSchedule)
   const offers = currencies
-    .map(({ code }) => ({
+    .map(({ code, labelKey }) => ({
       code,
-      leftover: leftInRange(
-        transactions,
-        savings,
+      labelKey,
+      // an income dated on the closing day is not a leftover (see lib/quincena)
+      leftover: rolloverLeftover(
+        { transactions, savings, quincenaSchedule },
         code,
-        previous.start,
-        previous.end,
+        today,
       ),
     }))
     .filter(({ code, leftover }) => leftover > 0 && skipped[code] !== previousKey)
@@ -92,7 +92,7 @@ export default function HomeScreen() {
       await action()
     } catch (error) {
       console.error(error)
-      window.alert(t('saveError'))
+      await alert(t('saveError'))
     } finally {
       setBusy(false)
     }
@@ -117,17 +117,19 @@ export default function HomeScreen() {
       setSkipped((prev) => ({ ...prev, [code]: previousKey }))
     })
 
-  const format = { month: 'short', day: 'numeric' }
+  const rangeText = `${formatDate(start, locale, { year: false })} – ${formatDate(end, locale, { year: false })}`
 
   // a currency gets a card when it has transactions, pending bills or savings
   // moves; the first one is highlighted
   const shown = currencies
     .map((c) => ({
       ...c,
-      ...getTotals(current, c.code),
-      ...savingsInRange(savings, c.code, start, end),
       // due bills are not transactions yet, but the money is spoken for
-      pending: pendingTotal(recurring, c.code, today),
+      ...quincenaFigures(
+        { transactions, savings, recurring, quincenaSchedule },
+        c.code,
+        today,
+      ),
     }))
     .filter(
       (c) =>
@@ -135,36 +137,91 @@ export default function HomeScreen() {
     )
 
   const renderCard = (
-    { code, labelKey, income, spent, net, pending, toSavings, fromSavings },
+    {
+      code,
+      labelKey,
+      income,
+      spent,
+      left,
+      pending,
+      toSavings,
+      fromSavings,
+      later,
+      laterIncome,
+      status,
+      perDay,
+    },
     index,
   ) => {
     const expenses = current.filter(
       (tx) => tx.currency === code && tx.type === 'expense',
     )
-    const left = sum([net, -toSavings, fromSavings])
     const pct =
       income > 0 ? Math.min(Math.round((spent / income) * 100), 100) : 0
-    const available = sum([left, -pending])
-    const later = laterTotal(current, code, today)
-    const laterIncome = laterTotal(current, code, today, 'income')
     const categoryTotals = getCategoryTotals(expenses, categories)
     const daysText =
       daysLeft === 1 ? t('lastDay') : `${daysLeft} ${t('daysLeft')}`
 
+    // the headline is what can be spent today; without income (or money from
+    // savings) there is no daily amount, so it shows what is left instead
+    const hasBase = income > 0 || fromSavings > 0
+    const message = {
+      pendingExceeds: t('pendingExceeds'),
+      waitingIncome: t('waitingIncome'),
+      over: t('overQuincena'),
+    }[status]
+
     return (
       <section className={index === 0 ? 'card hero' : 'card'} key={code}>
         <p className="label">
-          {t('leftThisQuincena')} · {t(labelKey)}
+          {hasBase ? t('canSpendToday') : t('leftThisQuincena')} · {t(labelKey)}
         </p>
-        <p className="balance">{formatMoney(left, code)}</p>
+        {hasBase ? (
+          <>
+            <p className={status === 'ok' ? 'balance' : 'balance has-message'}>
+              {formatMoney(perDay, code)}
+            </p>
+            {message && (
+              <p className="sub warn" role="status">
+                {message}
+              </p>
+            )}
+            <p className="sub">
+              {daysText}
+              {pending > 0 &&
+                ` · ${t('afterPending')} ${formatMoney(pending, code)}`}
+            </p>
+            <div className="left-line">
+              <span className="label">{t('leftThisQuincena')}</span>
+              <span className="left-amount">{formatMoney(left, code)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="balance">{formatMoney(left, code)}</p>
+            {pending > 0 && (
+              <p className="sub">
+                {t('pendingBills')} {formatMoney(pending, code)}
+              </p>
+            )}
+          </>
+        )}
 
-        <div className="progress" aria-hidden="true">
-          <div className="progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-        <p className="sub">
-          {pct}% {t('ofIncomeSpent')}
-          {later > 0 && ` · ${t('includesLater')} ${formatMoney(later, code)}`}
-        </p>
+        {income > 0 && (
+          <>
+            <div className="progress" aria-hidden="true">
+              <div className="progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="sub">
+              {pct}% {t('ofIncomeSpent')}
+            </p>
+          </>
+        )}
+        {later > 0 && (
+          <p className="sub">
+            {t('includesLater')} {formatMoney(later, code)}
+          </p>
+        )}
         {laterIncome > 0 && (
           <p className="sub">
             {t('includesLaterIncome')} {formatMoney(laterIncome, code)}
@@ -178,7 +235,10 @@ export default function HomeScreen() {
           </div>
           <div>
             <p className="label">{t('spent')}</p>
-            <p className="stat spending">−{formatMoney(spent, code)}</p>
+            <p className="stat spending">
+              {spent > 0 ? '−' : ''}
+              {formatMoney(spent, code)}
+            </p>
           </div>
         </div>
 
@@ -197,41 +257,6 @@ export default function HomeScreen() {
               </div>
             )}
           </div>
-        )}
-
-        {/* hidden until the quincena has income or money taken from savings */}
-        {income > 0 || fromSavings > 0 ? (
-          <div className="safe-day">
-            <p className="label">{t('safePerDay')}</p>
-            {available > 0 ? (
-              <>
-                <p className="stat">
-                  {formatMoney(safePerDay(available, daysLeft, code), code)}
-                </p>
-                <p className="sub">
-                  {daysText}
-                  {pending > 0 &&
-                    ` · ${t('afterPending')} ${formatMoney(pending, code)}`}
-                </p>
-              </>
-            ) : left > 0 ? (
-              <>
-                <p className="stat over">{t('pendingExceeds')}</p>
-                <p className="sub">
-                  {t('afterPending')} {formatMoney(pending, code)}
-                </p>
-              </>
-            ) : (
-              <p className="stat over">{t('overBudget')}</p>
-            )}
-          </div>
-        ) : (
-          pending > 0 && (
-            <div className="safe-day">
-              <p className="label">{t('pendingBills')}</p>
-              <p className="stat">{formatMoney(pending, code)}</p>
-            </div>
-          )
         )}
 
         {categoryTotals.length > 0 && (
@@ -254,64 +279,85 @@ export default function HomeScreen() {
       .map(({ code, balance }) => formatMoney(balance, code))
       .join(' · ') || formatMoney(0, 'CRC')
 
+  const totalDays = daysBetween(start, end) + 1
+  const dayNumber = totalDays - daysLeft + 1
+
+  // the leftover of the quincena that closed: shown right after the main card
+  const offersCard = offers.length > 0 && (
+    <section className="card">
+      <p className="label">{t('lastQuincenaLeft')}</p>
+      <ul className="list">
+        {offers.map(({ code, labelKey, leftover }) => (
+          <li key={code}>
+            <div className="row">
+              <span className="row-name">
+                {t('moveItToSavings')} ({t(labelKey)})
+              </span>
+              <span className="row-amount">{formatMoney(leftover, code)}</span>
+            </div>
+            <div className="due-actions">
+              <button
+                type="button"
+                className="pill active"
+                disabled={busy}
+                onClick={() => moveLeftover(code, leftover)}
+              >
+                {t('moveToSavings')}
+              </button>
+              <button
+                type="button"
+                className="pill"
+                disabled={busy}
+                onClick={() => skipLeftover(code)}
+              >
+                {t('skip')}
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+
   return (
     <>
       <div className="greeting">
-        <h1 className="screen-title">{t('welcome')}</h1>
+        <h1 className="screen-title">
+          {t('quincena')} · {rangeText}
+        </h1>
         <p className="sub">
-          {t('quincena')} · {start.toLocaleDateString(locale, format)} -{' '}
-          {end.toLocaleDateString(locale, format)}
+          {t('day')} {dayNumber} {t('dayOf')} {totalDays}
         </p>
-      </div>
-
-      {offers.length > 0 && (
-        <div className="narrow">
-          <section className="card">
-            <p className="label">{t('lastQuincenaLeft')}</p>
-            <ul className="list">
-              {offers.map(({ code, leftover }) => (
-                <li key={code}>
-                  <div className="row">
-                    <span className="row-name">{t('moveItToSavings')}</span>
-                    <span className="row-amount">
-                      {formatMoney(leftover, code)}
-                    </span>
-                  </div>
-                  <div className="due-actions">
-                    <button
-                      type="button"
-                      className="pill active"
-                      disabled={busy}
-                      onClick={() => moveLeftover(code, leftover)}
-                    >
-                      {t('moveToSavings')}
-                    </button>
-                    <button
-                      type="button"
-                      className="pill"
-                      disabled={busy}
-                      onClick={() => skipLeftover(code)}
-                    >
-                      {t('skip')}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+        <div
+          className="day-bar"
+          role="img"
+          aria-label={`${t('day')} ${dayNumber} ${t('dayOf')} ${totalDays}`}
+        >
+          {Array.from({ length: totalDays }, (_, i) => (
+            <span
+              key={i}
+              className={
+                i < dayNumber - 1 ? 'on' : i === dayNumber - 1 ? 'now' : undefined
+              }
+            />
+          ))}
         </div>
-      )}
+      </div>
 
       <div className="cols">
         <div className="col">
           {shown.slice(0, 1).map((c) => renderCard(c, 0))}
 
+          {offersCard}
+
           {shown.slice(1).map((c, i) => renderCard(c, i + 1))}
 
-          <Link className="card link-card" to="/savings">
-            <span className="row-name">{t('savings')}</span>
-            <span className="row-amount">{balancesText}</span>
-          </Link>
+          {(transactions.length > 0 || savings.length > 0) && (
+            <Link className="card link-card" to="/savings">
+              <span className="row-name">{t('savings')}</span>
+              <span className="row-amount">{balancesText}</span>
+            </Link>
+          )}
         </div>
 
         <div className="col">
@@ -353,11 +399,12 @@ export default function HomeScreen() {
           )}
 
           {shown.length === 0 && (
-            <section className="card">
-              <p className="sub empty">
-                {transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')}
-              </p>
-            </section>
+            <EmptyState
+              actions={false}
+              text={
+                transactions.length === 0 ? t('emptyAll') : t('emptyQuincena')
+              }
+            />
           )}
 
           <div className="btn-row">

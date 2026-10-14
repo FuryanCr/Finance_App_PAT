@@ -1,6 +1,8 @@
-import { categoryColors } from './categories'
+import { categoryColors, findCategoryByName } from './categories'
 import { daysBetween, isValidDate, parseDate } from './dates'
-import { currencies } from './money'
+import { currencies, isValidAmount } from './money'
+import { normalizePaymentMethod } from './payment'
+import { DEFAULT_SCHEDULE, normalizeSchedule } from './quincenaSchedule'
 import { schedules } from './recurring'
 
 const currencyCodes = currencies.map((c) => c.code)
@@ -9,7 +11,14 @@ const types = ['income', 'expense']
 // Everything the user has entered, as one JSON-friendly object.
 // Built-in categories are not included: every install already has them.
 export function buildBackup(
-  { transactions, categories, budgets, recurring, savings = [] },
+  {
+    transactions,
+    categories,
+    budgets,
+    recurring,
+    savings = [],
+    quincenaSchedule = DEFAULT_SCHEDULE,
+  },
   now = new Date(),
 ) {
   return {
@@ -23,24 +32,41 @@ export function buildBackup(
     budgets,
     recurring,
     savings,
+    quincenaSchedule,
   }
 }
 
-// Ids are positive safe integers (0 is the "Uncategorized" stand-in)
+// Limits that keep a damaged or hostile file from filling the device:
+// the file, each text, the ids (SQLite integers; above 2^31 - 1 the next ids
+// could repeat) and the number of records.
+export const MAX_BACKUP_BYTES = 20 * 1024 * 1024
+export const MAX_NOTE_LENGTH = 60
+export const MAX_CATEGORY_NAME_LENGTH = 24
+export const MAX_ID = 2_147_483_647
+export const MAX_RECORDS = 200_000
+
+// Ids are positive integers up to MAX_ID (0 is the "Uncategorized" stand-in)
 function isValidId(value) {
-  return Number.isSafeInteger(value) && value > 0
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_ID
+}
+
+// Notes are cut to what the form allows
+function cleanNote(value) {
+  return typeof value === 'string' ? value.slice(0, MAX_NOTE_LENGTH) : ''
 }
 
 function isObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+// A finite amount of at least one cent and at most the app's cap; it is
+// rounded to cents like everything the app saves
 function isPositiveAmount(value) {
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    Math.round(value * 100) > 0
-  )
+  return isValidAmount(value)
+}
+
+function toCents(value) {
+  return Math.round(value * 100) / 100
 }
 
 // Keeps the first record of each key
@@ -57,9 +83,11 @@ function keepFirst(items, keyOf) {
 function cleanCategory(c, builtInIds) {
   if (!isObject(c)) return null
   if (!isValidId(c.id) || builtInIds.has(c.id)) return null
-  if (typeof c.name !== 'string' || c.name.trim() === '') return null
+  if (typeof c.name !== 'string') return null
+  const name = c.name.trim().slice(0, MAX_CATEGORY_NAME_LENGTH).trim()
+  if (name === '') return null
   if (!categoryColors.includes(c.color)) return null
-  return { id: c.id, name: c.name, color: c.color }
+  return { id: c.id, name, color: c.color }
 }
 
 // Fields shared by transactions and recurring items; null when invalid
@@ -71,28 +99,33 @@ function cleanEntry(item, knownIds) {
   if (!types.includes(item.type)) return null
   return {
     id: item.id,
-    amount: item.amount,
+    amount: toCents(item.amount),
     currency: item.currency,
     type: item.type,
     categoryId:
       item.type === 'expense' && knownIds.has(item.categoryId)
         ? item.categoryId
         : null,
-    note: typeof item.note === 'string' ? item.note : '',
+    note: cleanNote(item.note),
   }
 }
 
 function cleanTransaction(tx, knownIds) {
   const entry = cleanEntry(tx, knownIds)
   if (!entry || typeof tx.date !== 'string' || !isValidDate(tx.date)) return null
-  return { ...entry, date: tx.date }
+  return {
+    ...entry,
+    date: tx.date,
+    paymentMethod: normalizePaymentMethod(tx.paymentMethod),
+  }
 }
 
 function cleanRecurring(item, knownIds) {
   const entry = cleanEntry(item, knownIds)
   if (!entry || !schedules.includes(item.schedule)) return null
   const validPeriod =
-    typeof item.lastPeriod === 'string' && /^\d{4}-\d{2}-[12]$/.test(item.lastPeriod)
+    typeof item.lastPeriod === 'string' &&
+    /^\d{4}-\d{2}-([12]|\d{2})$/.test(item.lastPeriod)
   return {
     ...entry,
     schedule: item.schedule,
@@ -105,7 +138,11 @@ function cleanBudget(b, knownIds) {
   if (!knownIds.has(b.categoryId)) return null
   if (!currencyCodes.includes(b.currency)) return null
   if (!isPositiveAmount(b.amount)) return null
-  return { categoryId: b.categoryId, currency: b.currency, amount: b.amount }
+  return {
+    categoryId: b.categoryId,
+    currency: b.currency,
+    amount: toCents(b.amount),
+  }
 }
 
 function cleanSavingsMove(move) {
@@ -117,10 +154,10 @@ function cleanSavingsMove(move) {
   if (typeof move.date !== 'string' || !isValidDate(move.date)) return null
   return {
     id: move.id,
-    amount: move.amount,
+    amount: toCents(move.amount),
     currency: move.currency,
     direction: move.direction,
-    note: typeof move.note === 'string' ? move.note : '',
+    note: cleanNote(move.note),
     date: move.date,
   }
 }
@@ -130,59 +167,159 @@ function clean(list, cleaner) {
   return list.map(cleaner).filter((item) => item !== null)
 }
 
-// Checks and cleans the text of a backup file.
-// Returns { transactions, categories, budgets, recurring, savings } ready to
-// restore, or null when the text is not an I AM POOR FOR NOW backup at all.
-// Older backups have no savings: they read as an empty list.
-export function parseBackup(text, builtInCategories) {
+// How many restored records had a text cut: a note over MAX_NOTE_LENGTH or a
+// category name over MAX_CATEGORY_NAME_LENGTH. Each id is counted once.
+function countTrimmed(source, result) {
+  let total = 0
+  for (const name of ['transactions', 'recurring', 'savings']) {
+    const kept = new Set(result[name].map((item) => item.id))
+    for (const raw of source[name]) {
+      if (
+        isObject(raw) &&
+        kept.delete(raw.id) &&
+        typeof raw.note === 'string' &&
+        raw.note.length > MAX_NOTE_LENGTH
+      ) {
+        total++
+      }
+    }
+  }
+  const keptCategories = new Set(result.categories.map((c) => c.id))
+  for (const raw of source.categories) {
+    if (
+      isObject(raw) &&
+      keptCategories.delete(raw.id) &&
+      typeof raw.name === 'string' &&
+      raw.name.trim().length > MAX_CATEGORY_NAME_LENGTH
+    ) {
+      total++
+    }
+  }
+  return total
+}
+
+const LISTS = ['categories', 'transactions', 'budgets', 'recurring', 'savings']
+
+// Checks and cleans the text of a backup file and says what happened to it:
+//   { ok: false, reason }  reason: 'format' (not a backup of this app),
+//                          'newer' (made by a newer version), 'tooBig'
+//                          (the text or a list is over the limits)
+//   { ok: true, data, counts, dropped, droppedTotal, trimmed }
+// data is { transactions, categories, budgets, recurring, savings } ready to
+// restore; counts is how many records of each list will be restored, and
+// dropped how many were left out (invalid, repeated, or a category whose
+// name already exists). trimmed is how many restored records had a note or a
+// category name cut to the length the forms allow. It never throws.
+// Older backups have no savings: they read as an empty list. Backups made
+// before the quincena could be configured have no quincenaSchedule: they read
+// as 15/30. data also carries quincenaSchedule (not counted in `counts`).
+export function inspectBackup(text, builtInCategories) {
   try {
+    if (typeof text !== 'string') return { ok: false, reason: 'format' }
+    if (text.length > MAX_BACKUP_BYTES) return { ok: false, reason: 'tooBig' }
     let data
     try {
       data = JSON.parse(text)
     } catch {
-      return null
+      return { ok: false, reason: 'format' }
     }
-    if (!isObject(data) || data.app !== 'quincena' || data.version !== 1) {
-      return null
+    if (!isObject(data) || data.app !== 'quincena') {
+      return { ok: false, reason: 'format' }
     }
+    if (Number.isInteger(data.version) && data.version > 1) {
+      return { ok: false, reason: 'newer' }
+    }
+    if (data.version !== 1) return { ok: false, reason: 'format' }
     const lists = [
       data.categories,
       data.transactions,
       data.budgets,
       data.recurring,
     ]
-    if (!lists.every(Array.isArray)) return null
-    if (data.savings !== undefined && !Array.isArray(data.savings)) return null
+    if (!lists.every(Array.isArray)) return { ok: false, reason: 'format' }
+    if (data.savings !== undefined && !Array.isArray(data.savings)) {
+      return { ok: false, reason: 'format' }
+    }
+    const source = {
+      categories: data.categories,
+      transactions: data.transactions,
+      budgets: data.budgets,
+      recurring: data.recurring,
+      savings: data.savings ?? [],
+    }
+    if (LISTS.some((name) => source[name].length > MAX_RECORDS)) {
+      return { ok: false, reason: 'tooBig' }
+    }
 
     const builtInIds = new Set(builtInCategories.map((c) => c.id))
-    const categories = keepFirst(
-      clean(data.categories, (c) => cleanCategory(c, builtInIds)),
-      (c) => c.id,
-    )
-    const knownIds = new Set([...builtInIds, ...categories.map((c) => c.id)])
 
-    return {
+    // a category whose name is already taken (by a built-in one in any
+    // language, or by an earlier one) is merged into it
+    const aliases = new Map()
+    const keptCategories = []
+    for (const raw of source.categories) {
+      const category = cleanCategory(raw, builtInIds)
+      if (!category) continue
+      if (keptCategories.some((c) => c.id === category.id)) continue
+      const twin = findCategoryByName(
+        [...builtInCategories, ...keptCategories],
+        category.name,
+      )
+      if (twin) {
+        aliases.set(category.id, twin.id)
+        continue
+      }
+      keptCategories.push(category)
+    }
+    const categories = keptCategories
+    const knownIds = new Set([...builtInIds, ...categories.map((c) => c.id)])
+    const resolve = (item) =>
+      isObject(item) && aliases.has(item.categoryId)
+        ? { ...item, categoryId: aliases.get(item.categoryId) }
+        : item
+
+    const result = {
       categories,
       transactions: keepFirst(
-        clean(data.transactions, (tx) => cleanTransaction(tx, knownIds)),
+        clean(source.transactions, (tx) => cleanTransaction(resolve(tx), knownIds)),
         (tx) => tx.id,
       ),
       budgets: keepFirst(
-        clean(data.budgets, (b) => cleanBudget(b, knownIds)),
+        clean(source.budgets, (b) => cleanBudget(resolve(b), knownIds)),
         (b) => `${b.categoryId}-${b.currency}`,
       ),
       recurring: keepFirst(
-        clean(data.recurring, (item) => cleanRecurring(item, knownIds)),
+        clean(source.recurring, (item) => cleanRecurring(resolve(item), knownIds)),
         (item) => item.id,
       ),
       savings: keepFirst(
-        clean(data.savings ?? [], cleanSavingsMove),
+        clean(source.savings, cleanSavingsMove),
         (move) => move.id,
       ),
+      // an older backup has no schedule, and a damaged one reads the same: 15/30
+      quincenaSchedule: normalizeSchedule(data.quincenaSchedule),
     }
+
+    const counts = {}
+    const dropped = {}
+    let droppedTotal = 0
+    for (const name of LISTS) {
+      counts[name] = result[name].length
+      dropped[name] = source[name].length - result[name].length
+      droppedTotal += dropped[name]
+    }
+    const trimmed = countTrimmed(source, result)
+    return { ok: true, data: result, counts, dropped, droppedTotal, trimmed }
   } catch {
-    return null
+    return { ok: false, reason: 'format' }
   }
+}
+
+// Same check, for callers that only want the data: null when the text is not
+// a usable backup
+export function parseBackup(text, builtInCategories) {
+  const result = inspectBackup(text, builtInCategories)
+  return result.ok ? result.data : null
 }
 
 // True when there is no valid backup date, or the last backup is older
@@ -206,4 +343,21 @@ export function isBackupReminderDue(lastBackup, transactions, today = new Date()
     .filter((date) => typeof date === 'string' && isValidDate(date))
   if (dates.length === 0) return false
   return isBackupDue(dates.reduce((a, b) => (b < a ? b : a)), today)
+}
+
+// "Movements: 12 · Budgets: 3 · ..." for a list of counts; lists with
+// nothing in them are left out. `counts` has the five keys of a backup
+// (categories counts only the custom ones). t is the translation function.
+export function summarizeCounts(counts, t) {
+  const labels = [
+    ['transactions', 'listTransactions'],
+    ['budgets', 'listBudgets'],
+    ['recurring', 'listRecurring'],
+    ['savings', 'listSavings'],
+    ['categories', 'listCategories'],
+  ]
+  const parts = labels
+    .filter(([name]) => (counts[name] ?? 0) > 0)
+    .map(([name, key]) => `${t(key)}: ${counts[name]}`)
+  return parts.length > 0 ? parts.join(' · ') : t('listNothing')
 }

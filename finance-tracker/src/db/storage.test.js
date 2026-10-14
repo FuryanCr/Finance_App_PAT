@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runMigrations } from './migrations'
 import { createTestDb } from './testDb'
+import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
 
 // storage.js gets its connection from ./database, which needs the browser.
 // The mock hands out whatever database the current test put in `current`.
@@ -38,6 +39,7 @@ const tx = (changes = {}) => ({
   categoryId: 1,
   note: 'n',
   date: '2026-10-01',
+  paymentMethod: 'cash',
   ...changes,
 })
 
@@ -77,6 +79,86 @@ describe('loadAll', () => {
     expect(state.budgets).toEqual([])
     expect(state.recurring).toEqual([])
     expect(state.savings).toEqual([])
+  })
+})
+
+describe('payment method', () => {
+  it('is saved on insert and read back', async () => {
+    const saved = await storage.insertTransaction(tx({ paymentMethod: 'sinpe' }))
+
+    expect(saved.paymentMethod).toBe('sinpe')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'sinpe' },
+    ])
+    const { transactions } = await storage.loadAll()
+    expect(transactions[0].paymentMethod).toBe('sinpe')
+  })
+
+  it('is cash when the caller does not say it', async () => {
+    const { paymentMethod, ...without } = tx()
+    expect(paymentMethod).toBe('cash')
+    const saved = await storage.insertTransaction(without)
+
+    expect(saved.paymentMethod).toBe('cash')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'cash' },
+    ])
+  })
+
+  it('never writes a value outside the three methods', async () => {
+    const saved = await storage.insertTransaction(tx({ paymentMethod: 'bitcoin' }))
+    expect(saved.paymentMethod).toBe('cash')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'cash' },
+    ])
+  })
+
+  it('changes on update', async () => {
+    const { id } = await storage.insertTransaction(tx())
+    const saved = await storage.updateTransaction(id, tx({ paymentMethod: 'card' }))
+
+    expect(saved.paymentMethod).toBe('card')
+    const { transactions } = await storage.loadAll()
+    expect(transactions[0].paymentMethod).toBe('card')
+  })
+
+  it('is kept by insertTransactions and by an income saved with its move', async () => {
+    const list = await storage.insertTransactions([
+      tx({ paymentMethod: 'card' }),
+      tx({ note: 'b' }),
+    ])
+    expect(list.map((item) => item.paymentMethod)).toEqual(['card', 'cash'])
+
+    const income = tx({ type: 'income', categoryId: null, paymentMethod: 'sinpe' })
+    const saved = await storage.insertIncomeWithSavings(income, move())
+    expect(saved.transaction.paymentMethod).toBe('sinpe')
+  })
+
+  it('survives a restore', async () => {
+    const result = await storage.restoreAll({
+      categories: [],
+      transactions: [{ ...tx({ paymentMethod: 'card' }), id: 4 }],
+      budgets: [],
+      recurring: [],
+      savings: [],
+    })
+    expect(result.transactions[0].paymentMethod).toBe('card')
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'card' },
+    ])
+  })
+
+  it('reads a restored transaction without a method as cash', async () => {
+    const { paymentMethod, ...old } = tx()
+    expect(paymentMethod).toBe('cash')
+    const result = await storage.restoreAll({
+      categories: [],
+      transactions: [{ ...old, id: 4 }],
+      budgets: [],
+      recurring: [],
+      savings: [],
+    })
+    expect(result.transactions[0].paymentMethod).toBe('cash')
   })
 })
 
@@ -178,6 +260,7 @@ describe('transactions', () => {
         categoryId: 2,
         note: 'changed',
         date: '2026-10-01',
+        paymentMethod: 'cash',
       },
       { ...tx({ note: 'other' }), id: 2 },
     ])
@@ -510,6 +593,72 @@ describe('savings', () => {
   })
 })
 
+describe('quincena schedule', () => {
+  const custom = [
+    { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+    { from: '2026-10-16', mode: 'paydays', day1: 5, day2: 20 },
+  ]
+
+  it('is 15/30 on a database that was just migrated', async () => {
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+
+  it('is saved and read back, and persisted', async () => {
+    const saved = await storage.saveQuincenaSchedule(custom)
+    expect(saved).toEqual(custom)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    expect(current.persist).toHaveBeenCalledTimes(1)
+    await noPending()
+  })
+
+  it('does not touch transactions, savings or recurring items', async () => {
+    await storage.insertTransaction(tx({ date: '2026-10-03' }))
+    await storage.insertRecurring(recurringItem({ schedule: 'second' }))
+    await storage.insertSavingsMove(move())
+    const before = await storage.loadAll()
+
+    await storage.saveQuincenaSchedule(custom)
+
+    const after = await storage.loadAll()
+    expect(after.transactions).toEqual(before.transactions)
+    expect(after.recurring).toEqual(before.recurring)
+    expect(after.savings).toEqual(before.savings)
+  })
+
+  it('restores the previous schedule when the copy to disk fails', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    current.persist.mockRejectedValueOnce(new Error('disk'))
+    await expect(
+      storage.saveQuincenaSchedule(DEFAULT_SCHEDULE),
+    ).rejects.toThrow('disk')
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+    await noPending()
+  })
+
+  it('reads damaged rows as 15/30', async () => {
+    await current.db.run('DELETE FROM quincena_config')
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+
+  it('stays when everything is cleared', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    await storage.clearAll()
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(custom)
+  })
+
+  it('is replaced by the one in a backup, and is 15/30 when the backup has none', async () => {
+    await storage.saveQuincenaSchedule(custom)
+    const base = { categories: [], transactions: [], budgets: [], recurring: [] }
+
+    const withIt = await storage.restoreAll({ ...base, quincenaSchedule: [custom[0], { from: '2026-12-01', mode: 'paydays', day1: 10, day2: null }] })
+    expect(withIt.quincenaSchedule.map((e) => e.day1)).toEqual([1, 10])
+
+    const without = await storage.restoreAll({ ...base, savings: [] })
+    expect(without.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+    expect((await storage.loadAll()).quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+  })
+})
+
 describe('clearAll', () => {
   it('removes everything the user added and keeps the built-in categories', async () => {
     const { id } = await storage.insertCategory({ name: 'Pets', color: 'cyan' })
@@ -527,6 +676,7 @@ describe('clearAll', () => {
       budgets: [],
       recurring: [],
       savings: [],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
   })
 })
@@ -577,6 +727,7 @@ describe('restoreAll', () => {
       recurring: expected.recurring,
       // ordered by id
       savings: [expected.savings[1], expected.savings[0]],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
     expect(await storage.loadAll()).toEqual(result)
     expect(await rows('SELECT amount_cents FROM transactions WHERE id = 20')).toEqual([
@@ -761,10 +912,10 @@ describe('legacy import from localStorage', () => {
         { id: 8, name: 'Gifts', color: 'slate' },
       ])
       expect(first.transactions).toEqual([
-        { id: 5, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: 'Cat', date: '2026-10-06' },
-        { id: 9, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01' },
+        { id: 5, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: 'Cat', date: '2026-10-06', paymentMethod: 'cash' },
+        { id: 9, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01', paymentMethod: 'cash' },
         // an unknown category becomes none; the invalid row is dropped
-        { id: 12, amount: 500, currency: 'CRC', type: 'expense', categoryId: null, note: 'Lost', date: '2026-10-02' },
+        { id: 12, amount: 500, currency: 'CRC', type: 'expense', categoryId: null, note: 'Lost', date: '2026-10-02', paymentMethod: 'cash' },
       ])
       expect(store.get('finance-data-imported')).toBe('1')
       expect(store.get('finance-data')).toBe(blob)
@@ -804,5 +955,159 @@ describe('legacy import from localStorage', () => {
     } finally {
       delete globalThis.localStorage
     }
+  })
+})
+
+describe('amount guard', () => {
+  it.each([Infinity, NaN, 1e308, 9e15, 1_000_000_001, 0, -5, 0.001])(
+    'refuses to save an amount of %s anywhere',
+    async (amount) => {
+      await expect(storage.insertTransaction(tx({ amount }))).rejects.toThrow()
+      await expect(storage.insertTransactions([tx({ amount })])).rejects.toThrow()
+      await expect(storage.insertSavingsMove(move({ amount }))).rejects.toThrow()
+      await expect(
+        storage.insertIncomeWithSavings(tx({ type: 'income', categoryId: null }), move({ amount })),
+      ).rejects.toThrow()
+      await expect(
+        storage.insertRecurring(recurringItem({ amount })),
+      ).rejects.toThrow()
+      await expect(
+        storage.restoreAll({
+          categories: [],
+          transactions: [{ id: 1, ...tx({ amount }) }],
+          budgets: [],
+          recurring: [],
+          savings: [],
+        }),
+      ).rejects.toThrow()
+      expect(await rows('SELECT * FROM transactions')).toEqual([])
+      expect(await rows('SELECT * FROM savings')).toEqual([])
+      await noPending()
+    },
+  )
+
+  it('refuses a budget above the cap', async () => {
+    await expect(storage.setBudget(1, 'CRC', 1e300)).rejects.toThrow()
+    await expect(storage.setBudget(1, 'CRC', Infinity)).rejects.toThrow()
+    expect(await rows('SELECT * FROM budgets')).toEqual([])
+  })
+
+  it('keeps the old data when a restore fails on a bad amount', async () => {
+    await storage.insertTransaction(tx({ note: 'keep me' }))
+    await expect(
+      storage.restoreAll({
+        categories: [],
+        transactions: [{ id: 5, ...tx({ amount: 1e308 }) }],
+        budgets: [],
+        recurring: [],
+        savings: [],
+      }),
+    ).rejects.toThrow()
+    const state = await storage.loadAll()
+    expect(state.transactions.map((item) => item.note)).toEqual(['keep me'])
+  })
+
+  it('saves an amount at the cap', async () => {
+    const saved = await storage.insertTransaction(tx({ amount: 1_000_000_000 }))
+    expect(saved.amount).toBe(1_000_000_000)
+    expect((await storage.loadAll()).transactions[0].amount).toBe(1_000_000_000)
+  })
+
+  it('skips legacy transactions with an amount or id out of range', async () => {
+    globalThis.localStorage = {
+      getItem: (key) =>
+        key === 'finance-data'
+          ? JSON.stringify({
+              transactions: [
+                { id: 1, amount: 1e308, type: 'expense', currency: 'CRC', date: '2026-10-01' },
+                { id: 2 ** 40, amount: 5, type: 'expense', currency: 'CRC', date: '2026-10-01' },
+                { id: 3, amount: 5, type: 'expense', currency: 'CRC', date: '2026-10-01' },
+              ],
+            })
+          : null,
+      setItem: () => {},
+    }
+    try {
+      const state = await storage.loadAll()
+      expect(state.transactions.map((item) => item.id)).toEqual([3])
+    } finally {
+      delete globalThis.localStorage
+    }
+  })
+})
+
+describe('a save that cannot be persisted', () => {
+  // On web the write is in memory until persist() reaches IndexedDB. When
+  // that fails the write is undone, so retrying cannot leave two copies.
+  const failOnce = () =>
+    current.persist.mockRejectedValueOnce(new Error('QuotaExceededError'))
+
+  it('does not leave a phantom transaction, so a retry saves it once', async () => {
+    failOnce()
+    await expect(storage.insertTransaction(tx({ note: 'a' }))).rejects.toThrow('Quota')
+    expect(await rows('SELECT * FROM transactions')).toEqual([])
+
+    await storage.insertTransaction(tx({ note: 'a' }))
+    const { transactions } = await storage.loadAll()
+    expect(transactions.map((item) => item.note)).toEqual(['a'])
+  })
+
+  it('undoes a batch, a category, a recurring item and a savings move', async () => {
+    failOnce()
+    await expect(storage.insertTransactions([tx(), tx()])).rejects.toThrow()
+    failOnce()
+    await expect(
+      storage.insertCategory({ name: 'Pets', color: 'cyan' }),
+    ).rejects.toThrow()
+    failOnce()
+    await expect(storage.insertRecurring(recurringItem())).rejects.toThrow()
+    failOnce()
+    await expect(storage.insertSavingsMove(move())).rejects.toThrow()
+
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([])
+    expect(state.categories).toEqual(builtIn)
+    expect(state.recurring).toEqual([])
+    expect(state.savings).toEqual([])
+    await noPending()
+  })
+
+  it('undoes an income with savings as a whole', async () => {
+    failOnce()
+    await expect(
+      storage.insertIncomeWithSavings(
+        tx({ type: 'income', categoryId: null, amount: 1000 }),
+        move({ amount: 300 }),
+      ),
+    ).rejects.toThrow()
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([])
+    expect(state.savings).toEqual([])
+  })
+
+  it('puts a confirmed recurring item back as it was', async () => {
+    const item = await storage.insertRecurring(recurringItem())
+    await storage.skipRecurring(item.id, '2026-09-2')
+    failOnce()
+    await expect(
+      storage.confirmRecurring(item.id, '2026-10-1', tx()),
+    ).rejects.toThrow()
+
+    const state = await storage.loadAll()
+    expect(state.transactions).toEqual([])
+    expect(state.recurring[0].lastPeriod).toBe('2026-09-2')
+
+    await storage.confirmRecurring(item.id, '2026-10-1', tx())
+    const after = await storage.loadAll()
+    expect(after.transactions).toHaveLength(1)
+    expect(after.recurring[0].lastPeriod).toBe('2026-10-1')
+  })
+
+  it('keeps working for the writes after it', async () => {
+    failOnce()
+    await expect(storage.insertTransaction(tx())).rejects.toThrow()
+    const saved = await storage.insertTransaction(tx({ note: 'ok' }))
+    expect(saved.note).toBe('ok')
+    await noPending()
   })
 })

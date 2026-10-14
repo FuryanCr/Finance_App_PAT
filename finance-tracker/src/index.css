@@ -261,6 +261,43 @@ main {
   color: var(--accent);
 }
 
+/* Barra de las pantallas previas (abriendo, bloqueada, con error): solo
+   el logo y el nombre, centrados y sin subir al hacer scroll */
+.app-bar--lite {
+  top: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'brand';
+  justify-items: center;
+}
+
+.app-bar--lite .brand {
+  justify-self: center;
+}
+
+/* El nombre es el título de esas pantallas: sin el margen de un h1 */
+.app-bar--lite h1.brand-name {
+  margin: 0;
+}
+
+/* Enlace para saltar la barra: invisible hasta que recibe el foco con el
+   teclado */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -64px;
+  z-index: 30;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
 /* Pestañas dentro de la barra: segunda fila a todo el ancho, centradas.
    El relleno de 4px (compensado con margen negativo) deja sitio al contorno
    de foco, que el overflow recortaría */
@@ -362,6 +399,30 @@ main {
   text-align: center;
 }
 
+/* Barra con un segmento por día de la quincena: los días que ya pasaron
+   en teal apagado, hoy en teal pleno y los que faltan en gris */
+.day-bar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.day-bar span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.day-bar .on {
+  background: var(--accent-dim);
+}
+
+.day-bar .now {
+  background: var(--accent);
+}
+
 /* Etiqueta pequeña en mayúsculas, encima de un dato */
 .label {
   font-size: 12px;
@@ -376,6 +437,42 @@ main {
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 6px 0 14px;
+}
+
+/* En la tarjeta principal el número protagonista es lo que se puede gastar
+   hoy: más grande que cualquier otra cifra de la pantalla */
+.card.hero .balance {
+  font-size: clamp(38px, 12vw, 54px);
+  overflow-wrap: anywhere; /* un monto larguísimo se parte en vez de salirse */
+}
+
+/* Cuando no hay nada que gastar hoy el número baja de peso y se explica
+   debajo con un mensaje (el color no es lo único que avisa) */
+.balance.has-message {
+  color: var(--muted);
+}
+
+/* Aviso corto debajo del número: ámbar, con texto que lo explica */
+.sub.warn {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* Lo que queda de toda la quincena: una cifra secundaria, más chica que
+   la de hoy */
+.left-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin: 12px 0 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.left-amount {
+  font-size: 20px;
+  font-weight: 600;
 }
 
 /* Texto secundario pequeño */
@@ -481,6 +578,13 @@ main {
 .pill-group {
   display: flex;
   gap: 8px;
+}
+
+/* Método de pago: tres píldoras seguidas; en pantallas angostas pasan a la
+   línea de abajo antes de salirse */
+.pill-group.payment {
+  flex-wrap: wrap;
+  margin: 6px 0 14px;
 }
 
 /* Pill base: 44px de alto para poder tocarla */
@@ -684,6 +788,33 @@ main {
 /* Tecla mientras se presiona */
 .key:active {
   background: var(--accent-dim);
+}
+
+/* Teclas más bajas en celular: así el teclado, las categorías y Guardar
+   caben juntos en pantallas de 360x640 y 390x844 */
+@media (max-width: 440px) {
+  .key {
+    height: 54px;
+  }
+}
+
+/* Barra de Guardar: queda pegada abajo y siempre visible mientras se escribe
+   el monto. El degradado deja ver el contenido que pasa por debajo; el
+   relleno inferior respeta la zona segura de los teléfonos con muesca */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: -12px;
+  background: linear-gradient(to bottom, transparent, var(--bg) 28%);
+}
+
+.save-bar .sub {
+  text-align: center;
 }
 
 /* Campo de formulario: etiqueta arriba, input abajo */
@@ -1021,6 +1152,16 @@ main > .field,
   justify-content: center;
 }
 
+/* Logo en las tarjetas vacías: más grande que en la barra y sin llamar
+   demasiado la atención */
+.logo.empty-logo {
+  width: 72px;
+  height: 72px;
+  margin: 4px auto 8px;
+  display: block;
+  opacity: 0.85;
+}
+
 /* Estados de carga, bloqueo y error (solo una tarjeta o una línea dentro de main) */
 main > .card.empty-state,
 main > p.empty {
@@ -1170,4 +1311,88 @@ main > p.empty {
 .back-link,
 .text-link {
   cursor: pointer;
+}
+
+/* Diálogo propio (reemplaza confirm y alert del navegador). Usa el
+   elemento <dialog> con showModal(): el navegador atrapa el foco y cierra
+   con Esc. */
+dialog.modal {
+  width: min(92vw, 420px);
+  margin: auto;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+dialog.modal::backdrop {
+  background: rgba(4, 10, 12, 0.66);
+}
+
+/* Los saltos de línea del mensaje se respetan (listas de lo que se borra) */
+.modal-message {
+  white-space: pre-line;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Opción extra del diálogo (por ejemplo, descargar un respaldo antes) */
+.modal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 44px;
+}
+
+.modal-check input {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+/* Botones del diálogo: uno al lado del otro, de 44px o más */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-actions .btn {
+  min-height: 44px;
+}
+
+/* Mayor gasto del gráfico, escrito debajo (el valor ya no vive solo en un
+   tooltip) */
+.bar-peak {
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Pantalla de abriendo, bloqueada o con error: el logo respira mientras
+   carga (solo si la persona no pidió menos movimiento) */
+.status-screen {
+  margin-top: 24px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .loading-logo {
+    animation: logo-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }

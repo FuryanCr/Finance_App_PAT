@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TransactionsContext } from './TransactionsContext'
-import {
-  categories as builtInCategories,
-  transactions as sampleTransactions,
-} from '../db/mockData'
+import { categories as builtInCategories } from '../db/mockData'
 import {
   clearAll,
   confirmRecurring as saveConfirmedRecurring,
@@ -19,6 +16,7 @@ import {
   insertTransactions,
   loadAll,
   restoreAll,
+  saveQuincenaSchedule as storeQuincenaSchedule,
   setBudget as saveBudget,
   skipRecurring as saveSkippedRecurring,
   updateCategory as replaceCategory,
@@ -28,8 +26,14 @@ import {
 import { acquireTabLock } from '../db/tabLock'
 import { customColorAt, findCategoryByName } from '../lib/categories'
 import { quincenaKey, todayString } from '../lib/dates'
-import Header from '../Header'
+import { DEFAULT_SCHEDULE } from '../lib/quincenaSchedule'
+import { sampleTransactions } from '../lib/sample'
+import StatusScreen from '../components/StatusScreen'
 import { useSettings } from './useSettings'
+
+// If the database has not opened by then (for example the SQLite file cannot
+// be loaded) the error screen appears instead of "opening" forever
+export const LOAD_TIMEOUT_MS = 15000
 
 export default function TransactionsProvider({ children }) {
   const [transactions, setTransactions] = useState([])
@@ -37,17 +41,27 @@ export default function TransactionsProvider({ children }) {
   const [budgets, setBudgets] = useState([])
   const [recurring, setRecurring] = useState([])
   const [savings, setSavings] = useState([])
+  const [quincenaSchedule, setQuincenaSchedule] = useState(DEFAULT_SCHEDULE)
   const [loading, setLoading] = useState(true)
+  // false, 'failed' (the database could not be opened) or 'timeout'
   const [error, setError] = useState(false)
   const [blocked, setBlocked] = useState(false)
-  const { t } = useSettings()
+  const { lang, t } = useSettings()
 
   useEffect(() => {
     let ignore = false
+    let finished = false
+    const timer = setTimeout(() => {
+      if (ignore || finished) return
+      finished = true
+      setError('timeout')
+      setLoading(false)
+    }, LOAD_TIMEOUT_MS)
     acquireTabLock()
       .then((hasLock) => {
         if (!hasLock) {
-          if (ignore) return null
+          if (ignore || finished) return null
+          finished = true
           setBlocked(true)
           setLoading(false)
           return null
@@ -55,22 +69,27 @@ export default function TransactionsProvider({ children }) {
         return loadAll()
       })
       .then((data) => {
-        if (ignore || !data) return
+        if (ignore || finished || !data) return
+        finished = true
         setTransactions(data.transactions)
         setCategories(data.categories)
         setBudgets(data.budgets)
         setRecurring(data.recurring)
         setSavings(data.savings)
+        setQuincenaSchedule(data.quincenaSchedule)
         setLoading(false)
       })
       .catch((err) => {
         console.error(err)
-        if (ignore) return
-        setError(true)
+        if (ignore || finished) return
+        finished = true
+        setError('failed')
         setLoading(false)
       })
+      .finally(() => clearTimeout(timer))
     return () => {
       ignore = true
+      clearTimeout(timer)
     }
   }, [])
 
@@ -159,7 +178,7 @@ export default function TransactionsProvider({ children }) {
 
   // handled for this quincena, without adding anything
   const skipRecurring = async (item) => {
-    const period = quincenaKey()
+    const period = quincenaKey(new Date(), quincenaSchedule)
     await saveSkippedRecurring(item.id, period)
     setRecurring((current) =>
       current.map((existing) =>
@@ -172,7 +191,7 @@ export default function TransactionsProvider({ children }) {
   // Without tx it is built from the item and dated today; with tx (what the
   // user typed) that is saved instead. Returns the saved transaction.
   const confirmRecurring = async (item, tx) => {
-    const period = quincenaKey()
+    const period = quincenaKey(new Date(), quincenaSchedule)
     const toSave = tx ?? {
       amount: item.amount,
       currency: item.currency,
@@ -211,7 +230,7 @@ export default function TransactionsProvider({ children }) {
   }
 
   const loadSampleData = async () => {
-    const saved = await insertTransactions(sampleTransactions)
+    const saved = await insertTransactions(sampleTransactions(new Date(), lang, quincenaSchedule))
     setTransactions((current) => [...current, ...saved])
   }
 
@@ -232,57 +251,39 @@ export default function TransactionsProvider({ children }) {
     setBudgets(state.budgets)
     setRecurring(state.recurring)
     setSavings(state.savings)
+    setQuincenaSchedule(state.quincenaSchedule)
+  }
+
+  // the new way to cut the quincena (see lib/quincenaSchedule changeSchedule)
+  const saveQuincenaSchedule = async (schedule) => {
+    const saved = await storeQuincenaSchedule(schedule)
+    setQuincenaSchedule(saved)
   }
 
   // screens never see a half-loaded state
-  if (loading) {
-    return (
-      <>
-        <Header />
-        <main>
-          <p className="sub empty">{t('loading')}</p>
-        </main>
-      </>
-    )
-  }
+  if (loading) return <StatusScreen busy text={t('loading')} />
 
   if (blocked) {
     return (
-      <>
-        <Header />
-        <main>
-          <section className="card empty-state">
-            <p className="sub">{t('otherTab')}</p>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => window.location.reload()}
-            >
-              {t('retry')}
-            </button>
-          </section>
-        </main>
-      </>
+      <StatusScreen
+        text={t('otherTab')}
+        actionLabel={t('retry')}
+        onAction={() => window.location.reload()}
+      />
     )
   }
 
   if (error) {
     return (
-      <>
-        <Header />
-        <main>
-          <section className="card empty-state">
-            <p className="sub">{t('dbError')}</p>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => window.location.reload()}
-            >
-              {t('retry')}
-            </button>
-          </section>
-        </main>
-      </>
+      <StatusScreen
+        text={
+          error === 'timeout'
+            ? `${t('statusDbSlow')} ${t('dbError')}`
+            : t('dbError')
+        }
+        actionLabel={t('retry')}
+        onAction={() => window.location.reload()}
+      />
     )
   }
 
@@ -308,6 +309,8 @@ export default function TransactionsProvider({ children }) {
         savings,
         addSavingsMove,
         deleteSavingsMove,
+        quincenaSchedule,
+        saveQuincenaSchedule,
         addIncomeWithSavings,
         loadSampleData,
         clearAllData,

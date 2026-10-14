@@ -1,14 +1,27 @@
 import { useState } from 'react'
 import { byNewest, parseDate, todayString } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import { currencies, formatMoney, parseAmount } from '../../lib/money'
+import { availableForSavings, quincenaFigures } from '../../lib/quincena'
 import { savingsBalance } from '../../lib/savings'
+import { useToday } from '../../lib/useToday'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 import CurrencyPills from '../../components/CurrencyPills'
 
 export default function SavingsScreen() {
   const { locale, t } = useSettings()
-  const { savings, addSavingsMove, deleteSavingsMove } = useTransactions()
+  const { confirm } = useDialog()
+  const {
+    transactions,
+    savings,
+    recurring,
+    quincenaSchedule,
+    addSavingsMove,
+    deleteSavingsMove,
+  } = useTransactions()
+  const today = useToday()
 
   const [currency, setCurrency] = useState('CRC')
   const [amountText, setAmountText] = useState('')
@@ -19,7 +32,17 @@ export default function SavingsScreen() {
   const amount = parseAmount(amountText)
   const amountValid = amount !== null && amount > 0
   const balance = savingsBalance(savings, currency)
+  // taking out cannot exceed what is saved; putting in cannot exceed what is
+  // in hand this quincena (income dated after today is not yet money)
   const tooMuch = amountValid && amount > balance
+  const available = availableForSavings(
+    quincenaFigures(
+      { transactions, savings, recurring, quincenaSchedule },
+      currency,
+      today,
+    ),
+  )
+  const tooMuchToSave = amountValid && amount > available
   const canMove = amountValid && !saving
 
   const move = async (direction) => {
@@ -48,7 +71,12 @@ export default function SavingsScreen() {
   // go below zero
   const handleDelete = async (id) => {
     if (saving) return
-    if (!window.confirm(t('confirmDeleteMove'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDeleteMove'),
+      confirmLabel: t('delete'),
+      danger: true,
+    })
+    if (!confirmed) return
     setSaving(true)
     setSaveError(false)
     try {
@@ -94,10 +122,17 @@ export default function SavingsScreen() {
             />
           </label>
           {amountText.trim() !== '' && !amountValid && (
-            <p className="field-note error">{t('invalidAmount')}</p>
+            <p className="field-note error" role="alert">{t('invalidAmount')}</p>
+          )}
+          {tooMuchToSave && (
+            <p className="field-note warning" role="status">
+              {t('notEnoughAvailable')} {formatMoney(available, currency)}
+            </p>
           )}
           {tooMuch && (
-            <p className="field-note warning">{t('notEnoughSavings')}</p>
+            <p className="field-note warning" role="status">
+              {t('notEnoughSavings')} {formatMoney(balance, currency)}
+            </p>
           )}
 
           <label className="field">
@@ -110,13 +145,13 @@ export default function SavingsScreen() {
             />
           </label>
 
-          {saveError && <p className="field-note error">{t('saveError')}</p>}
+          {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
           <div className="actions">
             <button
               type="button"
               className="btn"
-              disabled={!canMove}
+              disabled={!canMove || tooMuchToSave}
               onClick={() => move('in')}
             >
               {t('moveToSavings')}
@@ -148,11 +183,7 @@ export default function SavingsScreen() {
                           : t('takeFromSavings'))}
                     </p>
                     <p className="row-meta">
-                      {parseDate(item.date).toLocaleDateString(locale, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {formatDate(parseDate(item.date), locale)}
                     </p>
                   </div>
                   <div className="row-side">

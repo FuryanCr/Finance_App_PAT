@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTransactions } from '../../context/useTransactions'
 import { byNewest, parseDate } from '../../lib/dates'
+import { formatDate } from '../../lib/format'
 import {
   getCategoryTotals,
   getPeriodStart,
@@ -20,7 +21,8 @@ export default function StatisticsScreen() {
   const { locale, t } = useSettings()
   const [period, setPeriod] = useState('week')
   const [currency, setCurrency] = useState('CRC')
-  const { transactions, categories, savings } = useTransactions()
+  const { transactions, categories, savings, quincenaSchedule } =
+    useTransactions()
 
   const today = new Date()
   const bars = getSpendingBars(transactions, currency, period, today, locale)
@@ -37,12 +39,18 @@ export default function StatisticsScreen() {
     categories,
   ).sort((a, b) => b.total - a.total)
   const history = trimQuincenaHistory(
-    getQuincenaHistory(transactions, currency, 6, today, savings),
+    getQuincenaHistory(
+      transactions,
+      currency,
+      6,
+      today,
+      savings,
+      quincenaSchedule,
+    ),
     transactions,
     currency,
   )
-  const shortDate = (date) =>
-    date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
+  const shortDate = (date) => formatDate(date, locale, { year: false })
   const recent = transactions
     .filter((tx) => tx.currency === currency)
     .sort(byNewest)
@@ -69,6 +77,7 @@ export default function StatisticsScreen() {
             key={p}
             type="button"
             className={period === p ? 'pill active' : 'pill'}
+            aria-pressed={period === p}
             onClick={() => setPeriod(p)}
           >
             {t(p)}

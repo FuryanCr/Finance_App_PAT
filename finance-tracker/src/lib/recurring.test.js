@@ -6,12 +6,16 @@ import {
   pendingTotal,
   schedules,
 } from './recurring'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 
 // 2026-10-05 is in the first quincena, 2026-10-20 in the second
 const first = new Date(2026, 9, 5)
 const second = new Date(2026, 9, 20)
 
 const item = (schedule, lastPeriod = null) => ({ schedule, lastPeriod })
+
+// pay days on the 5th and the 20th: the quincenas are 5-19 and 20-4
+const paydays = [{ from: '2000-01-01', mode: 'paydays', day1: 5, day2: 20 }]
 
 describe('schedules', () => {
   it('has every, first and second', () => {
@@ -74,6 +78,41 @@ describe('isHandled', () => {
 
   it('is not handled when the schedule skips the current quincena', () => {
     expect(isHandled(item('first', '2026-10-2'), second)).toBe(false)
+  })
+})
+
+describe('isHandled with other pay days', () => {
+  const tenth = new Date(2026, 9, 10) // first quincena, started on the 5th
+  const third = new Date(2026, 9, 3) // second quincena, started on 09-20
+
+  it('is handled when the last period is the quincena that started on a pay day', () => {
+    expect(isHandled(item('every', '2026-10-05'), tenth, paydays)).toBe(true)
+    expect(isHandled(item('every', '2026-09-20'), third, paydays)).toBe(true)
+  })
+
+  it('is not handled by the 15/30 key', () => {
+    expect(isHandled(item('every', '2026-10-1'), tenth, paydays)).toBe(false)
+  })
+
+  it('follows the monthly half of the pay days', () => {
+    expect(isHandled(item('first', '2026-10-05'), tenth, paydays)).toBe(true)
+    expect(isHandled(item('second', '2026-10-05'), tenth, paydays)).toBe(false)
+    expect(isHandled(item('second', '2026-09-20'), third, paydays)).toBe(true)
+  })
+
+  it('is due and handled exactly one at a time', () => {
+    const done = item('every', '2026-10-05')
+    expect(isDue(done, tenth, paydays)).toBe(false)
+    expect(isHandled(done, tenth, paydays)).toBe(true)
+    const open = item('every', '2026-09-20')
+    expect(isDue(open, tenth, paydays)).toBe(true)
+    expect(isHandled(open, tenth, paydays)).toBe(false)
+  })
+
+  it('keeps the default 15/30 behavior when no schedule is given', () => {
+    expect(isHandled(item('first', '2026-10-1'), first)).toBe(
+      isHandled(item('first', '2026-10-1'), first, DEFAULT_SCHEDULE),
+    )
   })
 })
 

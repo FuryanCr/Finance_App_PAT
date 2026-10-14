@@ -31,8 +31,8 @@ describe('runMigrations on a new database', () => {
   it('ends at the latest version with every table and the date index', async () => {
     await runMigrations(db)
 
-    expect(migrations).toHaveLength(4)
-    expect(await version()).toBe(4)
+    expect(migrations).toHaveLength(6)
+    expect(await version()).toBe(6)
     const tables = await tableNames()
     for (const table of ['categories', 'transactions', 'budgets', 'recurring', 'savings']) {
       expect(tables).toContain(table)
@@ -69,7 +69,7 @@ describe('runMigrations on a new database', () => {
 
     await expect(runMigrations(db)).resolves.toBeUndefined()
 
-    expect(await version()).toBe(4)
+    expect(await version()).toBe(6)
     expect(await rows('SELECT * FROM categories ORDER BY id')).toEqual(before)
   })
 })
@@ -85,7 +85,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(4)
+    expect(await version()).toBe(6)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['budgets', 'recurring', 'savings']),
     )
@@ -111,7 +111,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(4)
+    expect(await version()).toBe(6)
     expect(await tableNames()).toEqual(
       expect.arrayContaining(['recurring', 'savings']),
     )
@@ -135,7 +135,7 @@ describe('upgrading from an earlier version', () => {
 
     await runMigrations(db)
 
-    expect(await version()).toBe(4)
+    expect(await version()).toBe(6)
     expect(await tableNames()).toContain('savings')
     expect(await rows('SELECT * FROM savings')).toEqual([])
     expect(await rows('SELECT amount_cents FROM transactions')).toEqual([
@@ -143,6 +143,190 @@ describe('upgrading from an earlier version', () => {
     ])
     expect(await rows('SELECT amount_cents FROM recurring')).toEqual([
       { amount_cents: 100 },
+    ])
+  })
+})
+
+// A database as version 4 of the app left it, with every table filled
+async function fillVersion4() {
+  await migrateTo(4)
+  await db.run("INSERT INTO categories (name, color) VALUES ('Mascotas', 'cyan')")
+  const income = await db.run(
+    `INSERT INTO transactions
+      (amount_cents, currency, type, category_id, note, date)
+      VALUES (25000000, 'CRC', 'income', NULL, 'Quincena', '2026-10-01')`,
+  )
+  const expense = await db.run(
+    `INSERT INTO transactions
+      (amount_cents, currency, type, category_id, note, date)
+      VALUES (850000, 'CRC', 'expense', 1, 'Almuerzo', '2026-10-02')`,
+  )
+  const dollars = await db.run(
+    `INSERT INTO transactions
+      (amount_cents, currency, type, category_id, note, date)
+      VALUES (999, 'USD', 'expense', 4, 'Streaming', '2026-10-06')`,
+  )
+  const custom = await db.run(
+    `INSERT INTO transactions
+      (amount_cents, currency, type, category_id, note, date)
+      VALUES (500000, 'CRC', 'expense', 5, '', '2026-10-09')`,
+  )
+  await db.run(
+    "INSERT INTO budgets (category_id, currency, amount_cents) VALUES (1, 'CRC', 9000000)",
+  )
+  await db.run(
+    `INSERT INTO recurring (amount_cents, currency, type, category_id, note, schedule)
+      VALUES (4500000, 'CRC', 'expense', 3, 'Luz', 'first')`,
+  )
+  await db.run(
+    `INSERT INTO savings (amount_cents, currency, direction, note, date)
+      VALUES (3000000, 'CRC', 'in', 'Fondo', '2026-10-10')`,
+  )
+  return [income, expense, dollars, custom].map((r) => r.changes.lastId)
+}
+
+describe('upgrading from version 4 (payment method, v5)', () => {
+  it('keeps every row and reads the old transactions as cash', async () => {
+    const ids = await fillVersion4()
+    expect(await version()).toBe(4)
+
+    await runMigrations(db)
+
+    expect(await version()).toBe(6)
+    const transactions = await rows(
+      'SELECT id, amount_cents, currency, type, category_id, note, date, payment_method FROM transactions ORDER BY id',
+    )
+    expect(transactions).toEqual([
+      { id: ids[0], amount_cents: 25000000, currency: 'CRC', type: 'income', category_id: null, note: 'Quincena', date: '2026-10-01', payment_method: 'cash' },
+      { id: ids[1], amount_cents: 850000, currency: 'CRC', type: 'expense', category_id: 1, note: 'Almuerzo', date: '2026-10-02', payment_method: 'cash' },
+      { id: ids[2], amount_cents: 999, currency: 'USD', type: 'expense', category_id: 4, note: 'Streaming', date: '2026-10-06', payment_method: 'cash' },
+      { id: ids[3], amount_cents: 500000, currency: 'CRC', type: 'expense', category_id: 5, note: '', date: '2026-10-09', payment_method: 'cash' },
+    ])
+  })
+
+  it('leaves the other tables and the date index untouched', async () => {
+    await fillVersion4()
+    await runMigrations(db)
+
+    expect(await rows('SELECT * FROM budgets')).toEqual([
+      { category_id: 1, currency: 'CRC', amount_cents: 9000000 },
+    ])
+    expect(await rows('SELECT amount_cents, note FROM recurring')).toEqual([
+      { amount_cents: 4500000, note: 'Luz' },
+    ])
+    expect(await rows('SELECT amount_cents, direction FROM savings')).toEqual([
+      { amount_cents: 3000000, direction: 'in' },
+    ])
+    expect(await rows('SELECT name FROM categories WHERE id = 5')).toEqual([
+      { name: 'Mascotas' },
+    ])
+    const indexed = await rows('PRAGMA index_info(idx_transactions_date)')
+    expect(indexed.map((column) => column.name)).toEqual(['date'])
+  })
+
+  it('accepts cash, card and sinpe and rejects anything else', async () => {
+    await runMigrations(db)
+    const add = (method) =>
+      db.run(
+        `INSERT INTO transactions
+          (amount_cents, currency, type, category_id, note, date, payment_method)
+          VALUES (100, 'CRC', 'expense', 1, '', '2026-10-01', ?)`,
+        [method],
+      )
+    await add('cash')
+    await add('card')
+    await add('sinpe')
+    await expect(add('bitcoin')).rejects.toThrow()
+    await expect(add(null)).rejects.toThrow()
+    expect(await rows('SELECT payment_method FROM transactions ORDER BY id')).toEqual([
+      { payment_method: 'cash' },
+      { payment_method: 'card' },
+      { payment_method: 'sinpe' },
+    ])
+  })
+
+  it('gives cash to a row inserted without a method (older code paths)', async () => {
+    await runMigrations(db)
+    await insertTx(1, 700)
+    expect(await rows('SELECT payment_method FROM transactions')).toEqual([
+      { payment_method: 'cash' },
+    ])
+  })
+
+  it('does not run again on a database that is already at version 5', async () => {
+    await fillVersion4()
+    await runMigrations(db)
+    await db.run("UPDATE transactions SET payment_method = 'card' WHERE id = 1")
+    await runMigrations(db)
+    expect(await version()).toBe(6)
+    expect(await rows('SELECT payment_method FROM transactions WHERE id = 1')).toEqual([
+      { payment_method: 'card' },
+    ])
+  })
+})
+
+// A database as version 5 of the app left it, with every table filled
+async function fillVersion5() {
+  await fillVersion4()
+  await runMigrations(db, migrations.slice(0, 5))
+  await db.run("UPDATE transactions SET payment_method = 'card' WHERE id = 2")
+}
+
+describe('upgrading from version 5 (configurable quincena, v6)', () => {
+  it('keeps every row of every table untouched', async () => {
+    await fillVersion5()
+    expect(await version()).toBe(5)
+    const tables = ['categories', 'transactions', 'budgets', 'recurring', 'savings']
+    const before = {}
+    for (const table of tables) {
+      before[table] = await rows(`SELECT * FROM ${table} ORDER BY 1`)
+    }
+
+    await runMigrations(db)
+
+    expect(await version()).toBe(6)
+    for (const table of tables) {
+      expect(await rows(`SELECT * FROM ${table} ORDER BY 1`)).toEqual(before[table])
+    }
+  })
+
+  it('leaves the person in 15/30 (days 1 and 16) from the start of time', async () => {
+    await fillVersion5()
+    await runMigrations(db)
+    expect(await rows('SELECT * FROM quincena_config')).toEqual([
+      { effective_from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+    ])
+  })
+
+  it('seeds 15/30 on a new database too', async () => {
+    await runMigrations(db)
+    expect(await rows('SELECT mode, day1, day2 FROM quincena_config')).toEqual([
+      { mode: 'fixed', day1: 1, day2: 16 },
+    ])
+  })
+
+  it('accepts one or two pay days and rejects bad modes, days and repeats', async () => {
+    await runMigrations(db)
+    const add = (from, mode, day1, day2) =>
+      db.run(
+        'INSERT INTO quincena_config (effective_from, mode, day1, day2) VALUES (?, ?, ?, ?)',
+        [from, mode, day1, day2],
+      )
+    await expect(add('2026-11-05', 'paydays', 5, 20)).resolves.toBeDefined()
+    await expect(add('2026-12-01', 'paydays', 31, null)).resolves.toBeDefined()
+    await expect(add('2027-01-01', 'weekly', 5, 20)).rejects.toThrow()
+    await expect(add('2027-02-01', 'paydays', 0, null)).rejects.toThrow()
+    await expect(add('2027-03-01', 'paydays', 5, 32)).rejects.toThrow()
+    await expect(add('2026-11-05', 'paydays', 7, null)).rejects.toThrow()
+  })
+
+  it('does not seed again on a database that is already at version 6', async () => {
+    await fillVersion5()
+    await runMigrations(db)
+    await db.run("UPDATE quincena_config SET mode = 'paydays', day1 = 5, day2 = 20")
+    await runMigrations(db)
+    expect(await rows('SELECT mode, day1, day2 FROM quincena_config')).toEqual([
+      { mode: 'paydays', day1: 5, day2: 20 },
     ])
   })
 })
