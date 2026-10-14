@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_BACKUP_BYTES,
+  MAX_ID,
+  MAX_RECORDS,
   buildBackup,
+  inspectBackup,
   isBackupDue,
   isBackupReminderDue,
   parseBackup,
+  summarizeCounts,
 } from './backup'
+import { DEFAULT_SCHEDULE } from './quincenaSchedule'
 
 const builtIn = [
   { id: 1, key: 'food', color: 'orange' },
@@ -17,9 +23,9 @@ const now = new Date('2026-10-12T15:30:00Z')
 const state = {
   categories: [...builtIn, { id: 7, name: 'Mascotas', color: 'cyan' }],
   transactions: [
-    { id: 1, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01' },
-    { id: 2, amount: 8500.5, currency: 'CRC', type: 'expense', categoryId: 1, note: 'Lunch', date: '2026-10-02' },
-    { id: 3, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: '', date: '2026-10-06' },
+    { id: 1, amount: 250000, currency: 'CRC', type: 'income', categoryId: null, note: 'Pay', date: '2026-10-01', paymentMethod: 'sinpe' },
+    { id: 2, amount: 8500.5, currency: 'CRC', type: 'expense', categoryId: 1, note: 'Lunch', date: '2026-10-02', paymentMethod: 'cash' },
+    { id: 3, amount: 9.99, currency: 'USD', type: 'expense', categoryId: 7, note: '', date: '2026-10-06', paymentMethod: 'card' },
   ],
   budgets: [
     { categoryId: 1, currency: 'CRC', amount: 50000 },
@@ -73,7 +79,82 @@ describe('parseBackup', () => {
       budgets: state.budgets,
       recurring: state.recurring,
       savings: state.savings,
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
+  })
+
+  describe('quincena schedule', () => {
+    const custom = [
+      { from: '2000-01-01', mode: 'fixed', day1: 1, day2: 16 },
+      { from: '2026-10-16', mode: 'paydays', day1: 5, day2: 20 },
+    ]
+
+    it('is written to the backup and read back', () => {
+      const backup = buildBackup({ ...state, quincenaSchedule: custom }, now)
+      expect(backup.quincenaSchedule).toEqual(custom)
+      expect(backup.version).toBe(1)
+      const result = parseBackup(JSON.stringify(backup), builtIn)
+      expect(result.quincenaSchedule).toEqual(custom)
+    })
+
+    it('reads an old backup without it as 15/30', () => {
+      const old = JSON.parse(file())
+      delete old.quincenaSchedule
+      const result = parseBackup(JSON.stringify(old), builtIn)
+      expect(result).not.toBeNull()
+      expect(result.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+      expect(result.transactions).toEqual(state.transactions)
+    })
+
+    it('reads a damaged one as 15/30 and does not count it in the lists', () => {
+      for (const bad of [null, 'x', 5, [], [{ mode: 'weekly' }], {}]) {
+        const inspected = inspectBackup(file({ quincenaSchedule: bad }), builtIn)
+        expect(inspected.ok).toBe(true)
+        expect(inspected.data.quincenaSchedule).toEqual(DEFAULT_SCHEDULE)
+        expect(Object.keys(inspected.counts)).toEqual([
+          'categories',
+          'transactions',
+          'budgets',
+          'recurring',
+          'savings',
+        ])
+      }
+    })
+
+    it('keeps the "handled in" mark of a recurring item made with pay days', () => {
+      const item = { ...validRecurring, lastPeriod: '2026-10-05' }
+      const result = parse({ recurring: [item] })
+      expect(result.recurring[0].lastPeriod).toBe('2026-10-05')
+    })
+  })
+
+  it('keeps the payment method of each transaction', () => {
+    const result = parseBackup(file(), builtIn)
+    expect(result.transactions.map((tx) => tx.paymentMethod)).toEqual([
+      'sinpe',
+      'cash',
+      'card',
+    ])
+  })
+
+  it('reads an older backup without a payment method as cash', () => {
+    const old = JSON.parse(file())
+    for (const tx of old.transactions) delete tx.paymentMethod
+    const result = parseBackup(JSON.stringify(old), builtIn)
+    expect(result.transactions.map((tx) => tx.paymentMethod)).toEqual([
+      'cash',
+      'cash',
+      'cash',
+    ])
+  })
+
+  it('reads an unknown payment method as cash and keeps the record', () => {
+    const odd = JSON.parse(file())
+    odd.transactions[0].paymentMethod = 'bitcoin'
+    const result = inspectBackup(JSON.stringify(odd), builtIn)
+    expect(result.ok).toBe(true)
+    expect(result.droppedTotal).toBe(0)
+    expect(result.data.transactions[0].paymentMethod).toBe('cash')
   })
 
   it('reads an older backup without savings as an empty list', () => {
@@ -155,6 +236,7 @@ describe('parseBackup', () => {
       budgets: [],
       recurring: [],
       savings: [],
+      quincenaSchedule: DEFAULT_SCHEDULE,
     })
   })
 
@@ -202,7 +284,7 @@ describe('parseBackup', () => {
     })
     expect(result.transactions.map((x) => x.note)).toEqual(['', '', 'Lunch', 'Lunch', 'Lunch'])
     expect(result.transactions.map((x) => x.categoryId)).toEqual([1, 1, null, 7, null])
-    expect(Object.keys(result.transactions[0])).toHaveLength(7)
+    expect(Object.keys(result.transactions[0])).toHaveLength(8)
   })
 
   it('drops budgets that are invalid or point to an unknown category', () => {
@@ -335,5 +417,226 @@ describe('isBackupReminderDue', () => {
   it('uses the oldest of several transactions out of order', () => {
     const list = [tx('2026-10-27'), tx('2026-10-01'), tx('2026-10-20')]
     expect(isBackupReminderDue('garbage', list, today)).toBe(true)
+  })
+})
+
+describe('limits of a restored backup', () => {
+  const inspect = (changes) => inspectBackup(file(changes), builtIn)
+
+  it.each([1e308, 9e15, 1e21, 1_000_000_001, Infinity, -5, 0, 0.001])(
+    'drops an amount of %s',
+    (amount) => {
+      const result = inspect({
+        transactions: [{ ...validTx, amount }, { ...validTx, id: 9 }],
+        budgets: [{ ...validBudget, amount }],
+        recurring: [{ ...validRecurring, amount }],
+        savings: [{ ...validMove, amount }],
+      })
+      expect(result.ok).toBe(true)
+      expect(result.data.transactions.map((tx) => tx.id)).toEqual([9])
+      expect(result.data.budgets).toEqual([])
+      expect(result.data.recurring).toEqual([])
+      expect(result.data.savings).toEqual([])
+    },
+  )
+
+  it('counts the notes and category names that were cut', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, note: 'x'.repeat(61) },
+        { ...validTx, id: 9, note: 'short' },
+      ],
+      categories: [{ id: 50, name: 'N'.repeat(30), color: 'violet' }],
+    })
+    expect(result.trimmed).toBe(2)
+    expect(result.data.transactions[0].note).toHaveLength(60)
+  })
+
+  it('does not count a cut text of a record that was dropped', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, amount: -5, note: 'x'.repeat(61) }],
+    })
+    expect(result.trimmed).toBe(0)
+  })
+
+  it('keeps an amount at the cap', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, amount: 1_000_000_000 }],
+    })
+    expect(result.data.transactions).toHaveLength(1)
+  })
+
+  it('rounds amounts to cents', () => {
+    const result = inspect({ transactions: [{ ...validTx, amount: 10.126 }] })
+    expect(result.data.transactions[0].amount).toBe(10.13)
+  })
+
+  it('drops ids above 2^31 - 1 and keeps the largest allowed', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, id: MAX_ID + 1 },
+        { ...validTx, id: 9007199254740991 },
+        { ...validTx, id: MAX_ID },
+      ],
+    })
+    expect(result.data.transactions.map((tx) => tx.id)).toEqual([MAX_ID])
+  })
+
+  it('cuts notes to 60 characters', () => {
+    const result = inspect({
+      transactions: [{ ...validTx, note: 'x'.repeat(5000) }],
+      savings: [{ ...validMove, note: 'y'.repeat(5000) }],
+      recurring: [{ ...validRecurring, note: 'z'.repeat(5000) }],
+    })
+    expect(result.data.transactions[0].note).toHaveLength(60)
+    expect(result.data.savings[0].note).toHaveLength(60)
+    expect(result.data.recurring[0].note).toHaveLength(60)
+  })
+
+  it('trims and cuts category names to 24 characters', () => {
+    const result = inspect({
+      categories: [{ id: 7, name: `  ${'A'.repeat(100)}  `, color: 'cyan' }],
+    })
+    expect(result.data.categories[0].name).toBe('A'.repeat(24))
+  })
+
+  it('merges a category named like a built-in one, in either language', () => {
+    const result = inspect({
+      categories: [
+        { id: 7, name: 'comida', color: 'cyan' },
+        { id: 8, name: 'FOOD', color: 'sand' },
+        { id: 9, name: 'Mascotas', color: 'slate' },
+        { id: 10, name: ' mascotás ', color: 'cyan' },
+      ],
+      transactions: [
+        { ...validTx, id: 1, categoryId: 7 },
+        { ...validTx, id: 2, categoryId: 10 },
+      ],
+    })
+    expect(result.data.categories.map((c) => c.id)).toEqual([9])
+    // their transactions move to the category that already had the name
+    expect(result.data.transactions.map((tx) => tx.categoryId)).toEqual([1, 9])
+    expect(result.dropped.categories).toBe(3)
+  })
+
+  it('drops years outside 2000-2100', () => {
+    const result = inspect({
+      transactions: [
+        { ...validTx, id: 1, date: '0001-01-01' },
+        { ...validTx, id: 2, date: '9999-12-31' },
+        { ...validTx, id: 3, date: '2026-10-01' },
+      ],
+    })
+    expect(result.data.transactions.map((tx) => tx.id)).toEqual([3])
+  })
+
+  it('rejects text over the size limit', () => {
+    expect(inspectBackup('x'.repeat(MAX_BACKUP_BYTES + 1), builtIn)).toEqual({
+      ok: false,
+      reason: 'tooBig',
+    })
+  })
+
+  it('rejects a list over the record limit', () => {
+    const result = inspect({
+      transactions: new Array(MAX_RECORDS + 1).fill(0),
+    })
+    expect(result).toEqual({ ok: false, reason: 'tooBig' })
+  })
+})
+
+describe('inspectBackup', () => {
+  it('counts what is restored and what is dropped, per list', () => {
+    const result = inspectBackup(
+      file({
+        transactions: [
+          validTx,
+          { ...validTx, id: 2, amount: -1 },
+          { ...validTx, id: 3, date: 'x' },
+          validTx,
+          'nope',
+        ],
+        budgets: [validBudget, { categoryId: 99, currency: 'CRC', amount: 5 }],
+      }),
+      builtIn,
+    )
+    expect(result.ok).toBe(true)
+    expect(result.counts).toEqual({
+      categories: 1,
+      transactions: 1,
+      budgets: 1,
+      recurring: 2,
+      savings: 2,
+    })
+    expect(result.dropped).toEqual({
+      categories: 0,
+      transactions: 4,
+      budgets: 1,
+      recurring: 0,
+      savings: 0,
+    })
+    expect(result.droppedTotal).toBe(5)
+  })
+
+  it('reports nothing dropped for a clean backup', () => {
+    const result = inspectBackup(file(), builtIn)
+    expect(result.droppedTotal).toBe(0)
+    expect(result.data).toEqual(parseBackup(file(), builtIn))
+  })
+
+  it('tells a newer version from a file that is not a backup', () => {
+    expect(inspect2({ ...buildBackup(state, now), version: 2 })).toEqual({
+      ok: false,
+      reason: 'newer',
+    })
+    expect(inspect2({ ...buildBackup(state, now), version: 'x' }).reason).toBe(
+      'format',
+    )
+    expect(inspect2({ ...buildBackup(state, now), app: 'other' }).reason).toBe(
+      'format',
+    )
+    expect(inspectBackup('not json', builtIn).reason).toBe('format')
+    expect(inspectBackup(undefined, builtIn).reason).toBe('format')
+    expect(inspectBackup('[]', builtIn).reason).toBe('format')
+  })
+
+  it('never throws on hostile structures', () => {
+    const hostile = [
+      '{"app":"quincena","version":1,"categories":[null,1,"x",[]],"transactions":[null],"budgets":[{}],"recurring":[[]],"savings":[0]}',
+      '{"app":"quincena","version":1,"categories":[],"transactions":[{"__proto__":{"x":1},"id":1}],"budgets":[],"recurring":[]}',
+    ]
+    for (const text of hostile) {
+      expect(() => inspectBackup(text, builtIn)).not.toThrow()
+      expect(inspectBackup(text, builtIn).ok).toBe(true)
+    }
+  })
+})
+
+function inspect2(object) {
+  return inspectBackup(JSON.stringify(object), builtIn)
+}
+
+describe('summarizeCounts', () => {
+  const t = (key) => `<${key}>`
+
+  it('lists every non-empty list with its count', () => {
+    expect(
+      summarizeCounts(
+        { transactions: 12, budgets: 3, recurring: 0, savings: 4, categories: 1 },
+        t,
+      ),
+    ).toBe(
+      '<listTransactions>: 12 · <listBudgets>: 3 · <listSavings>: 4 · <listCategories>: 1',
+    )
+  })
+
+  it('says there is nothing when every list is empty', () => {
+    expect(summarizeCounts({}, t)).toBe('<listNothing>')
+    expect(
+      summarizeCounts(
+        { transactions: 0, budgets: 0, recurring: 0, savings: 0, categories: 0 },
+        t,
+      ),
+    ).toBe('<listNothing>')
   })
 })

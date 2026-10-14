@@ -44,6 +44,7 @@ export default function CategoryBars({
               <span className="row-name">
                 <span
                   className="dot"
+                  aria-hidden="true"
                   style={{ background: categoryColor(category) }}
                 />
                 {categoryLabel(category, t)}
@@ -53,7 +54,7 @@ export default function CategoryBars({
                 {budget && ` / ${formatMoney(budget.amount, currency)}`}
               </span>
             </div>
-            <div className="mini-bar">
+            <div className="mini-bar" aria-hidden="true">
               <div style={{ width: `${barWidth}%`, background: barColor }} />
             </div>
             {budget && ratio >= 1 && (

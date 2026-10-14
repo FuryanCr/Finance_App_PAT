@@ -6,11 +6,13 @@ import {
   categoryLabel,
   findCategoryByName,
 } from '../../lib/categories'
+import { useDialog } from '../../context/useDialog'
 import { useSettings } from '../../context/useSettings'
 import { useTransactions } from '../../context/useTransactions'
 
 function CategoryEditor({ category, onDone }) {
   const { t } = useSettings()
+  const { confirm } = useDialog()
   const { transactions, categories, updateCategory, deleteCategory } =
     useTransactions()
 
@@ -43,7 +45,12 @@ function CategoryEditor({ category, onDone }) {
 
   const handleDelete = async () => {
     if (saving) return
-    if (!window.confirm(t('confirmDeleteCategory'))) return
+    const { confirmed } = await confirm({
+      message: t('confirmDeleteCategory'),
+      confirmLabel: t('deleteCategory'),
+      danger: true,
+    })
+    if (!confirmed) return
     // with no transactions nothing moves; the id only has to exist
     const moveToId = used > 0 ? Number(moveTo) : others[0].id
     setSaving(true)
@@ -69,7 +76,7 @@ function CategoryEditor({ category, onDone }) {
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      {clash && <p className="field-note error">{t('categoryExists')}</p>}
+      {clash && <p className="field-note error" role="alert">{t('categoryExists')}</p>}
 
       <p className="label">{t('color')}</p>
       <div className="swatches">
@@ -101,7 +108,7 @@ function CategoryEditor({ category, onDone }) {
         </label>
       )}
 
-      {saveError && <p className="field-note error">{t('saveError')}</p>}
+      {saveError && <p className="field-note error" role="alert">{t('saveError')}</p>}
 
       <div className="actions">
         <button
@@ -148,6 +155,7 @@ export default function CategoriesScreen() {
                   <span className="row-name">
                     <span
                       className="dot"
+                      aria-hidden="true"
                       style={{ background: categoryColor(c) }}
                     />
                     {categoryLabel(c, t)}
